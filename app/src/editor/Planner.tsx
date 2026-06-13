@@ -50,7 +50,7 @@ export default function Planner() {
     const xs = scene.room.polygon.map((p) => p[0])
     const ys = scene.room.polygon.map((p) => p[1])
     const minX = Math.min(...xs) - 1.15, maxX = Math.max(...xs) + 0.95
-    const minY = Math.min(...ys) - 0.7, maxY = Math.max(...ys) + 0.9
+    const minY = Math.min(...ys) - 0.7, maxY = Math.max(...ys) + 1.1
     const cw = (maxX - minX) * SCALE, ch = (maxY - minY) * SCALE
     const W = wrap.clientWidth, H = wrap.clientHeight
     const zoom = Math.min(W / cw, H / ch) * 0.94

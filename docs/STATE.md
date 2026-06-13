@@ -18,6 +18,8 @@
    _DoD:_ mesmos resultados (±tolerância) do `python-simulator` no cenário base.
 
 ## Dívidas do editor (refinar depois)
+- Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
+  entrada empilhada). OK para o nível atual.
 - Clamp usa bbox da casca, não o polígono em L (peça pode entrar no recorte ausente).
 - Falta: undo/redo, "+ Criar" equipamento custom + "Meus modelos", ferramenta Parede/Divisor
   como desenho por arraste (hoje inserem peça), render especial de porta/painel (hatch/folga),

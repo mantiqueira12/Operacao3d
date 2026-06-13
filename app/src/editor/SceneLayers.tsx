@@ -38,11 +38,34 @@ function wrapLabel(name: string): string[] {
 
 function Floor({ poly }: { poly: Array<[number, number]> }) {
   const b = bbox(poly)
+  const n = poly.length
   const frontW = Math.max(...poly.filter((p) => p[1] === b.maxY).map((p) => p[0])) * SCALE
-  const d = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
+  const points = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
+
+  // Caminho da parede = perímetro EXCETO a aresta da frente (ambos vértices em y=maxY).
+  let frontEdge = 0
+  for (let i = 0; i < n; i++) {
+    const a = poly[i], c = poly[(i + 1) % n]
+    if (Math.abs(a[1] - b.maxY) < 1e-6 && Math.abs(c[1] - b.maxY) < 1e-6) frontEdge = i
+  }
+  const wallVerts: Array<[number, number]> = []
+  for (let k = 1; k <= n; k++) wallVerts.push(poly[(frontEdge + k) % n])
+  const wallD =
+    'M' + wallVerts.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' L')
+
   return (
     <g className="floor-layer">
-      <polygon className="floor" points={d} />
+      <polygon className="floor" points={points} />
+      {/* paredes grossas (aberto na frente) */}
+      <path
+        d={wallD}
+        fill="none"
+        stroke="#1A1A1A"
+        strokeWidth={11}
+        strokeLinejoin="round"
+        strokeLinecap="round"
+        vectorEffect="non-scaling-stroke"
+      />
       {/* portão de enrolar (frente) */}
       <line className="gate-line" x1={0} y1={b.maxY * SCALE} x2={frontW} y2={b.maxY * SCALE} />
       <rect className="gate-post" x={-4} y={b.maxY * SCALE - 4} width={8} height={8} />
@@ -96,7 +119,7 @@ function Zones({ scene }: { scene: RestaurantScene }) {
   const frontCx = (b.minX + b.maxX) / 2 * SCALE
   const frontY = b.maxY * SCALE
   const arrow = (dx: number) =>
-    `M${frontCx + dx},${frontY + 10} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
+    `M${frontCx + dx},${frontY + 36} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
   return (
     <g className="zone-layer">
       <text className="zone-t" x={(b.minX + 2 / 2) * SCALE} y={(divY / 2) * SCALE} fontSize={15} transform={`rotate(-90 ${(b.minX + 1) * SCALE} ${(divY / 2) * SCALE})`}>COZINHA</text>
@@ -104,8 +127,8 @@ function Zones({ scene }: { scene: RestaurantScene }) {
       {[-45, 0, 45].map((dx) => (
         <path key={dx} className="ent-arr" d={arrow(dx)} />
       ))}
-      <text className="ent-t" x={frontCx} y={frontY + 44} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
-      <text className="ent-sub" x={frontCx} y={frontY + 60} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
+      <text className="ent-t" x={frontCx} y={frontY + 64} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
+      <text className="ent-sub" x={frontCx} y={frontY + 80} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
     </g>
   )
 }
@@ -137,7 +160,7 @@ function Cotas({ scene }: { scene: RestaurantScene }) {
       {VC(b.minY * S, stepY * S, b.maxX * S + 96, fmt(stepY - b.minY))}
       {HC(topX * S, b.maxX * S, stepY * S + 30, fmt(b.maxX - topX))}
       {VC(stepY * S, b.maxY * S, b.maxX * S + 60, fmt(b.maxY - stepY))}
-      {HC(b.minX * S, b.maxX * S, b.maxY * S + 46, fmt(b.maxX - b.minX))}
+      {HC(b.minX * S, b.maxX * S, b.maxY * S + 20, fmt(b.maxX - b.minX))}
     </g>
   )
 }
