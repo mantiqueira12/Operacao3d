@@ -4,17 +4,16 @@
 > Mantenha curto. Última atualização: 2026-06-13.
 
 ## Agora
-- Scaffolding React+Vite+TS concluído em `app/` (item 1 da fila). Não quebra `prototype/`.
-  `npm run dev` sobe (200 em :5173); `lint`, `typecheck` e `build` passam.
-  CI em `.github/workflows/ci.yml` (lint + typecheck + build, working-dir `app/`).
+- StorageAdapter concluído (item 1 da fila): `app/src/storage/` com interface assíncrona
+  (cloud-ready), `LocalStorageAdapter` e factory `createStorage()`. Vitest + happy-dom;
+  9 testes passando. CI agora roda `npm test` também.
+- Antes: scaffolding React+Vite+TS em `app/` (dev:200, lint/typecheck/build verdes).
 
 ## Próximo (fila priorizada)
-1. **StorageAdapter** (interface + `LocalStorageAdapter`) em `app/src`. _DoD:_ salvar/carregar
-   projeto sem acoplar à UI; testes unitários (adicionar Vitest).
-2. **Portar modelo de domínio** (cena, catálogo, tipos) do `planner.js` para TS.
-   _DoD:_ tipos de Item/Room/Project; catálogo paramétrico.
-3. **Portar editor 2D** (SVG) para componente React. _DoD:_ inserir/mover/redimensionar peça.
-4. **Portar motor DES** (`sim-core.js`) para TS em Web Worker; validar contra Python.
+1. **Portar modelo de domínio** (cena, catálogo, tipos) do `planner.js` para TS.
+   _DoD:_ tipos de Item/Room/Project; catálogo paramétrico. Persistir via `createStorage()`.
+2. **Portar editor 2D** (SVG) para componente React. _DoD:_ inserir/mover/redimensionar peça.
+3. **Portar motor DES** (`sim-core.js`) para TS em Web Worker; validar contra Python.
    _DoD:_ mesmos resultados (±tolerância) do `python-simulator` no cenário base.
 
 ## Bloqueios
