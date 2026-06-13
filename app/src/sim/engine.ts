@@ -12,7 +12,7 @@
    Unidades: metros · minutos simulados. Dia operacional: 10:00 → 22:00. */
 
 import { baseConfig } from './defaults'
-import { CUT_Y, DEFAULT_SCENE, deriveScene, GATE, OUT, W, zoneOf } from './geometry'
+import { CUT_X, CUT_Y, D, DEFAULT_SCENE, deriveScene, GATE, OUT, W, zoneOf } from './geometry'
 import { computeSlots, NavGrid } from './nav'
 import { Rng } from './rng'
 import type { MenuItem, SceneItem, SimConfig, Station, Vec2 } from './types'
@@ -286,6 +286,55 @@ export interface SimKPIs {
   eqUtilizationPct: Record<string, number>
   opUtilizationPct: number[]
   bread: BreadKPIs
+}
+
+/* ---------------------------------------------------------------- snapshots (render) */
+export interface FrameCustomer {
+  id: number
+  x: number
+  y: number
+  state: CustomerState
+}
+export interface FrameOperator {
+  idx: number
+  role: 'atendente' | 'padeiro'
+  x: number
+  y: number
+  state: string
+  bstate?: string
+  statusText: string
+  carrying: string | null
+  color: string
+}
+/** Frame leve e serializável para animação (2D/3D). */
+export interface Frame {
+  simTime: number
+  customers: FrameCustomer[]
+  operators: FrameOperator[]
+  waitQueue: number
+  prepQueue: number
+  breadStock: number
+}
+export interface StationSnapshot {
+  id: string
+  type: string
+  name: string
+  x: number
+  y: number
+  w: number
+  h: number
+  cx: number
+  cy: number
+  color: string
+  sp: Vec2 | null
+}
+/** Cena estática (enviada uma vez) para o renderizador montar o cenário. */
+export interface SceneSnapshot {
+  stations: StationSnapshot[]
+  blockers: SceneItem[]
+  queueSlots: Vec2[]
+  pickupSlots: Vec2[]
+  room: { W: number; D: number; gate: number; cutX: number; cutY: number; out: typeof OUT }
 }
 
 /* ============================================================================ */
@@ -1638,6 +1687,52 @@ export class SimEngine {
       }
       return { id: mi.id, name: mi.name, dist: ok ? +d.toFixed(1) : null, steps: mi.steps.length }
     })
+  }
+
+  /* ---------------------------------------------------------------- snapshots */
+  /** Frame leve do estado atual (posições) para o renderizador. */
+  snapshot(): Frame {
+    const r3 = (v: number) => Math.round(v * 1000) / 1000
+    return {
+      simTime: this.simTime,
+      customers: this.customers.map((c) => ({ id: c.id, x: r3(c.x), y: r3(c.y), state: c.state })),
+      operators: this.operators.map((o) => ({
+        idx: o.idx,
+        role: o.role,
+        x: r3(o.x),
+        y: r3(o.y),
+        state: o.state,
+        bstate: o.bstate,
+        statusText: o.statusText,
+        carrying: o.carrying,
+        color: o.color,
+      })),
+      waitQueue: this.waitQueue.length,
+      prepQueue: this.prepQueue.length,
+      breadStock: this.BR.stock,
+    }
+  }
+  /** Cena estática (estações, bloqueadores, slots, geometria) para montar o cenário. */
+  sceneSnapshot(): SceneSnapshot {
+    return {
+      stations: this.stations.map((s) => ({
+        id: s.id,
+        type: s.type,
+        name: s.name,
+        x: s.x,
+        y: s.y,
+        w: s.w,
+        h: s.h,
+        cx: s.cx,
+        cy: s.cy,
+        color: s.color,
+        sp: s.sp,
+      })),
+      blockers: this.blockers.map((b) => ({ ...b })),
+      queueSlots: this.queueSlots.map((s) => ({ ...s })),
+      pickupSlots: this.pickupSlots.map((s) => ({ ...s })),
+      room: { W, D, gate: GATE, cutX: CUT_X, cutY: CUT_Y, out: OUT },
+    }
   }
 }
 

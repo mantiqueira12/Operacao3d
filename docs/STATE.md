@@ -16,14 +16,22 @@
   (a) RNG semeável → runs reprodutíveis; (b) `stepAlong` consome o orçamento de velocidade
   inteiro (movimento dt-independente; o original avançava só 1 célula de 0,05 m por tick,
   acoplando a velocidade do operador à taxa de quadros); (c) sem heatmap/trilhas (visuais).
+- **Web Worker pronto.** `worker-core.ts`: classe `SimController` (núcleo PURO e testável,
+  recebe um `post`) com protocolo de mensagens `init|run|step|reset|snapshot` →
+  `ready|kpis|frame|done|error`. `worker.ts`: shell fino que liga `self.onmessage/postMessage`
+  ao controller e gerencia o laço ao vivo (`play`/`pause` com setInterval). `engine.ts` ganhou
+  `snapshot()` (frame leve serializável: posições de clientes/operadores) e `sceneSnapshot()`
+  (cena estática: estações, bloqueadores, slots, geometria). 7 testes novos (50 no total):
+  protocolo, `run` reproduz `runSimulation`, KPIs periódicos, frame com posições, clamp no fim
+  do dia, captura de erro. Lint+typecheck+build OK.
 - Fundação espacial antes disso: `types/defaults/rng/geometry/nav` (8 testes) + editor 2D React.
 
 ## Próximo (continuar o motor DES)
-1. **Web Worker** (`worker.ts`) envolvendo `runSimulation`/`SimEngine` p/ rodar fora da UI
-   thread (postMessage com KPIs + frames p/ animação 2D/3D).
-2. **Cross-check** estatístico vs Python (médias ±tolerância sobre N réplicas com seeds) +
+1. **Cross-check** estatístico vs Python (médias ±tolerância sobre N réplicas com seeds) +
    adapter RestaurantScene(editor) → SceneItem[](sim).
-3. **Painel de simulação na UI** React: rodar, ver KPIs ao vivo, gargalos, P&L, pão.
+2. **Painel de simulação na UI** React: instanciar o Worker
+   (`new Worker(new URL('./sim/worker.ts', import.meta.url), {type:'module'})`), rodar, ver
+   KPIs ao vivo, gargalos, P&L, pão; depois animação 2D (e 3D) a partir dos frames.
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
