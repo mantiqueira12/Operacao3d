@@ -4,25 +4,33 @@
 > Mantenha curto. Última atualização: 2026-06-13.
 
 ## Agora
-- **Motor de simulação (DES) — port iniciado.** Decisão do dono: portar o `sim-core.js`
-  ESPACIAL (A* + operadores que caminham + acoplado ao layout) como canônico em TS.
-  Python vira cross-check FROUXO de KPIs agregados (modelos diferentes — ver nota); DoD
-  redefinido (não é match exato por seed). Fundação espacial pronta e testada em `app/src/sim/`:
-  `types.ts`, `defaults.ts` (cenário base Loja 206), `rng.ts` (PRNG semeável — extensão p/
-  reprodutibilidade), `geometry.ts` (casca em L, deriveScene), `nav.ts` (NavGrid + A* +
-  servicePoint + reach + slots). 8 testes novos (34 no total): malha 53×104, estações
-  alcançáveis, A* atravessa o vão do painel, slots na calçada, RNG determinístico.
-- Antes: editor 2D React com paridade de UX (conferida lado a lado com o protótipo).
+- **Motor de simulação (DES) — loop dinâmico portado.** `app/src/sim/engine.ts`: classe
+  `SimEngine` encapsula todo o estado (clientes, operadores, filas, métricas S, pão BR, locks).
+  Portado fiel de `sim-core.js`: demanda (Poisson + curva horária), ciclo do cliente
+  (chegada→fila→PDV→preparo→retirada→saída), FSM dos atendentes (volante/fixo), FSM do padeiro
+  (BOH: farinha→batedeira→estufa→forno→estoque), tick(dt), computeKPIs() + breadKPIs +
+  flowDistances. Função `runSimulation(cfg, scene, {dt,until})` roda o dia headless e devolve
+  KPIs. 9 testes novos (43 no total): sanidade do dia, reprodutibilidade por seed, resposta a
+  carga (mais demanda → mais desistência), passo de tempo. Lint+typecheck+build OK.
+- **Melhorias deliberadas sobre o original** (documentadas no topo do `engine.ts`):
+  (a) RNG semeável → runs reprodutíveis; (b) `stepAlong` consome o orçamento de velocidade
+  inteiro (movimento dt-independente; o original avançava só 1 célula de 0,05 m por tick,
+  acoplando a velocidade do operador à taxa de quadros); (c) sem heatmap/trilhas (visuais).
+- Fundação espacial antes disso: `types/defaults/rng/geometry/nav` (8 testes) + editor 2D React.
 
 ## Próximo (continuar o motor DES)
-1. **Loop dinâmico** do motor (`engine.ts`): demanda (Poisson + curva horária), ciclo do
-   cliente (chegada→fila→PDV→preparo→retirada→saída), FSM dos atendentes (volante/fixo),
-   FSM do padeiro (BOH), tick(dt), e `computeKPIs()` (filas, espera, utilização, gargalos,
-   P&L, pão). Refs: sim-core.js 430-1057 (movimento/tick), 528-639 (padeiro), 647-699
-   (demanda), 1074-1230 (KPIs/financeiro/pão).
-2. **Web Worker** (`worker.ts`) + `runSimulation()` headless p/ testes.
-3. **Cross-check** estatístico vs Python (médias ±tolerância) + adapter
-   RestaurantScene(editor) → SceneItem[](sim).
+1. **Web Worker** (`worker.ts`) envolvendo `runSimulation`/`SimEngine` p/ rodar fora da UI
+   thread (postMessage com KPIs + frames p/ animação 2D/3D).
+2. **Cross-check** estatístico vs Python (médias ±tolerância sobre N réplicas com seeds) +
+   adapter RestaurantScene(editor) → SceneItem[](sim).
+3. **Painel de simulação na UI** React: rodar, ver KPIs ao vivo, gargalos, P&L, pão.
+
+## Dívida do port (validar com o dono antes de mudar)
+- **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
+  operador já pegou a tarefa, ele ainda "entrega" e conta `served++` (além de `balkedPickup++`).
+  Logo served+balked pode passar de `arrived` (~69 num dia base, seed 42). É FIEL ao
+  `sim-core.js` (mesma lógica em `delivering`). Decisão pendente: manter (fidelidade) ou
+  cancelar a tarefa no abandono.
 
 ## Nota: por que NÃO bate exatamente com o Python
 - `sim-core.js` = DES espacial (A*, layout, pão, 3 itens, taxa 30/h, 12h). Python = pipeline

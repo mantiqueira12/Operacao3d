@@ -302,6 +302,11 @@ export class NavGrid {
     return []
   }
 
+  /** Limpa o cache de rotas (usado pelo watchdog quando um operador trava). */
+  clearPathCache() {
+    this.pathCache.clear()
+  }
+
   pathLen(path: Vec2[], sx: number, sy: number): number {
     let L = 0
     let px = sx
