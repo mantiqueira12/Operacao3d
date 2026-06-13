@@ -4,18 +4,31 @@
 > Mantenha curto. Última atualização: 2026-06-13.
 
 ## Agora
-- Editor 2D com PARIDADE DE UX (decisão do dono: protótipo = spec visual). `app/src/editor/`:
-  `planner.css` (design system portado), `icons.tsx` (ícones + glyph do catálogo),
-  `SceneLayers.tsx` (floor/grid/FOH-BOH/zonas/cotas/itens/overlay em px, SCALE=100),
-  `Planner.tsx` (topbar, catálogo, propriedades+swatches, camadas, resumo, carimbo),
-  `useScene.ts` (estado + persistência). Funcional: inserir, mover, redimensionar (8 alças),
-  girar, duplicar, excluir, zoom/pan/Ajustar, camadas, snap, medir, export/import JSON,
-  carimbo editável. Verificado no browser (11 itens, 6 cotas, sem erros). 26 testes.
-- Antes: domínio TS, StorageAdapter (async), scaffolding React+Vite+TS.
+- **Motor de simulação (DES) — port iniciado.** Decisão do dono: portar o `sim-core.js`
+  ESPACIAL (A* + operadores que caminham + acoplado ao layout) como canônico em TS.
+  Python vira cross-check FROUXO de KPIs agregados (modelos diferentes — ver nota); DoD
+  redefinido (não é match exato por seed). Fundação espacial pronta e testada em `app/src/sim/`:
+  `types.ts`, `defaults.ts` (cenário base Loja 206), `rng.ts` (PRNG semeável — extensão p/
+  reprodutibilidade), `geometry.ts` (casca em L, deriveScene), `nav.ts` (NavGrid + A* +
+  servicePoint + reach + slots). 8 testes novos (34 no total): malha 53×104, estações
+  alcançáveis, A* atravessa o vão do painel, slots na calçada, RNG determinístico.
+- Antes: editor 2D React com paridade de UX (conferida lado a lado com o protótipo).
 
-## Próximo (fila priorizada)
-1. **Portar motor DES** (`sim-core.js`) para TS em Web Worker; validar contra Python.
-   _DoD:_ mesmos resultados (±tolerância) do `python-simulator` no cenário base.
+## Próximo (continuar o motor DES)
+1. **Loop dinâmico** do motor (`engine.ts`): demanda (Poisson + curva horária), ciclo do
+   cliente (chegada→fila→PDV→preparo→retirada→saída), FSM dos atendentes (volante/fixo),
+   FSM do padeiro (BOH), tick(dt), e `computeKPIs()` (filas, espera, utilização, gargalos,
+   P&L, pão). Refs: sim-core.js 430-1057 (movimento/tick), 528-639 (padeiro), 647-699
+   (demanda), 1074-1230 (KPIs/financeiro/pão).
+2. **Web Worker** (`worker.ts`) + `runSimulation()` headless p/ testes.
+3. **Cross-check** estatístico vs Python (médias ±tolerância) + adapter
+   RestaurantScene(editor) → SceneItem[](sim).
+
+## Nota: por que NÃO bate exatamente com o Python
+- `sim-core.js` = DES espacial (A*, layout, pão, 3 itens, taxa 30/h, 12h). Python = pipeline
+  abstrato SimPy (4 itens, taxa 2/min, 480 min, seed 42, cenário base degenerado: 89% balking).
+  São MODELOS diferentes. Validação = comparação estatística de KPIs agregados, não igualdade.
+  Golden Python (ref): ~112 servidos, 11,7% atend., ~14 cli/h, R$~6,9k receita (20 réplicas).
 
 ## Dívidas do editor (refinar depois)
 - Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
