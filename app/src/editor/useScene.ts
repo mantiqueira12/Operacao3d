@@ -4,9 +4,10 @@ import {
   loja206Scene,
   type Item,
   type RestaurantScene,
+  type TitleBlock,
 } from '../domain'
 import { createStorage } from '../storage'
-import { boundsOf, clampPosition, rotated, snap } from './geometry'
+import { boundsOf, clampPosition, rotated } from './geometry'
 
 const newId = () => crypto.randomUUID()
 
@@ -80,7 +81,7 @@ export function useScene() {
     [],
   )
 
-  /** Move a peça para (x, y) com snap e clamp na casca. */
+  /** Move a peça para (x, y) com clamp na casca (snap é aplicado pela UI). */
   const moveItem = useCallback(
     (id: string, x: number, y: number) => {
       setScene((s) => {
@@ -88,13 +89,27 @@ export function useScene() {
         const it = s.items.find((i) => i.id === id)
         if (!it) return s
         const b = boundsOf(s.room.polygon)
-        const g = s.snap ?? 0.05
-        const c = clampPosition(snap(x, g), snap(y, g), it.width, it.depth, b)
+        const c = clampPosition(x, y, it.width, it.depth, b)
         return { ...s, items: s.items.map((i) => (i.id === id ? { ...i, ...c } : i)) }
       })
     },
     [],
   )
+
+  const patchTitleBlock = useCallback((patch: Partial<TitleBlock>) => {
+    setScene((s) => {
+      if (!s) return s
+      const base: TitleBlock = s.titleBlock ?? {
+        project: '', unit: 'Projeto', address: '', responsible: '', dateRev: '',
+      }
+      return { ...s, titleBlock: { ...base, ...patch } }
+    })
+  }, [])
+
+  const replaceScene = useCallback((next: RestaurantScene) => {
+    setScene(next)
+    setSelectedId(null)
+  }, [])
 
   const addItem = useCallback((type: string) => {
     setScene((s) => {
@@ -163,5 +178,7 @@ export function useScene() {
     removeItem,
     duplicateItem,
     rotateItem,
+    patchTitleBlock,
+    replaceScene,
   }
 }
