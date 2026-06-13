@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>All'Antico Panino · LOJA 206 — Operação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,600;0,700;1,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="operacao.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== TOPBAR ===== -->
+    <header id="topbar">
+      <div class="brand">All'<b>Antico</b> Panino</div>
+      <div class="topdoc">Loja 206 · Operação <span class="verbadge">sim v1</span></div>
+      <div class="topspacer"></div>
+
+      <div class="toolgroup seg-view">
+        <button class="tbtn active" id="view-2d">Planta 2D</button>
+        <button class="tbtn" id="view-3d">Loja 3D</button>
+      </div>
+
+      <div class="toolgroup">
+        <button class="tbtn" id="view-kds" title="Mostrar/ocultar o monitor KDS sobre a planta">▤ Monitor KDS</button>
+      </div>
+
+      <div class="toolgroup" id="cam-presets" style="display:none">
+        <button class="tbtn cam" data-cam="iso">Isométrica</button>
+        <button class="tbtn cam" data-cam="top">Topo</button>
+        <button class="tbtn cam" data-cam="cliente">Cliente</button>
+        <button class="tbtn cam" data-cam="balcao">Balcão</button>
+      </div>
+
+      <div class="toolgroup">
+        <button class="tbtn" id="btn-sync" title="Re-ler a planta salva no estúdio (automático a cada edição; este botão força)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v5h-5"></path></svg>Atualizar planta
+        </button>
+        <button class="tbtn" id="btn-planta" title="Editar o layout no estúdio de planta">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3zM3 9h18M9 21V9"></path></svg>Editar planta
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== LEFT: CONTROLES ===== -->
+    <aside id="left" class="rail">
+      <div class="sec">
+        <h3>Simulação</h3>
+        <div class="clock" id="clk">10:00</div>
+        <div class="runrow">
+          <button class="runbtn primary" id="btn-play">Iniciar</button>
+          <button class="runbtn" id="btn-reset" title="Resetar o dia (R)">Resetar</button>
+        </div>
+        <div class="spds" id="spds">
+          <button class="spd" data-spd="1">1×</button>
+          <button class="spd" data-spd="5">5×</button>
+          <button class="spd on" data-spd="15">15×</button>
+          <button class="spd" data-spd="60">60×</button>
+        </div>
+        <div class="kbd-hint">Espaço = play/pause · 1–4 = velocidade · R = reset</div>
+      </div>
+
+      <div class="sec">
+        <h3>Equipe · atendimento</h3>
+        <div class="field"><label>Atendentes (1–4)</label><input type="number" id="cfg-ops" value="2" min="1" max="4" /></div>
+        <div id="op-assign"></div>
+        <div class="kbd-hint" id="baker-hint">+ 1 padeiro no fundo (produção própria — aba Padaria)</div>
+      </div>
+
+      <div class="sec">
+        <h3>Parâmetros da operação</h3>
+        <div class="grid2">
+          <div class="field"><label>SLA alvo (min)</label><input type="number" id="cfg-sla" value="15" min="3" max="30" /></div>
+          <div class="field"><label>Desloc. (m/min)</label><input type="number" id="cfg-walk" value="30" min="5" max="80" /></div>
+        </div>
+        <div class="grid2">
+          <div class="field"><label>Custo atend. (R$/h)</label><input type="number" id="cfg-opcost" value="25" min="0" max="200" step="0.5" /></div>
+          <div class="field"><label>Custo fixo dia</label><input type="number" id="cfg-fixedcost" value="800" min="0" step="50" /></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Camadas</h3>
+        <div class="toggles">
+          <div class="sw on" id="sw-trails"><span>Trilhas dos operadores</span><span class="toggle"></span></div>
+          <div class="sw" id="sw-heat"><span>Heatmap de circulação</span><span class="toggle"></span></div>
+          <div class="sw on" id="sw-labels"><span>Rótulos</span><span class="toggle"></span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Resultados</h3>
+        <button class="pbtn" id="btn-eod">Relatório do dia</button>
+        <div class="grid2">
+          <button class="pbtn" id="btn-exp-json">KPIs · JSON</button>
+          <button class="pbtn" id="btn-exp-csv">KPIs · CSV</button>
+        </div>
+        <button class="pbtn" id="btn-snapshot">Salvar cenário p/ comparar</button>
+        <button class="pbtn" id="btn-compare">Comparar cenários</button>
+        <button class="pbtn" id="btn-mc">Monte Carlo (5×)</button>
+        <div class="savestatus" id="save-status"></div>
+      </div>
+    </aside>
+
+    <!-- ===== CANVAS ===== -->
+    <main id="canvasWrap">
+      <svg id="sim2d" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="wrap3d" style="display:none">
+        <canvas id="sim3d"></canvas>
+        <div id="labels3d"></div>
+        <div id="fin3d">
+          <h4>Acabamentos</h4>
+          <div class="finrow"><span class="finlab">Piso</span>
+            <div class="finchips">
+              <button class="fchip" data-floor="porcelanato"><span class="cdot" style="background:#EFE9D8"></span>Porcelanato</button>
+              <button class="fchip" data-floor="granilite"><span class="cdot" style="background:#DCD5C2"></span>Granilite</button>
+              <button class="fchip" data-floor="cimento"><span class="cdot" style="background:#B9B5AB"></span>Cimento</button>
+            </div>
+          </div>
+          <div class="finrow"><span class="finlab">Parede</span>
+            <div class="finchips">
+              <button class="fchip" data-wallfin="panna"><span class="cdot" style="background:#F2ECDD"></span>Panna</button>
+              <button class="fchip" data-wallfin="branco"><span class="cdot" style="background:#FAF8F2"></span>Branco</button>
+              <button class="fchip" data-wallfin="oliva"><span class="cdot" style="background:#A8AE94"></span>Oliva</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="hintbar" id="hintbar">Cena lida da planta — edite o layout no estúdio e a operação se adapta · arraste: pan · roda: zoom</div>
+      <div class="scene-stamp" id="scene-stamp"></div>
+
+      <!-- ===== MONITOR DE OPERAÇÃO (KDS) — dock inferior sobre a planta ===== -->
+      <div id="wrapKds" style="display:none">
+        <div class="kds-dock">
+          <div class="kds-dockhead">
+            <span class="kd-title">Monitor da operação</span>
+            <div class="kt-clock"><span id="km-clock">10:00</span><em id="km-phase">abertura</em></div>
+            <div class="kt-metrics" id="km-metrics"></div>
+            <button class="km-collapse" id="km-collapse" title="Recolher / expandir">▾</button>
+          </div>
+          <div class="kds-cols">
+            <div class="kds-foh">
+              <div class="kds-h"><span>FOH · Pedidos</span><span id="km-foh-sub"></span></div>
+              <div class="km-tickets" id="km-orders"><div class="km-empty">Sem pedidos ativos</div></div>
+            </div>
+            <div class="kds-boh">
+              <div class="kds-h"><span>BOH · Fábrica de pães</span><span id="km-boh-sub"></span></div>
+              <div id="km-boh"></div>
+            </div>
+            <div class="kds-alerts">
+              <div class="kds-h"><span>Central de alertas</span><button class="km-clear" id="km-clear">limpar</button></div>
+              <div class="km-feed" id="km-alerts"><div class="km-empty">Tudo tranquilo — sem ocorrências.</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ===== RIGHT: KPIs / KDS / ANÁLISE / CARDÁPIO ===== -->
+    <aside id="right" class="rail">
+      <div class="tabs">
+        <button class="tab on" data-tab="kpis">KPIs</button>
+        <button class="tab" data-tab="kds">Equipe</button>
+        <button class="tab" data-tab="cliente">Cliente</button>
+        <button class="tab" data-tab="cardapio">Cardápio</button>
+        <button class="tab" data-tab="padaria">Padaria</button>
+        <button class="tab" data-tab="analise">Análise</button>
+      </div>
+
+      <div class="tabpanes">
+        <div class="pane on" id="pane-kpis">
+          <div class="sec">
+            <h3>Desempenho</h3>
+            <div class="mgrid">
+              <div class="mc"><div class="mv" id="m-served">0</div><div class="ml">Atendidos</div></div>
+              <div class="mc"><div class="mv" id="m-queue">0</div><div class="ml">Na fila</div></div>
+              <div class="mc"><div class="mv" id="m-pickup">0</div><div class="ml">Aguard. preparo</div></div>
+              <div class="mc"><div class="mv" id="m-wait">--</div><div class="ml">Espera média</div></div>
+              <div class="mc"><div class="mv red" id="m-balk">0</div><div class="ml">Desistências</div></div>
+              <div class="mc"><div class="mv" id="m-balkpct">0%</div><div class="ml">Taxa desist.</div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h3>Financeiro</h3>
+            <div class="mgrid">
+              <div class="mc"><div class="mv" id="m-revh">R$0/h</div><div class="ml">Receita/hora</div></div>
+              <div class="mc"><div class="mv" id="m-ticket">--</div><div class="ml">Ticket médio</div></div>
+              <div class="mc"><div class="mv red" id="m-cost">R$0</div><div class="ml">Custo operac.</div></div>
+              <div class="mc"><div class="mv" id="m-margin">--</div><div class="ml">Margem (R$)</div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h3>Capacidade · Layout</h3>
+            <div class="mgrid">
+              <div class="mc"><div class="mv" id="m-tput">0/h</div><div class="ml">Throughput</div></div>
+              <div class="mc"><div class="mv" id="m-prep">--</div><div class="ml">Preparo real</div></div>
+              <div class="mc"><div class="mv" id="m-qwait">--</div><div class="ml">Espera p/ preparo</div></div>
+              <div class="mc"><div class="mv" id="m-peakq">0</div><div class="ml">Pico de fila</div></div>
+              <div class="mc"><div class="mv" id="m-walk">--</div><div class="ml">m andados/pedido</div></div>
+              <div class="mc"><div class="mv" id="m-congest">0m</div><div class="ml">Congestionamento</div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h3>Throughput ao longo do dia</h3>
+            <div class="sparkbox" id="spark"></div>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-kds">
+          <div class="sec">
+            <h3>Utilização — equipe</h3>
+            <p class="note">Atendentes operam na <b>frente (FOH)</b>; o padeiro produz no <b>fundo (BOH)</b>. Os pedidos ao vivo ficam no <b>Monitor</b> (botão no topo).</p>
+            <div id="util-ops"></div>
+          </div>
+          <div class="sec">
+            <h3>Utilização — estações</h3>
+            <div id="util-eq"></div>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-cliente">
+          <div class="sec">
+            <h3>Quantos clientes passam</h3>
+            <p class="note">Quem chega, quando chega e quanto pede. É daqui que a simulação gera os pedidos.</p>
+            <div class="chips" id="scenario-chips">
+              <button class="chip" data-scn="vale">Vale</button>
+              <button class="chip" data-scn="almoco">Pico almoço</button>
+              <button class="chip on" data-scn="dia">Dia completo</button>
+            </div>
+            <div class="field"><label>Clientes por hora (média base)</label><input type="number" id="cfg-rate" value="30" min="5" max="150" /></div>
+            <div class="field"><label>Curva ao longo do dia</label>
+              <select id="cfg-curve">
+                <option value="flat">Constante</option>
+                <option value="lunch">Pico almoço (12–14h)</option>
+                <option value="dinner">Pico jantar (19–21h)</option>
+                <option value="both" selected>Almoço + jantar</option>
+              </select>
+            </div>
+            <div class="curvebox" id="curve-preview"></div>
+          </div>
+          <div class="sec">
+            <h3>O que cada cliente pede</h3>
+            <div class="grid2">
+              <div class="field"><label>Máx. lanches/pedido</label><input type="number" id="cfg-maxitems" value="3" min="1" max="6" /></div>
+              <div class="field"><label>Pedidos grandes %</label><input type="number" id="cfg-bias" value="30" min="0" max="100" /></div>
+            </div>
+            <p class="note">Mix de preferência — de cada 100 lanches pedidos, quantos são de cada item. Os preços e o modo de preparo ficam na aba Cardápio.</p>
+            <div id="mix-list"></div>
+          </div>
+          <div class="sec">
+            <h3>Paciência do cliente</h3>
+            <div class="grid2">
+              <div class="field"><label>Desiste da fila (min)</label><input type="number" id="cfg-tol" value="12" min="3" max="30" /></div>
+              <div class="field"><label>Limite retirada (min)</label><input type="number" id="cfg-pickup" value="30" min="10" max="60" /></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-padaria">
+          <div id="pad-warn"></div>
+          <div class="sec">
+            <h3>Origem do pão</h3>
+            <div class="chips" id="bread-mode">
+              <button class="chip" data-bmode="propria">Própria</button>
+              <button class="chip" data-bmode="hibrido">Híbrido</button>
+              <button class="chip" data-bmode="terc">Terceirizado</button>
+            </div>
+            <p class="note" id="bread-mode-note"></p>
+            <div class="field" id="hybrid-field" style="display:none"><label>% produzido internamente (híbrido): <b id="hybrid-val">60</b>%</label>
+              <input type="range" id="pad-hybrid" min="0" max="100" step="5" value="60" /></div>
+          </div>
+          <div class="sec">
+            <h3>Agora na padaria</h3>
+            <div id="pad-pipe"></div>
+            <div id="pad-stocks"></div>
+          </div>
+          <div class="sec" id="sec-pad-fabrica">
+            <h3>Fábrica (BOH) — turno &amp; capacidade</h3>
+            <p class="note">O padeiro produz o turno inteiro e <b>estoca</b> pães para a frente consumir. Aqui se mede quanto dá pra produzir por turno e se 1 turno basta.</p>
+            <div class="grid3">
+              <div class="field"><label>Horas/turno</label><input type="number" id="pad-shifthours" min="1" max="12" /></div>
+              <div class="field"><label>Turnos/dia</label><input type="number" id="pad-shifts" min="1" max="2" /></div>
+              <div class="field"><label>Capac. estoque</label><input type="number" id="pad-storage" min="10" max="500" /></div>
+            </div>
+            <div id="pad-capacity"></div>
+          </div>
+          <div class="sec" id="sec-pad-prod">
+            <h3>Produção — parâmetros</h3>
+            <div class="grid2">
+              <div class="field"><label>Pães por fornada</label><input type="number" id="pad-batch" min="4" max="60" /></div>
+              <div class="field"><label>Estoque alvo (pães)</label><input type="number" id="pad-target" min="0" max="300" /></div>
+            </div>
+            <div class="grid3">
+              <div class="field"><label>Batedeira (min)</label><input type="number" id="pad-mix" min="3" max="60" /></div>
+              <div class="field"><label>Estufa (min)</label><input type="number" id="pad-proof" min="10" max="240" /></div>
+              <div class="field"><label>Forno (min)</label><input type="number" id="pad-bake" min="5" max="90" /></div>
+            </div>
+            <div class="grid2">
+              <div class="field"><label>Pães prontos às 10h</label><input type="number" id="pad-breadstart" min="0" max="300" /></div>
+              <div class="field"><label>Farinha inicial (kg)</label><input type="number" id="pad-flourstart" min="0" max="500" /></div>
+            </div>
+            <div class="grid2">
+              <div class="field"><label>Farinha por pão (kg)</label><input type="number" id="pad-flourperb" min="0.02" max="1" step="0.01" /></div>
+              <div class="field"><label>Farinha (R$/kg)</label><input type="number" id="pad-flourprice" min="0" step="0.1" /></div>
+            </div>
+          </div>
+          <div class="sec" id="sec-pad-custos">
+            <h3>Custos &amp; investimento — produção própria</h3>
+            <div class="grid2">
+              <div class="field"><label>Outros insumos (R$/pão)</label><input type="number" id="pad-extra" min="0" step="0.1" /></div>
+              <div class="field"><label>Energia (R$/fornada)</label><input type="number" id="pad-energy" min="0" step="0.5" /></div>
+            </div>
+            <div class="grid2">
+              <div class="field"><label>Padeiro (R$/h)</label><input type="number" id="pad-bakercost" min="0" step="0.5" /></div>
+              <div class="field"><label>Aluguel (R$/m²·mês)</label><input type="number" id="pad-rentm2" min="0" step="10" /></div>
+            </div>
+            <div class="subhead">Investimento por equipamento &middot; vida útil (meses)</div>
+            <div class="sr-head invh"><span>Equip.</span><span>Investimento</span><span>Vida</span></div>
+            <div class="invrow"><span>Batedeira</span><input type="number" id="pad-inv-bat" min="0" step="100" /><input type="number" id="pad-life-bat" min="6" max="120" /></div>
+            <div class="invrow"><span>Estufa</span><input type="number" id="pad-inv-est" min="0" step="100" /><input type="number" id="pad-life-est" min="6" max="120" /></div>
+            <div class="invrow"><span>Forno</span><input type="number" id="pad-inv-for" min="0" step="100" /><input type="number" id="pad-life-for" min="6" max="120" /></div>
+          </div>
+          <div class="sec">
+            <h3>Custos — terceirizado</h3>
+            <div class="grid3">
+              <div class="field"><label>Pão (R$/un)</label><input type="number" id="pad-tercprice" min="0" step="0.1" /></div>
+              <div class="field"><label>Frete (R$/dia)</label><input type="number" id="pad-tercfrete" min="0" step="1" /></div>
+              <div class="field"><label>Pães/dia</label><input type="number" id="pad-tercqty" min="0" max="600" /></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h3>Viabilidade — própria × híbrido × terceirizar</h3>
+            <div id="pad-viab"></div>
+          </div>
+          <div class="sec">
+            <h3>Sensibilidade — custo/pão × volume</h3>
+            <p class="note">Onde a produção própria cruza o preço terceirizado. Abaixo do cruzamento, terceirizar vence.</p>
+            <div id="pad-sens"></div>
+          </div>
+          <div class="sec">
+            <h3>Estoques refrigerados (FOH)</h3>
+            <p class="note">Mesmo conceito de estoque/capacidade aplicado à geladeira de bebidas e à vitrine.</p>
+            <div class="grid3">
+              <div class="field"><label>Bebidas às 10h</label><input type="number" id="inv-bibstart" min="0" max="300" /></div>
+              <div class="field"><label>Cap. geladeira</label><input type="number" id="inv-bibcap" min="0" max="300" /></div>
+              <div class="field"><label>Cap. vitrine</label><input type="number" id="inv-vitcap" min="0" max="120" /></div>
+            </div>
+            <div id="pad-inv"></div>
+          </div>
+          <div class="sec">
+            <h3>Premissas do modelo</h3>
+            <div id="pad-premissas" class="premissas"></div>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-analise">
+          <div id="menu-warn"></div>
+          <div class="sec">
+            <h3>Diagnóstico da operação</h3>
+            <div id="ana-diag"><div class="alr alr-b">Configure e inicie a simulação</div></div>
+          </div>
+          <div class="sec">
+            <h3>Fluxo no layout (distâncias reais)</h3>
+            <div id="ana-flow"></div>
+          </div>
+          <div class="sec">
+            <h3>Resumo de vendas</h3>
+            <div id="ana-sales"><div class="empty">Aguardando dados…</div></div>
+          </div>
+          <div class="sec">
+            <h3>Gargalos</h3>
+            <div id="ana-bottle"><div class="empty">Aguardando dados…</div></div>
+          </div>
+        </div>
+
+        <div class="pane" id="pane-cardapio">
+          <div class="sec">
+            <h3>Cardápio e fluxo de produção</h3>
+            <p class="note">Cada item define onde ele é preparado e em quanto tempo. Lanches são montados na <b>bancada da frente</b> e consomem pão do estoque da padaria. A frequência com que os clientes pedem cada item fica na aba <b>Cliente</b>.</p>
+            <div id="menu-list"></div>
+            <button class="pbtn" id="btn-add-menu">+ Adicionar item</button>
+          </div>
+          <div class="sec">
+            <h3>Estações — capacidade simultânea</h3>
+            <p class="note">Quantos usos ao mesmo tempo cada tipo de estação suporta (ex.: forno com 2 câmaras = 2).</p>
+            <div id="cap-list"></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ===== MODAL: RELATÓRIO ===== -->
+  <div id="modal" class="modal-back" style="display:none">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="md-title">Relatório do dia</h2>
+        <button class="modal-x" id="md-close">×</button>
+      </div>
+      <div class="modal-body" id="md-body"></div>
+      <div class="modal-foot" id="md-foot"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+  <script src="props.js"></script>
+  <script src="sim/sim-core.js"></script>
+  <script src="sim/sim-2d.js"></script>
+  <script src="sim/sim-3d.js"></script>
+  <script src="sim/sim-ui.js"></script>
+</body>
+</html>

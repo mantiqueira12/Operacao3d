@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>All'Antico Panino · LOJA 206 — Estúdio de planta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,600;0,700;1,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="planner.css" />
+</head>
+<body>
+  <div id="app">
+
+    <!-- ===== TOPBAR ===== -->
+    <header id="topbar">
+      <div class="brand">All'<b>Antico</b> Panino</div>
+      <div class="topdoc">Loja 206 · Estúdio de planta <span class="verbadge">v2</span></div>
+      <div class="topspacer"></div>
+
+      <div class="toolgroup">
+        <button class="tbtn active" id="tool-select" title="Selecionar / mover (V)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 3l7 17 2.5-6.5L20 11 4 3z"/></svg>Selecionar
+        </button>
+        <button class="tbtn" id="tool-measure" title="Medir distância (M)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M11 9l2 2M15 5l2 2"/></svg>Medir
+        </button>
+        <button class="tbtn" id="tool-wall" title="Desenhar parede / painel (W)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M3 15h18M7 3v6M14 9v6M18 15v6M10 15v6"/></svg>Parede
+        </button>
+      </div>
+
+      <div class="toolgroup">
+        <button class="tbtn" id="btn-divisor" title="Inserir painel divisor FOH / BOH (D)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M5 6h14M5 18h14"/></svg>Divisor FOH/BOH
+        </button>
+      </div>
+
+      <div class="toolgroup">
+        <button class="tbtn" id="z-out" title="Reduzir">−</button>
+        <span class="zoomlbl" id="zoomlbl">100%</span>
+        <button class="tbtn" id="z-in" title="Ampliar">+</button>
+        <button class="tbtn" id="z-fit" title="Ajustar (F)">Ajustar</button>
+      </div>
+
+      <div class="toolgroup">
+        <button class="tbtn" id="btn-operacao" title="Simular a operação neste layout" onclick="window.location.href='operacao.html'">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z"></path></svg>Operação
+        </button>
+        <button class="tbtn" id="btn-3d" title="Ver em 3D">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l9 5v10l-9 5-9-5V7z"/><path d="M12 2v20M3 7l9 5 9-5"/></svg>Ver 3D
+        </button>
+        <button class="tbtn" id="btn-export" title="Exportar projeto (JSON)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>Exportar
+        </button>
+        <button class="tbtn" id="btn-import" title="Importar projeto (JSON)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15V3M7 8l5-5 5 5M4 21h16"/></svg>Importar
+        </button>
+        <input type="file" id="file-import" accept=".json,application/json" style="display:none" />
+        <button class="tbtn" id="btn-print" title="Imprimir / PDF">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V3h12v6M6 18H4v-7h16v7h-2M8 14h8v7H8z"/></svg>Imprimir
+        </button>
+      </div>
+    </header>
+
+    <!-- ===== LEFT: CATÁLOGO ===== -->
+    <aside id="left" class="rail">
+      <div class="sec">
+        <h3>Catálogo <button class="mini-add" id="btn-create" title="Criar equipamento personalizado">+ Criar</button></h3>
+        <div id="catalog"></div>
+      </div>
+    </aside>
+
+    <!-- ===== CANVAS ===== -->
+    <main id="canvasWrap">
+      <svg id="scene" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="readout">
+        <span>x <b id="ro-x">0,00</b></span>
+        <span>y <b id="ro-y">0,00</b></span>
+        <span id="ro-info">11,00 m² · escala 1:50</span>
+      </div>
+      <div class="hintbar">Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan</div>
+      <div class="miniscale">
+        <div class="sb"><i class="f" style="width:50px"></i><i style="width:50px"></i></div>
+        <div>0 — 1 — 2 m</div>
+      </div>
+    </main>
+
+    <!-- ===== RIGHT: PROPRIEDADES / CAMADAS / RESUMO / CARIMBO ===== -->
+    <aside id="right" class="rail">
+      <div class="sec">
+        <h3>Propriedades</h3>
+        <div class="empty" id="propsEmpty">Selecione uma peça no desenho para editar dimensões e posição — ou insira uma do catálogo.</div>
+        <div class="props" id="propsForm" style="display:none">
+          <div class="catbadge" id="p-badge"></div>
+          <div class="field name">
+            <label>Nome</label>
+            <input type="text" id="f-name" autocomplete="off" />
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Largura</label><div class="unit"><input id="f-w" inputmode="decimal" /></div></div>
+            <div class="field"><label>Profund.</label><div class="unit"><input id="f-h" inputmode="decimal" /></div></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Posição X</label><div class="unit"><input id="f-x" inputmode="decimal" /></div></div>
+            <div class="field"><label>Posição Y</label><div class="unit"><input id="f-y" inputmode="decimal" /></div></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label>Altura (3D)</label><div class="unit"><input id="f-z" inputmode="decimal" /></div></div>
+            <div class="field"><label>Zona / cor</label>
+              <div class="swatches" id="f-color">
+                <button class="swatch" data-col="#E2000F" style="background:#E2000F" title="Atendimento"></button>
+                <button class="swatch" data-col="#1A1A1A" style="background:#1A1A1A" title="Cozinha"></button>
+                <button class="swatch" data-col="#2B2B2B" style="background:#2B2B2B" title="Estrutura"></button>
+                <button class="swatch" data-col="#9A9284" style="background:#9A9284" title="Gerais"></button>
+                <button class="swatch" data-col="#2A6FDB" style="background:#2A6FDB" title="Frio"></button>
+                <button class="swatch" data-col="#1F8A5B" style="background:#1F8A5B" title="Verde"></button>
+              </div>
+            </div>
+          </div>
+          <div class="pbtns">
+            <button class="pbtn" id="btn-rotate"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7M21 3v5h-5"/></svg>Girar 90°</button>
+            <button class="pbtn" id="btn-dup"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>Duplicar</button>
+          </div>
+          <button class="pbtn save" id="btn-savemodel" style="width:100%"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8"/></svg>Salvar como modelo</button>
+          <button class="pbtn danger" id="btn-del" style="width:100%"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg>Excluir peça</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Camadas</h3>
+        <div class="toggles" id="layers">
+          <div class="sw on" data-cls="hide-cotas"><span>Cotas da casca</span><span class="toggle"></span></div>
+          <div class="sw on" data-cls="hide-items"><span>Mobiliário</span><span class="toggle"></span></div>
+          <div class="sw on" data-cls="hide-zones"><span>Zonas e fluxo</span><span class="toggle"></span></div>
+          <div class="sw on" id="sw-fohboh"><span>Setor FOH / BOH</span><span class="toggle"></span></div>
+          <div class="sw on" data-cls="hide-grid"><span>Grade</span><span class="toggle"></span></div>
+          <div class="sw on" id="sw-snap"><span>Encaixe na grade (5 cm)</span><span class="toggle"></span></div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Resumo</h3>
+        <div class="stats">
+          <div class="stat"><span class="k">Área da loja (cota)</span><span class="v red">11,00 m²</span></div>
+          <div class="stat"><span class="k">Mobiliário (peças)</span><span class="v" id="st-count">0</span></div>
+          <div class="stat"><span class="k">Área ocupada</span><span class="v" id="st-occ">0,00 m²</span></div>
+          <div class="stat"><span class="k">Piso livre</span><span class="v" id="st-free">0,00 m²</span></div>
+          <div style="padding:8px 0 2px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);font-weight:600"><span>Ocupação</span><span id="st-pct" style="font-family:var(--mono)">0%</span></div>
+            <div class="bar"><i id="bar-fill"></i></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec">
+        <h3>Carimbo</h3>
+        <div class="tb">
+          <div class="tbrow"><span class="k">Projeto</span><span class="v" contenteditable="true" data-tb="proj">Panineria All'Antico Panino</span></div>
+          <div class="tbrow"><span class="k">Unidade</span><span class="v" contenteditable="true" data-tb="uni">Loja 206</span></div>
+          <div class="tbrow"><span class="k">Endereço</span><span class="v" contenteditable="true" data-tb="end">R. das Oliveiras, 142 · V. Madalena, SP</span></div>
+          <div class="tbrow"><span class="k">Resp.</span><span class="v" contenteditable="true" data-tb="resp">—</span></div>
+          <div class="tbrow"><span class="k">Data/Rev</span><span class="v" contenteditable="true" data-tb="data">06 · 2026 — Rev 02</span></div>
+        </div>
+        <div style="padding:0 16px 16px">
+          <button class="pbtn danger" id="btn-reset" style="width:100%"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg>Restaurar cena padrão</button>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+
+  <!-- ===== MODAL: CRIAR / EDITAR EQUIPAMENTO ===== -->
+  <div id="modal" class="modal-back" style="display:none">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h2 id="m-title">Criar equipamento</h2>
+        <button class="modal-x" id="m-close">×</button>
+      </div>
+      <p class="modal-sub">Defina uma peça sob medida. Ela entra no catálogo (<b>Meus modelos</b>) e aparece no 2D e no 3D com a altura e o volume informados.</p>
+      <div class="modal-body">
+        <div class="field name"><label>Nome do equipamento</label><input type="text" id="m-name" placeholder="ex.: Char-broiler 2 bocas" autocomplete="off" /></div>
+        <div class="grid3">
+          <div class="field"><label>Largura</label><div class="unit"><input id="m-w" inputmode="decimal" value="1,00" /></div></div>
+          <div class="field"><label>Profund.</label><div class="unit"><input id="m-d" inputmode="decimal" value="0,60" /></div></div>
+          <div class="field"><label>Altura</label><div class="unit"><input id="m-h" inputmode="decimal" value="0,90" /></div></div>
+        </div>
+        <div class="field"><label>Volume 3D</label>
+          <div class="seg" id="m-arch">
+            <button class="segb active" data-arch="box">Bloco</button>
+            <button class="segb" data-arch="counter">Bancada</button>
+            <button class="segb" data-arch="fridge">Geladeira</button>
+            <button class="segb" data-arch="shelf">Prateleira</button>
+            <button class="segb" data-arch="panel">Painel</button>
+            <button class="segb" data-arch="appliance">Equip. preto</button>
+          </div>
+        </div>
+        <div class="field"><label>Zona / cor</label>
+          <div class="swatches big" id="m-color">
+            <button class="swatch active" data-col="#E2000F" style="background:#E2000F">Atend.</button>
+            <button class="swatch" data-col="#1A1A1A" style="background:#1A1A1A">Cozinha</button>
+            <button class="swatch" data-col="#2B2B2B" style="background:#2B2B2B">Estrut.</button>
+            <button class="swatch" data-col="#9A9284" style="background:#9A9284">Gerais</button>
+            <button class="swatch" data-col="#2A6FDB" style="background:#2A6FDB">Frio</button>
+            <button class="swatch" data-col="#1F8A5B" style="background:#1F8A5B">Verde</button>
+          </div>
+        </div>
+        <div class="modal-preview" id="m-prev"></div>
+      </div>
+      <div class="modal-foot">
+        <button class="pbtn" id="m-cancel">Cancelar</button>
+        <button class="pbtn primary" id="m-save">Criar e inserir</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="planner.js"></script>
+</body>
+</html>
