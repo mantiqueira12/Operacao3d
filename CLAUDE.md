@@ -47,10 +47,20 @@ funcional a ser portada:
 - Dois motores de simulação (JS + Python) → eleger 1 canônico (TS).
 - Persistência acoplada a `localStorage` → `StorageAdapter`.
 
-## Como rodar o protótipo (custo-0, sem build)
+## Estrutura da base nova
 
+`app/` — aplicação React + Vite + TypeScript (alvo do produto). Ainda casca inicial.
+CI em `.github/workflows/ci.yml` roda lint + typecheck + build a cada push.
+
+## Como rodar
+
+App novo (React/Vite/TS):
 ```bash
-cd prototype/planner && python3 -m http.server 8080   # abre http://localhost:8080
+cd app && npm install && npm run dev   # http://localhost:5173
+```
+Protótipo de referência (custo-0, sem build):
+```bash
+cd prototype/planner && python3 -m http.server 8080   # http://localhost:8080
 ```
 Python sim: `cd prototype/python-simulator && pip install -r requirements.txt && streamlit run app.py`
 

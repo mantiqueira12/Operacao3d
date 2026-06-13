@@ -4,18 +4,17 @@
 > Mantenha curto. Última atualização: 2026-06-13.
 
 ## Agora
-- Fundação de continuidade concluída: zip extraído e versionado em `prototype/`,
-  criados `CLAUDE.md`, `docs/STATE.md`, `docs/AGENTS.md`, `.gitignore`.
+- Scaffolding React+Vite+TS concluído em `app/` (item 1 da fila). Não quebra `prototype/`.
+  `npm run dev` sobe (200 em :5173); `lint`, `typecheck` e `build` passam.
+  CI em `.github/workflows/ci.yml` (lint + typecheck + build, working-dir `app/`).
 
 ## Próximo (fila priorizada)
-1. **Scaffolding React+Vite+TS** na raiz (`/app` ou raiz), sem quebrar `prototype/`.
-   _DoD:_ `npm run dev` sobe app vazio tipado; CI lint+build no GitHub Actions.
-2. **StorageAdapter** (interface + `LocalStorageAdapter`). _DoD:_ salvar/carregar projeto
-   sem acoplar à UI; testes unitários.
-3. **Portar modelo de domínio** (cena, catálogo, tipos) do `planner.js` para TS.
+1. **StorageAdapter** (interface + `LocalStorageAdapter`) em `app/src`. _DoD:_ salvar/carregar
+   projeto sem acoplar à UI; testes unitários (adicionar Vitest).
+2. **Portar modelo de domínio** (cena, catálogo, tipos) do `planner.js` para TS.
    _DoD:_ tipos de Item/Room/Project; catálogo paramétrico.
-4. **Portar editor 2D** (SVG) para componente React. _DoD:_ inserir/mover/redimensionar peça.
-5. **Portar motor DES** (`sim-core.js`) para TS em Web Worker; validar contra Python.
+3. **Portar editor 2D** (SVG) para componente React. _DoD:_ inserir/mover/redimensionar peça.
+4. **Portar motor DES** (`sim-core.js`) para TS em Web Worker; validar contra Python.
    _DoD:_ mesmos resultados (±tolerância) do `python-simulator` no cenário base.
 
 ## Bloqueios
