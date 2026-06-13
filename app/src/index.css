@@ -12,43 +12,14 @@
   box-sizing: border-box;
 }
 
-body {
+html,
+body,
+#root {
   margin: 0;
-  min-height: 100vh;
-  display: grid;
-  place-items: center;
+  height: 100%;
+  width: 100%;
 }
 
-.shell {
-  max-width: 36rem;
-  padding: 2rem;
-  text-align: center;
-}
-
-.shell h1 {
-  font-size: 3rem;
-  margin: 0 0 0.5rem;
-  letter-spacing: -0.02em;
-}
-
-.accent {
-  color: var(--accent);
-}
-
-.lead {
-  font-size: 1.1rem;
-  line-height: 1.5;
-  color: var(--ink);
-}
-
-.hint {
-  color: var(--ink-soft);
-  font-size: 0.9rem;
-}
-
-code {
-  font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
-  background: rgba(0, 0, 0, 0.06);
-  padding: 0.1em 0.3em;
-  border-radius: 4px;
+body {
+  overflow: hidden;
 }
