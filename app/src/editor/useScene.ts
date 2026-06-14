@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  clampToPolygon,
   collisionPairs,
   collisionSet,
   createItem,
+  isSolid,
   loja206Scene,
   outOfBoundsSet,
   stackTopBelow,
@@ -107,8 +109,11 @@ export function useScene() {
         if (!s) return s
         const it = s.items.find((i) => i.id === id)
         if (!it) return s
-        const b = boundsOf(s.room.polygon)
-        const c = clampPosition(x, y, it.width, it.depth, b)
+        const poly = s.room.polygon
+        // peças sólidas travam dentro do polígono; marcadores (porta/extintor) seguem a bbox
+        const c = isSolid(it)
+          ? clampToPolygon(x, y, it.width, it.depth, poly)
+          : clampPosition(x, y, it.width, it.depth, boundsOf(poly))
         return { ...s, items: s.items.map((i) => (i.id === id ? { ...i, ...c } : i)) }
       })
     },

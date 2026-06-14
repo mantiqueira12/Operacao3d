@@ -295,3 +295,81 @@ export function outOfBoundsSet(items: Item[], poly: Array<[number, number]>): Se
   }
   return out
 }
+
+/* ---------- clamp ao polígono (travar arraste dentro da casca) ---------- */
+
+interface Cell {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+/** Células da grade do polígono cujo centro cai FORA dele (regiões proibidas, ex.: recorte do "L"). */
+function forbiddenCells(poly: Array<[number, number]>): Cell[] {
+  const xs = [...new Set(poly.map((p) => p[0]))].sort((a, b) => a - b)
+  const ys = [...new Set(poly.map((p) => p[1]))].sort((a, b) => a - b)
+  const out: Cell[] = []
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (let j = 0; j < ys.length - 1; j++) {
+      const cx = (xs[i] + xs[i + 1]) / 2
+      const cy = (ys[j] + ys[j + 1]) / 2
+      if (!pointInPolygon(cx, cy, poly)) out.push({ x0: xs[i], y0: ys[j], x1: xs[i + 1], y1: ys[j + 1] })
+    }
+  }
+  return out
+}
+
+/**
+ * Posição mais próxima de (x, y) que mantém o footprint (w×d) dentro da casca
+ * ortogonal (retângulo/"L"). Prende à bbox e depois empurra para fora das regiões
+ * proibidas (o recorte do "L") pela borda mais próxima. Se a peça não couber fora do
+ * recorte, devolve o clamp na bbox (e a sinalização "fora-da-casca" assume).
+ */
+export function clampToPolygon(
+  x: number,
+  y: number,
+  w: number,
+  d: number,
+  poly: Array<[number, number]>,
+): { x: number; y: number } {
+  const xs = poly.map((p) => p[0])
+  const ys = poly.map((p) => p[1])
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  const clampBbox = (px: number, py: number) => ({
+    x: Math.min(Math.max(px, minX), Math.max(minX, maxX - w)),
+    y: Math.min(Math.max(py, minY), Math.max(minY, maxY - d)),
+  })
+  let { x: cx, y: cy } = clampBbox(x, y)
+  const forb = forbiddenCells(poly)
+  for (let iter = 0; iter < 6; iter++) {
+    let worst: { cell: Cell; area: number } | null = null
+    for (const f of forb) {
+      const ox = Math.min(cx + w, f.x1) - Math.max(cx, f.x0)
+      const oy = Math.min(cy + d, f.y1) - Math.max(cy, f.y0)
+      if (ox > EPS && oy > EPS && (worst === null || ox * oy > worst.area)) worst = { cell: f, area: ox * oy }
+    }
+    if (worst === null) break
+    const f = worst.cell
+    const cands = [clampBbox(f.x0 - w, cy), clampBbox(f.x1, cy), clampBbox(cx, f.y0 - d), clampBbox(cx, f.y1)]
+    let pick: { x: number; y: number } | null = null
+    let best = Infinity
+    for (const c of cands) {
+      const ox = Math.min(c.x + w, f.x1) - Math.max(c.x, f.x0)
+      const oy = Math.min(c.y + d, f.y1) - Math.max(c.y, f.y0)
+      if (ox > EPS && oy > EPS) continue // ainda sobrepõe a célula proibida → inválido
+      const dist = Math.hypot(c.x - cx, c.y - cy)
+      if (dist < best) {
+        best = dist
+        pick = c
+      }
+    }
+    if (pick === null) break
+    cx = pick.x
+    cy = pick.y
+  }
+  return { x: cx, y: cy }
+}

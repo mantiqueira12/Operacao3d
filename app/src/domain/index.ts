@@ -27,6 +27,7 @@ export {
   GAP_WARN,
   TOUCH,
   classifyGap,
+  clampToPolygon,
   clearances,
   collides,
   collisionPairs,

@@ -4,6 +4,14 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Travar no "L", swing de porta e impressão da prancha.** (A) `clampToPolygon` (`spatial.ts`) prende
+  o arraste de peças sólidas ao polígono — não dá mais para soltar no recorte do "L"; porta/extintor
+  seguem a bbox (encostam na parede). (B) `doorSwing.ts` + `DoorSwing.tsx` desenham o arco de abertura
+  da porta (raio = folha, 90° p/ dentro), com botão "Inverter abertura" (`doorFlip` em `Item`). (C)
+  `PrintExtras.tsx` + `print.css`: ao imprimir saem a planta (pág. 1) + a folha de handoff (carimbo,
+  lista de equipamentos, legendas de zonas/circulação/instalações). **+8 testes (103 no total);**
+  typecheck/lint/build verdes, serving 200. A por mim; B e C por agentes isolados (worktree), integrados
+  e revisados.
 - **Entregáveis para a execução — fora-da-casca, lista de equipamentos e instalações.**
   (1) `outOfBoundsSet`/`footprintInside`/`pointInPolygon` em `spatial.ts` sinalizam peça fora do
   polígono (âmbar tracejado + badge + linha na Validação). (2) `domain/schedule.ts`
@@ -60,9 +68,10 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Verificação visual** (rodar `npm run dev`): conferir as camadas novas — colisão, fora-da-casca
-   (âmbar), folgas ao selecionar, níveis/empilhamento, marcadores de Instalações e o modal "Lista"
-   (Exportar CSV) — além do painel 2D e do 3D. Único passo sem cobertura automática.
+1. **Verificação visual** (rodar `npm run dev`): conferir as camadas/recursos novos — colisão,
+   fora-da-casca (âmbar), folgas ao selecionar, níveis/empilhamento, Instalações, modal "Lista"
+   (CSV), **arraste travando no "L"**, **swing de porta** (+ Inverter abertura) e **impressão**
+   (Ctrl+P → planta + folha de lista/legendas). Único passo sem cobertura automática.
 2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206; o 3D
    já é por-projeto (lê `room.polygon`), só o motor de simulação ainda usa casca fixa.
 3. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
@@ -85,10 +94,9 @@
 ## Dívidas do editor (refinar depois)
 - Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
   entrada empilhada). OK para o nível atual.
-- Clamp do arraste ainda usa a bbox, não o polígono em L (a peça pode ser solta no recorte). Agora
-  isso é **detectado e sinalizado** (fora-da-casca, âmbar), mas o arraste não impede — falta clampar
-  o movimento ao polígono. Enquanto isso, as cotas de folga de peça fora da casca podem superestimar
-  o vão na quina do "L" (peça dentro da casca: cotas corretas).
+- Arraste agora **trava dentro do polígono em "L"** (`clampToPolygon`, peças sólidas); o "fora-da-casca"
+  segue como rede de segurança (dados importados, redimensionamento). Ainda prendem só à bbox: o
+  **resize** (handles) e o **duplicar** — refinar para o polígono depois.
 - Falta: undo/redo, "+ Criar" equipamento custom + "Meus modelos", ferramenta Parede/Divisor
   como desenho por arraste (hoje inserem peça), render especial de porta/painel (hatch/folga),
   acabamentos (piso/parede), botões Operação/Ver 3D (navegação p/ módulos ainda não portados).
@@ -102,6 +110,8 @@
 - (nenhum)
 
 ## Decisões (ADR-lite)
+- 2026-06-14: Arraste trava no polígono (`clampToPolygon`, sólidos); swing de porta = geometria pura
+  + camada SVG (`doorFlip` inverte a dobradiça); impressão = planta + folha de lista/legendas (só print).
 - 2026-06-14: Entregáveis p/ execução: detecção fora-da-casca (sinaliza, não trava), lista de
   equipamentos com Exportar CSV, e pontos de instalação por equipamento (camada própria).
 - 2026-06-14: Deploy publica o app React (`app/dist`) no GitHub Pages só em push na `main` (ci.yml).

@@ -55,6 +55,8 @@ export interface Item {
   level?: number
   color: string
   arch?: Arch3D | null
+  /** porta: inverte o lado da dobradiça / sentido de abertura do swing */
+  doorFlip?: boolean
 }
 
 /** Casca/perímetro do espaço. Por-projeto — nada de geometria hardcoded no motor. */

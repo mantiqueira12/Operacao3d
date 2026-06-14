@@ -239,3 +239,9 @@
 .util-legend { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ink-soft); margin-top: 2px; }
 .util-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .util-legend .ud { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1); }
+
+/* ---------- swing de porta ---------- */
+.door-leaf { stroke: var(--inch); stroke-width: 1.4; vector-effect: non-scaling-stroke; }
+.door-leaf.open { stroke-dasharray: 3 2; opacity: 0.5; }
+.door-arc { stroke: var(--inch); fill: none; stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.5; vector-effect: non-scaling-stroke; }
+#app.hide-items .door-layer { display: none; }

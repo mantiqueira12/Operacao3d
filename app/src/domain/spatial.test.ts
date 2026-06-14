@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   classifyGap,
+  clampToPolygon,
   clearances,
   collides,
   collisionPairs,
@@ -220,5 +221,23 @@ describe('contenção na casca', () => {
     const fora = mk({ id: 'out', x: 2.2, y: 0.5, width: 0.8, depth: 0.5 })
     const porta = mk({ id: 'door', type: 'porta', x: 2.2, y: 0.5, width: 0.8, depth: 0.12 })
     expect(outOfBoundsSet([dentro, fora, porta], L_POLY)).toEqual(new Set(['out']))
+  })
+})
+
+describe('clampToPolygon', () => {
+  it('mantém a peça dentro de um retângulo simples', () => {
+    const room: Array<[number, number]> = [[0, 0], [4, 0], [4, 4], [0, 4]]
+    expect(clampToPolygon(10, 10, 1, 1, room)).toEqual({ x: 3, y: 3 })
+    expect(clampToPolygon(-5, 2, 1, 1, room)).toEqual({ x: 0, y: 2 })
+  })
+  it('empurra a peça para fora do recorte do "L" (cola na parede x=2)', () => {
+    const r = clampToPolygon(2.3, 1, 0.6, 0.6, L_POLY)
+    expect(r.x + 0.6).toBeLessThanOrEqual(2.0 + 1e-6) // direita não passa de x=2
+    expect(r.y).toBeCloseTo(1) // y preservado
+  })
+  it('peça larga na parte de baixo do "L" não é empurrada (zona permitida)', () => {
+    const r = clampToPolygon(0.2, 4, 2.2, 0.5, L_POLY)
+    expect(r.x).toBeCloseTo(0.2)
+    expect(r.y).toBeCloseTo(4)
   })
 })

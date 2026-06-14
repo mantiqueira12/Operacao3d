@@ -13,6 +13,7 @@ import { SCALE, SceneLayers, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
 import { useScene } from './useScene'
 import ScheduleModal from './Schedule'
+import PrintExtras from './PrintExtras'
 import './planner.css'
 
 const CAT_ORDER: ItemCategory[] = ['atendimento', 'cozinha', 'gerais', 'estrutura']
@@ -388,6 +389,9 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
                 <button className="pbtn" onClick={() => ed.rotateItem(sel.id)}><Icon name="rotate" />Girar 90°</button>
                 <button className="pbtn" onClick={() => ed.duplicateItem(sel.id)}><Icon name="dup" />Duplicar</button>
               </div>
+              {sel.type === 'porta' && (
+                <button className="pbtn" onClick={() => ed.patchItem(sel.id, { doorFlip: !sel.doorFlip })}><Icon name="rotate" />Inverter abertura</button>
+              )}
               <button className="pbtn danger" onClick={() => ed.removeItem(sel.id)}><Icon name="trash" />Excluir peça</button>
             </div>
           )}
@@ -470,6 +474,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         </div>
       </aside>
       {showSchedule && <ScheduleModal scene={scene} onClose={() => setShowSchedule(false)} />}
+      <PrintExtras scene={scene} />
     </div>
   )
 }

@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { UTILITY_META, clearances, isSolid, levelOf, utilsFor, type Item, type RestaurantScene } from '../domain'
+import DoorSwing from './DoorSwing'
 
 export const SCALE = 100 // px por metro
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -375,6 +376,13 @@ export function SceneLayers({
       <Grid poly={poly} clipId="rclip" />
       <FohBoh scene={scene} />
       <Zones scene={scene} />
+      <g className="door-layer">
+        {ordered
+          .filter((it) => it.type === 'porta')
+          .map((it) => (
+            <DoorSwing key={it.id} item={it} flip={it.doorFlip} />
+          ))}
+      </g>
       <g className="item-layer">
         {ordered.map((it) => (
           <ItemShape
