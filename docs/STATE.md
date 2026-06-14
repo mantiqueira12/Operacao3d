@@ -3,6 +3,17 @@
 > Ponto de partida entre agentes. Leia no início, atualize no fim do turno.
 > Mantenha curto. Última atualização: 2026-06-14.
 
+## Deploy / Git (estado atual)
+- **Tudo versionado.** Working tree limpo, 82 arquivos no git. Nada falta importar — só
+  artefatos de build ficam de fora (`dist/`, `node_modules/`, `__pycache__`, `*.tsbuildinfo`),
+  corretamente no `.gitignore`. O antigo `Operacao 3D.zip` foi removido (já extraído/portado).
+- **Branches:** dev = `claude/upbeat-mendel-m8bom6`; `main` = branch publicado. Estão sincronizados.
+- **GitHub Pages NO AR:** https://mantiqueira12.github.io/Operacao3d/ (case-sensitive, "O" maiúsculo).
+  CI (`.github/workflows/ci.yml`) faz lint+typecheck+test+build em todo push; em push p/ `main`
+  ainda faz upload do artifact + `deploy-pages`. Pages source = "GitHub Actions" (já ativado).
+- **Fluxo de release:** desenvolver em `claude/upbeat-mendel-m8bom6` → merge p/ `main` → Pages
+  atualiza sozinho (~2 min). Rodar local: `cd app && npm install && npm run dev` (localhost:5173).
+
 ## Agora
 - **Motor DES espacial completo e validado** em `app/src/sim/` (port canônico de `sim-core.js`).
   Cadeia: `geometry`/`nav` (casca L + A*) → `engine.ts` (`SimEngine`: demanda Poisson+curva,
