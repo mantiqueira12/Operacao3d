@@ -28,7 +28,7 @@ jobs:
       - run: npm run build
 
       - name: Upload Pages artifact
-        if: github.ref == 'refs/heads/claude/upbeat-mendel-m8bom6' && github.event_name == 'push'
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/upload-pages-artifact@v3
         with:
           path: app/dist
@@ -36,7 +36,7 @@ jobs:
   deploy:
     name: Deploy → GitHub Pages
     needs: app
-    if: github.ref == 'refs/heads/claude/upbeat-mendel-m8bom6' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       pages: write
