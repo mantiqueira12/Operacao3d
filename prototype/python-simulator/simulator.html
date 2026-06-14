@@ -1,0 +1,2824 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>All Antico Panino — Simulator v6</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{display:flex;height:100vh;background:#0d1117;font-family:'Segoe UI',sans-serif;color:#cdd9e5;overflow:hidden;font-size:13px;}
+
+/* ── LEFT SIDEBAR ── */
+#sidebar{width:250px;min-width:250px;background:#161b22;border-right:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;}
+#sidebar::-webkit-scrollbar{width:5px;}
+#sidebar::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+.sb-s{padding:12px 14px;border-bottom:1px solid #21262d;}
+.sb-t{font-size:10px;text-transform:uppercase;letter-spacing:1.2px;color:#58a6ff;margin-bottom:9px;font-weight:600;}
+.logo{text-align:center;padding:12px 14px;border-bottom:1px solid #21262d;}
+.logo h2{font-size:14px;color:#f0f6fc;}.logo p{font-size:10px;color:#6e7681;margin-top:2px;}
+.clock{font-size:28px;font-weight:700;font-family:monospace;text-align:center;color:#58a6ff;margin-bottom:8px;}
+.btn{width:100%;padding:8px;border:none;border-radius:5px;cursor:pointer;font-weight:600;font-size:12px;margin-bottom:4px;}
+.btn-blue{background:#1f6feb;color:#fff;}.btn-blue:hover{background:#388bfd;}
+.btn-gray{background:#21262d;color:#cdd9e5;border:1px solid #30363d;}.btn-gray:hover{background:#30363d;}
+.btn-green{background:#238636;color:#fff;}.btn-green:hover{background:#2ea043;}
+.spds{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-top:7px;}
+.spd{padding:5px 0;background:#21262d;border:1px solid #30363d;color:#8b949e;border-radius:4px;cursor:pointer;font-size:11px;text-align:center;}
+.spd.on{background:#1f6feb;border-color:#1f6feb;color:#fff;}
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.mc{background:#0d1117;border:1px solid #21262d;border-radius:5px;padding:7px 9px;}
+.mv{font-size:17px;font-weight:700;color:#58a6ff;}.ml{font-size:10px;color:#6e7681;margin-top:1px;}
+.alr{border-radius:4px;padding:6px 8px;font-size:11px;line-height:1.5;margin-bottom:4px;}
+.alr-r{background:#2d0f0f;border-left:3px solid #f85149;}
+.alr-g{background:#0d2318;border-left:3px solid #3fb950;}
+.alr-b{background:#0d1926;border-left:3px solid #58a6ff;}
+.alr-y{background:#2d2200;border-left:3px solid #d29922;}
+.fi{margin-bottom:9px;}
+.fi label{font-size:11px;color:#8b949e;display:block;margin-bottom:3px;}
+.fi input,.fi select{width:100%;background:#0d1117;border:1px solid #30363d;color:#cdd9e5;padding:5px 7px;border-radius:4px;font-size:12px;}
+.leg-i{display:flex;align-items:center;gap:7px;font-size:11px;color:#8b949e;margin-bottom:4px;}
+.leg-d{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+.util-bar{height:6px;background:#21262d;border-radius:3px;overflow:hidden;margin-top:3px;}
+.util-fill{height:100%;border-radius:3px;transition:width 0.3s;}
+
+/* orders list */
+.ord{display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:3px;border-radius:4px;font-size:11px;background:#0d1117;border:1px solid #21262d;}
+.ord-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.ord-info{flex:1;min-width:0;}
+.ord-item{font-weight:600;color:#f0f6fc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ord-status{color:#8b949e;font-size:10px;}
+.ord-time{font-size:10px;color:#d29922;font-weight:600;white-space:nowrap;}
+
+/* ── CANVAS ── */
+#cw{flex:1;position:relative;}
+#renderCanvas{width:100%;height:100%;outline:none;display:block;}
+#collision-warn{position:absolute;top:10px;left:50%;transform:translateX(-50%);background:#f8514988;color:#fff;padding:6px 16px;border-radius:6px;font-size:12px;font-weight:600;display:none;pointer-events:none;z-index:10;}
+#snap-info{position:absolute;bottom:10px;left:10px;color:#6e7681;font-size:10px;z-index:10;pointer-events:none;}
+#labels-container{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:5;}
+.lbl-3d{position:absolute;transform:translate(-50%,-100%);font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap;pointer-events:none;transition:opacity 0.15s;}
+.lbl-op{background:rgba(31,111,235,0.85);color:#fff;font-size:11px;border:1px solid rgba(56,139,253,0.5);}
+.lbl-op.busy{background:rgba(210,153,34,0.85);border-color:rgba(210,153,34,0.5);}
+.lbl-op.wait{background:rgba(248,81,73,0.85);border-color:rgba(248,81,73,0.5);}
+.lbl-op.fixo{border-left:3px solid #ff8c00;padding-left:5px;}
+.lbl-op .fbadge{display:inline-block;background:#ff8c00;color:#000;font-size:9px;font-weight:700;padding:0 4px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+.lbl-cust{background:rgba(0,0,0,0.7);color:#cdd9e5;font-size:9px;}
+.lbl-cust.waiting{border-left:2px solid #f85149;}
+.lbl-cust.served{border-left:2px solid #3fb950;}
+
+/* ── RIGHT PANEL ── */
+#rp{width:290px;min-width:290px;background:#161b22;border-left:1px solid #30363d;display:flex;flex-direction:column;overflow:hidden;}
+.tabs{display:flex;border-bottom:1px solid #30363d;}
+.tb{flex:1;padding:9px 4px;font-size:11px;font-weight:600;background:none;border:none;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;}
+.tb.on{color:#58a6ff;border-bottom-color:#1f6feb;}
+.rp-body{flex:1;overflow-y:auto;padding:13px;}
+.rp-body::-webkit-scrollbar{width:5px;}
+.rp-body::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+.tp{display:none;}.tp.on{display:block;}
+.sec-t{font-size:12px;font-weight:600;color:#f0f6fc;margin-bottom:9px;}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.divd{border:none;border-top:1px solid #21262d;margin:11px 0;}
+
+/* equipment cards */
+.ec{background:#0d1117;border:1px solid #21262d;border-radius:5px;padding:8px 10px;margin-bottom:6px;cursor:pointer;transition:border-color 0.2s;}
+.ec:hover,.ec.sel{border-color:#1f6feb;}
+.ec-h{display:flex;align-items:center;gap:7px;}.ec-dot{width:11px;height:11px;border-radius:2px;flex-shrink:0;}
+.ec-n{font-size:12px;font-weight:600;color:#f0f6fc;}.ec-d{font-size:10px;color:#6e7681;margin-top:1px;}
+.ec-f{display:none;padding-top:8px;border-top:1px solid #21262d;margin-top:7px;}
+.ec.sel .ec-f{display:block;}
+
+/* menu cards */
+.mic{background:#0d1117;border:1px solid #21262d;border-radius:5px;padding:10px;margin-bottom:8px;}
+.mi-h{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;}
+.mi-n{font-size:12px;font-weight:600;color:#f0f6fc;}
+.mi-sub{font-size:10px;color:#6e7681;margin-top:2px;}
+.mi-total{font-size:11px;color:#d29922;font-weight:600;margin:6px 0 4px;padding:4px 7px;background:#2d220033;border-radius:3px;display:inline-block;}
+.sr{display:flex;align-items:center;gap:5px;margin-bottom:4px;padding:4px 6px;background:#161b22;border-radius:4px;border:1px solid #21262d;}
+.sr select{flex:1;padding:3px 5px;background:#21262d;border:1px solid #30363d;color:#cdd9e5;border-radius:3px;font-size:11px;}
+.sr input{width:50px;padding:3px 5px;background:#21262d;border:1px solid #30363d;color:#cdd9e5;border-radius:3px;font-size:11px;}
+.sr-lbl{font-size:10px;color:#6e7681;}
+.sr-num{font-size:11px;color:#58a6ff;font-weight:700;min-width:18px;}
+.add-s{font-size:11px;color:#3fb950;cursor:pointer;background:none;border:none;padding:3px 0;display:block;}
+.rm-btn{background:none;border:none;color:#f85149;cursor:pointer;font-size:15px;line-height:1;}
+.mv-btn{background:none;border:none;color:#58a6ff;cursor:pointer;font-size:12px;line-height:1;padding:0 2px;}
+.flow-vis{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:6px 0;padding:5px 7px;background:#0d111733;border-radius:4px;}
+.flow-chip{font-size:9px;padding:2px 6px;border-radius:3px;color:#fff;font-weight:600;white-space:nowrap;}
+.flow-arrow{color:#30363d;font-size:10px;}
+
+/* ── LEFT SIDEBAR CATEGORIES ── */
+.sb-cats{display:flex;border-bottom:1px solid #30363d;background:#0d1117;flex-shrink:0;}
+.sb-cat{flex:1;padding:7px 2px;font-size:9px;font-weight:600;background:none;border:none;color:#8b949e;cursor:pointer;border-bottom:2px solid transparent;text-transform:uppercase;letter-spacing:0.3px;transition:all 0.15s;}
+.sb-cat.on{color:#58a6ff;border-bottom-color:#1f6feb;background:#161b22;}
+.sb-cat:hover:not(.on){color:#cdd9e5;}
+.sb-panel{display:none;overflow-y:auto;flex:1;min-height:0;}
+.sb-panel::-webkit-scrollbar{width:5px;}
+.sb-panel::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+.sb-panel.on{display:flex;flex-direction:column;}
+.sb-cats{flex-shrink:0;}
+.logo,.sb-s{flex-shrink:0;}
+.mc-src{font-size:8px;color:#484f58;margin-top:2px;line-height:1.2;font-style:italic;}
+.mc:hover .mc-src{color:#8b949e;}
+.ana-card{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:12px;margin-bottom:10px;}
+.ana-title{font-size:11px;font-weight:600;color:#f0f6fc;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.ana-title::before{content:'';width:3px;height:14px;border-radius:2px;background:#58a6ff;flex-shrink:0;}
+.wall-row{display:flex;align-items:center;gap:6px;padding:5px 7px;margin-bottom:4px;background:#0d1117;border:1px solid #21262d;border-radius:4px;font-size:11px;}
+.wall-row .fi{margin-bottom:0;flex:1;}
+.drag-cells-container{pointer-events:none;}
+
+/* End-of-day modal */
+#eodModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:1000;display:none;align-items:center;justify-content:center;}
+#eodModal.on{display:flex;}
+.eod-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:24px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;}
+.eod-card h2{color:#58a6ff;font-size:18px;margin-bottom:14px;}
+.eod-kpi{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.eod-kpi .mc{padding:10px;}
+.eod-kpi .mv{font-size:18px;}
+.eod-act{display:flex;gap:6px;margin-top:14px;}
+.eod-act .btn{flex:1;margin:0;}
+.eod-reco{background:#0d1117;border-left:3px solid #58a6ff;padding:10px 12px;border-radius:4px;margin-bottom:8px;font-size:11px;line-height:1.5;}
+
+/* Desenhar Paredes modal */
+#wallDrawModal{position:fixed;inset:0;background:rgba(0,0,0,0.82);z-index:1100;display:none;align-items:center;justify-content:center;}
+#wallDrawModal.on{display:flex;}
+.planta-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:18px;width:95%;max-width:980px;max-height:93vh;display:flex;gap:16px;overflow:hidden;}
+.planta-card h2{color:#58a6ff;font-size:16px;margin-bottom:3px;}
+.planta-left{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;}
+.planta-canvas-wrap{flex:1;background:#0d1117;border:1px solid #30363d;border-radius:6px;overflow:auto;display:flex;align-items:center;justify-content:center;min-height:300px;}
+#wallCanvas{cursor:crosshair;display:block;background:#0d1117;max-width:100%;max-height:100%;}
+.wd-dir.btn-blue{background:#1f6feb;color:#fff;}
+.planta-right{width:280px;min-width:280px;display:flex;flex-direction:column;overflow-y:auto;}
+.planta-right::-webkit-scrollbar{width:5px;}.planta-right::-webkit-scrollbar-thumb{background:#30363d;border-radius:3px;}
+.planta-step{background:#0d1117;border:1px solid #21262d;border-radius:6px;padding:10px;margin-bottom:8px;}
+.planta-step.active{border-color:#1f6feb;}
+.planta-step-t{font-size:11px;font-weight:600;color:#f0f6fc;margin-bottom:6px;display:flex;align-items:center;gap:6px;}
+.planta-step-n{width:18px;height:18px;border-radius:50%;background:#21262d;color:#8b949e;font-size:10px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.planta-step.active .planta-step-n{background:#1f6feb;color:#fff;}
+.planta-hint{font-size:10px;color:#6e7681;line-height:1.5;}
+.planta-val{font-size:11px;color:#3fb950;font-weight:600;margin-top:5px;min-height:14px;}
+</style>
+</head>
+<body>
+
+<!-- LEFT SIDEBAR -->
+<div id="sidebar">
+  <div class="logo"><h2>All Antico Panino</h2><p>Simulator v8</p></div>
+
+  <div class="sb-s">
+    <div class="sb-t">Simulacao</div>
+    <div class="clock" id="clk">08:00</div>
+    <button class="btn btn-blue" id="btnPlay" onclick="toggleSim()">INICIAR</button>
+    <button class="btn btn-gray" onclick="resetSim()">RESETAR</button>
+    <div class="spds">
+      <div class="spd" onclick="setSpd(1,this)">1x</div>
+      <div class="spd" onclick="setSpd(5,this)">5x</div>
+      <div class="spd on" onclick="setSpd(15,this)">15x</div>
+      <div class="spd" onclick="setSpd(60,this)">60x</div>
+    </div>
+    <div style="font-size:9px;color:#484f58;margin-top:6px;text-align:center;line-height:1.4">
+      Espaco=play/pause | 1-4=velocidade | R=reset
+    </div>
+  </div>
+
+  <div class="sb-cats">
+    <button class="sb-cat on" onclick="showSbCat('metrics',this)">Metricas</button>
+    <button class="sb-cat" onclick="showSbCat('kds',this)">KDS</button>
+    <button class="sb-cat" onclick="showSbCat('analysis',this)">Analise</button>
+    <button class="sb-cat" onclick="showSbCat('config',this)">Config</button>
+  </div>
+
+  <!-- CATEGORY: METRICAS -->
+  <div id="sb-metrics" class="sb-panel on">
+    <div class="sb-s">
+      <div class="sb-t">Desempenho Geral</div>
+      <div class="mgrid">
+        <div class="mc"><div class="mv" id="mS">0</div><div class="ml">Atendidos</div><div class="mc-src">Pedidos entregues ao cliente</div></div>
+        <div class="mc"><div class="mv" id="mQ">0</div><div class="ml">Na Fila</div><div class="mc-src">Clientes em waiting + PDV</div></div>
+        <div class="mc"><div class="mv" id="mWP">0</div><div class="ml">Aguard. Preparo</div><div class="mc-src">Clientes aguardando retirada</div></div>
+        <div class="mc"><div class="mv" id="mW">--</div><div class="ml">Espera Media</div><div class="mc-src">Tempo chegada ate entrega / atendidos</div></div>
+        <div class="mc"><div class="mv" id="mB" style="color:#f85149">0</div><div class="ml">Desistencias</div><div class="mc-src">Clientes que sairam da fila (timeout)</div></div>
+        <div class="mc"><div class="mv" id="mBPct">0%</div><div class="ml">Taxa Desist.</div><div class="mc-src">Desistencias / total chegado</div></div>
+      </div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Financeiro</div>
+      <div class="mgrid">
+        <div class="mc"><div class="mv" id="mRH">R$0/h</div><div class="ml">Receita/Hora</div><div class="mc-src">Receita total / horas simuladas</div></div>
+        <div class="mc"><div class="mv" id="mTM">--</div><div class="ml">Ticket Medio</div><div class="mc-src">Receita servida / atendidos</div></div>
+        <div class="mc"><div class="mv" id="mCost" style="color:#f85149">R$0</div><div class="ml">Custo Operacional</div><div class="mc-src">Operadores x horas + fixo dia</div></div>
+        <div class="mc"><div class="mv" id="mMargin">--</div><div class="ml">Margem (R$)</div><div class="mc-src">Receita liquida - custo operacional</div></div>
+      </div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Capacidade</div>
+      <div class="mgrid">
+        <div class="mc"><div class="mv" id="mT">0/h</div><div class="ml">Throughput</div><div class="mc-src">Atendidos / horas simuladas</div></div>
+        <div class="mc"><div class="mv" id="mTP">--</div><div class="ml">Preparo Real</div><div class="mc-src">Tempo medio do operador por pedido</div></div>
+        <div class="mc"><div class="mv" id="mQW">--</div><div class="ml">Espera Fila</div><div class="mc-src">Tempo medio aguardando operador livre</div></div>
+        <div class="mc"><div class="mv" id="mPQ">0</div><div class="ml">Pico Fila</div><div class="mc-src">Maximo de clientes na fila</div></div>
+      </div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Throughput ao Longo do Dia</div>
+      <div id="sparkContainer" style="background:#0d1117;border:1px solid #21262d;border-radius:5px;padding:8px"></div>
+    </div>
+  </div>
+
+  <!-- CATEGORY: KDS + UTILIZACAO -->
+  <div id="sb-kds" class="sb-panel">
+    <div class="sb-s">
+      <div class="sb-t">KDS — Pedidos Ativos</div>
+      <div id="ordersPanel" style="max-height:320px;overflow-y:auto">
+        <div style="font-size:11px;color:#6e7681">Nenhum pedido ainda</div>
+      </div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Utilizacao Operadores</div>
+      <div id="opUtil"></div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Utilizacao Equipamentos</div>
+      <div id="eqUtil"></div>
+    </div>
+  </div>
+
+  <!-- CATEGORY: ANALISE -->
+  <div id="sb-analysis" class="sb-panel">
+    <div class="sb-s">
+      <div class="sb-t">Diagnostico da Operacao</div>
+      <div id="ana"><div class="alr alr-b">Configure e inicie a simulacao</div></div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Resumo de Vendas</div>
+      <div id="anaSales"><div style="font-size:11px;color:#6e7681">Aguardando dados...</div></div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Gargalos Identificados</div>
+      <div id="anaBottlenecks"><div style="font-size:11px;color:#6e7681">Aguardando dados...</div></div>
+    </div>
+  </div>
+
+  <!-- CATEGORY: CONFIG -->
+  <div id="sb-config" class="sb-panel">
+    <div class="sb-s">
+      <div class="sb-t">Configuracao da Operacao</div>
+      <div class="fi"><label>Operadores (1-4)</label><input type="number" id="cfgOps" value="2" min="1" max="4" onchange="renderOpAssignments();resetSim()"></div>
+      <div id="opAssignments" style="margin-bottom:6px;font-size:11px"></div>
+      <div class="fi"><label>Maximo itens por pedido</label><input type="number" id="cfgMaxItems" value="3" min="1" max="6"></div>
+      <div class="fi"><label>Bias pedidos grandes (0=so pequenos, 100=variado)</label><input type="number" id="cfgGroupBias" value="30" min="0" max="100"></div>
+      <div class="fi"><label>Clientes / hora</label><input type="number" id="cfgRate" value="30" min="5" max="150"></div>
+      <div class="fi"><label>Alerta espera (min)</label><input type="number" id="cfgTol" value="12" min="3" max="30"></div>
+      <div class="fi"><label>Limite preparo (min)</label><input type="number" id="cfgPickupTimeout" value="30" min="10" max="60"></div>
+      <div class="fi"><label>SLA alvo (min)</label><input type="number" id="cfgSLA" value="15" min="3" max="30"></div>
+      <div class="fi"><label>Custo por operador (R$/hora)</label><input type="number" id="cfgOpCost" value="25" min="0" max="200" step="0.5"></div>
+      <div class="fi"><label>Custo fixo dia (R$ aluguel+energia)</label><input type="number" id="cfgFixedCost" value="800" min="0" step="50"></div>
+      <div class="fi">
+        <label>Curva de demanda</label>
+        <select id="cfgDemandCurve">
+          <option value="flat" selected>Constante (taxa unica)</option>
+          <option value="lunch">Pico almoco (12-14h)</option>
+          <option value="dinner">Pico jantar (19-21h)</option>
+          <option value="both">Almoco + jantar (recomendado)</option>
+        </select>
+      </div>
+      <div class="fi">
+        <label>Mostrar trilhas</label>
+        <select id="cfgTrails" onchange="toggleTrails()">
+          <option value="1" selected>Sim</option>
+          <option value="0">Nao</option>
+        </select>
+      </div>
+    </div>
+    <div class="sb-s">
+      <div class="sb-t">Legenda</div>
+      <div class="leg-i"><div class="leg-d" style="background:#1f6feb"></div>Operador livre</div>
+      <div class="leg-i"><div class="leg-d" style="background:#d29922"></div>Operador trabalhando</div>
+      <div class="leg-i"><div class="leg-d" style="background:#f85149"></div>Operador esperando equip.</div>
+      <div class="leg-i"><div class="leg-d" style="background:#f0f;width:11px;height:3px;border-radius:1px"></div>Colisao entre operadores</div>
+      <div class="leg-i"><div class="leg-d" style="background:#e74c3c;border-radius:2px"></div>Cliente na fila</div>
+      <div class="leg-i"><div class="leg-d" style="background:#3fb950;border-radius:2px"></div>Cliente pagando (PDV)</div>
+      <div class="leg-i"><div class="leg-d" style="background:#3388dd;border-radius:2px"></div>Aguardando retirada</div>
+      <div class="leg-i"><div class="leg-d" style="background:#fff;border-radius:2px"></div>Cliente entrando</div>
+      <div class="leg-i"><div class="leg-d" style="background:#d29922;border-radius:2px"></div>Cliente impaciente</div>
+      <div class="leg-i"><div class="leg-d" style="background:linear-gradient(90deg,#3fb950,#f85149);width:20px;height:6px;border-radius:2px"></div>Barra paciencia</div>
+    </div>
+  </div>
+</div>
+
+<!-- End-of-day modal -->
+<div id="eodModal" onclick="if(event.target.id==='eodModal')closeEodModal()">
+  <div class="eod-card">
+    <h2 id="eodTitle">Fim do Dia</h2>
+    <div id="eodBody"></div>
+    <div class="eod-act">
+      <button class="btn btn-blue" onclick="exportKPIs('json')">Exportar JSON</button>
+      <button class="btn btn-gray" onclick="exportKPIs('csv')">Exportar CSV</button>
+      <button class="btn btn-gray" onclick="saveSnapshotCompare()">Salvar p/ Comparar</button>
+      <button class="btn btn-green" onclick="closeEodModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3D CANVAS -->
+<div id="cw">
+  <canvas id="renderCanvas"></canvas>
+  <div id="collision-warn">Equipamento sobreposto!</div>
+  <div id="snap-info">Grid snap: 5cm | Arraste equipamentos | Vermelho = colisao</div>
+  <div id="labels-container"></div>
+</div>
+
+<!-- RIGHT CONFIG PANEL -->
+<div id="rp">
+  <div class="tabs">
+    <button class="tb on"  onclick="showTab('room',this)">Sala</button>
+    <button class="tb"     onclick="showTab('equip',this)">Equip.</button>
+    <button class="tb"     onclick="showTab('menu',this)">Cardapio</button>
+    <button class="tb"     onclick="showTab('save',this)">Config</button>
+  </div>
+  <div class="rp-body">
+
+    <div id="tp-room" class="tp on">
+      <div class="sec-t">Dimensoes da Sala</div>
+      <div class="r2">
+        <div class="fi"><label>Largura (m)</label><input type="number" id="rW" value="2.60" min="1" max="20" step="0.05"></div>
+        <div class="fi"><label>Profundidade (m)</label><input type="number" id="rD" value="5.50" min="1" max="20" step="0.05"></div>
+      </div>
+      <div class="r2">
+        <div class="fi"><label>Zona BoH (m)</label><input type="number" id="rBoh" value="2.30" min="0.5" max="10" step="0.05"></div>
+        <div class="fi"><label>Corredor (m)</label><input type="number" id="rCorr" value="0.40" min="0.2" max="2" step="0.05"></div>
+      </div>
+      <button class="btn btn-blue" onclick="applyRoom()">Aplicar Sala</button>
+      <button class="btn btn-green" onclick="openWallDraw()" style="margin-top:2px">Desenhar Paredes (vista de cima)</button>
+      <hr class="divd">
+      <div class="sec-t">Paredes</div>
+      <p style="font-size:10px;color:#6e7681;margin-bottom:8px">Adicione paredes/divisorias. Arraste no cenario para posicionar.</p>
+      <div id="wall-list"></div>
+      <button class="btn btn-gray" onclick="addWall()">+ Adicionar Parede</button>
+      <hr class="divd">
+      <div style="font-size:11px;color:#8b949e;line-height:1.7">
+        Grade BoH = 5cm (snap visual)<br>
+        Equipamentos restritos a area BoH<br>
+        Colisao: quadrados vermelhos no chao<br>
+        Balcao separa operadores de clientes<br>
+        Operadores nunca cruzam p/ FoH
+      </div>
+    </div>
+
+    <div id="tp-equip" class="tp">
+      <div class="sec-t">Equipamentos</div>
+      <div id="eq-list"></div>
+      <button class="btn btn-gray" onclick="addEquip()">+ Adicionar Equipamento</button>
+    </div>
+
+    <div id="tp-menu" class="tp">
+      <div class="sec-t">Cardapio e Fluxo de Producao</div>
+      <p style="font-size:10px;color:#6e7681;margin-bottom:10px">Cada item define a sequencia de equipamentos que o operador segue. Tempo total = soma das etapas. Operadores caminham entre equipamentos na ordem definida.</p>
+      <div id="menu-list"></div>
+      <button class="btn btn-gray" onclick="addMenuItem()">+ Adicionar Item</button>
+    </div>
+
+    <div id="tp-save" class="tp">
+      <div class="sec-t">Salvar / Carregar</div>
+      <p style="font-size:11px;color:#8b949e;margin-bottom:10px">Salva sala + equipamentos + cardapio + config no navegador.</p>
+      <button class="btn btn-green" onclick="saveConfig()">Salvar</button>
+      <button class="btn btn-blue" onclick="loadConfig()" style="margin-top:2px">Carregar</button>
+      <button class="btn btn-gray" onclick="exportConfig()" style="margin-top:2px">Exportar JSON (config)</button>
+      <button class="btn btn-gray" onclick="importConfig()" style="margin-top:2px">Importar JSON (config)</button>
+      <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="handleImportFile(event)">
+      <hr class="divd">
+      <div class="sec-t">Resultados da Simulacao</div>
+      <button class="btn btn-blue" onclick="showEodModal()">Ver Relatorio do Dia</button>
+      <button class="btn btn-gray" onclick="exportKPIs('json')" style="margin-top:2px">Exportar KPIs (JSON)</button>
+      <button class="btn btn-gray" onclick="exportKPIs('csv')" style="margin-top:2px">Exportar KPIs (CSV)</button>
+      <hr class="divd">
+      <div class="sec-t">Cenarios A/B</div>
+      <button class="btn btn-green" onclick="saveSnapshotCompare()">Salvar Cenario Atual</button>
+      <button class="btn btn-blue" onclick="showCompareModal()" style="margin-top:2px">Comparar Cenarios</button>
+      <button class="btn btn-gray" onclick="runMonteCarlo()" style="margin-top:2px">Rodar Monte Carlo (5x)</button>
+      <div id="save-status" style="font-size:11px;margin-top:8px;display:none"></div>
+      <hr class="divd">
+      <div class="sec-t">Presets</div>
+      <button class="btn btn-blue" onclick="loadPreset('allantico')" style="margin-bottom:4px">All Antico (Real — 2,6×5,5m)</button>
+      <button class="btn btn-gray" onclick="loadPreset('small')">Loja Pequena (15m2)</button>
+      <button class="btn btn-gray" onclick="loadPreset('medium')" style="margin-top:2px">Loja Media (35m2)</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- DESENHAR PAREDES MODAL -->
+<div id="wallDrawModal">
+  <div class="planta-card">
+    <div class="planta-left">
+      <div>
+        <h2>Desenhar Paredes (vista de cima)</h2>
+        <p style="font-size:11px;color:#8b949e">Clique no ponto inicial, digite a medida e clique na direcao. A parede sai com a medida digitada, ajustada ao eixo. Repita parede a parede.</p>
+      </div>
+      <div class="planta-canvas-wrap">
+        <canvas id="wallCanvas" width="520" height="560" onclick="wdCanvasClick(event)" onmousemove="wdCanvasMove(event)" onmouseleave="wdCanvasLeave()"></canvas>
+      </div>
+      <div id="wdStatus" style="font-size:11px;color:#d29922;min-height:16px">Clique no ponto inicial da parede.</div>
+    </div>
+    <div class="planta-right">
+
+      <div class="planta-step active">
+        <div class="planta-step-t">Como desenhar</div>
+        <div class="planta-hint">1. Clique no <b>ponto inicial</b><br>2. Digite a <b>medida</b> abaixo<br>3. Clique na <b>direcao</b> &mdash; a parede sai com a medida digitada<br><br>Deixe a medida <b>vazia</b> para usar a distancia exata entre os 2 cliques. Os cantos da sala e as pontas de paredes <b>se encaixam</b> (snap).</div>
+      </div>
+
+      <div class="planta-step active">
+        <div class="planta-step-t">Medida da parede</div>
+        <div class="fi" style="margin-bottom:6px"><label>Comprimento (m) &mdash; vazio = distancia do clique</label><input type="number" id="wdLen" value="1.00" step="0.05" min="0" oninput="wdRender()"></div>
+        <div style="display:flex;gap:6px">
+          <div class="fi" style="margin:0;flex:1"><label>Espessura (m)</label><input type="number" id="wdTh" value="0.12" step="0.01" min="0.05"></div>
+          <div class="fi" style="margin:0;flex:1"><label>Altura (m)</label><input type="number" id="wdH" value="2.40" step="0.1" min="0.5"></div>
+        </div>
+        <button class="btn btn-gray" style="margin-top:6px" onclick="wdCancelStart()">Cancelar ponto inicial</button>
+      </div>
+
+      <div class="planta-step active">
+        <div class="planta-step-t">Paredes (<span id="wdCount">0</span>)</div>
+        <div id="wdList" style="max-height:150px;overflow-y:auto"></div>
+        <button class="btn btn-gray" style="margin-top:4px" onclick="wdUndo()">Desfazer ultima</button>
+      </div>
+
+      <label style="font-size:11px;color:#8b949e;display:flex;align-items:flex-start;gap:6px;margin-bottom:10px;cursor:pointer">
+        <input type="checkbox" id="wdExterior" checked style="width:auto;margin-top:2px">
+        <span>Este e o <b>contorno externo da loja</b> — usar o desenho como a forma final da sala (aceita recortes em L). Feche o contorno conectando as pontas.</span>
+      </label>
+      <button class="btn btn-green" onclick="wdApply()">Aplicar a Sala</button>
+      <button class="btn btn-gray" style="margin-top:2px" onclick="wdClose()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
+<script src="https://cdn.babylonjs.com/materialsLibrary/babylonjs.materials.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════════════════════════
+const CFG = {
+  room: { W:2.60, D:5.50, boh:2.30, corr:0.40, poly:null },
+  equipment: [
+    {id:'forno',     name:'Forno Deck',         color:'#c0392b', w:0.65, d:0.62, h:0.85, x:0.55, z:0.50, opTime:1.5, capacity:2},
+    {id:'geladeira', name:'Geladeira Vertical',  color:'#2980b9', w:0.58, d:1.12, h:1.60, x:2.20, z:1.40, opTime:0.5, capacity:1},
+    {id:'bancada',   name:'Maquina de frios',    color:'#d35400', w:1.00, d:0.60, h:0.90, x:1.50, z:0.50, opTime:1.5, capacity:1},
+    {id:'pia',       name:'Pia Inox',            color:'#8e44ad', w:0.50, d:0.50, h:0.88, x:2.20, z:0.40, opTime:0.5, capacity:1},
+    {id:'saladette', name:'Saladette-Vitrine',   color:'#27ae60', w:2.00, d:0.65, h:1.00, x:1.10, z:2.40, opTime:0.5, capacity:1},
+    {id:'pos',       name:'POS / Caixa',         color:'#16a085', w:0.40, d:0.40, h:1.00, x:2.30, z:2.60, opTime:1.5, capacity:1},
+  ],
+  menu: [
+    { id:'spaccata', name:'La Spaccata',    prob:0.55, price:92,
+      steps:[{eqId:'bancada',time:1.5},{eqId:'forno',time:1.5},{eqId:'saladette',time:0.5}] },
+    { id:'panino',   name:'Panino Simples', prob:0.30, price:45,
+      steps:[{eqId:'bancada',time:1.5},{eqId:'forno',time:1.5}] },
+    { id:'bebida',   name:'Bebida',         prob:0.15, price:15,
+      steps:[{eqId:'saladette',time:0.5}] },
+  ],
+  walls: [],
+};
+
+// ══════════════════════════════════════════════════════════════
+//  GLOBALS
+// ══════════════════════════════════════════════════════════════
+const canvas = document.getElementById('renderCanvas');
+const engine = new BABYLON.Engine(canvas, true);
+const labelsContainer = document.getElementById('labels-container');
+let scene, camera;
+const eqMeshes = {};
+let selEqId = null;
+let roomMeshes = [];
+let operators = [];
+let customers = [];
+let showTrails = true;
+let frameCount = 0;
+let stanchionMeshes = [];
+let queueZoneMesh = null;
+let pickupZoneMesh = null;
+let pickupZoneLabel = null;
+let filaLabelEl = null;
+const wallMeshes = {};
+let dragCellMeshes = [];
+
+// ══════════════════════════════════════════════════════════════
+//  SIM STATE
+// ══════════════════════════════════════════════════════════════
+let simOn = false, simSpd = 15, simTime = 10*60, lastMs = 0;
+const S = {
+  nextId:0, nextArr:10*60+0.3, orderNum:0,
+  served:0, balked:0, balkedPickup:0, totalWait:0, totalPrepTime:0,
+  totalQueueWait:0, totalActualPrep:0,
+  revenue:0, revenueBruto:0, reembolsos:0, itemsSold:{},
+  eqBusy:{}, eqTotal:{}, eqCount:{},
+  opBusy:[], opOrders:[], simStartTime:10*60,
+  maxQueue:0, slaOk:0, servedRevenue:0,
+  // historico para sparkline: servidos por minuto simulado
+  servedHist:[], balkedHist:[], queueHist:[],
+  lastHistMin:10*60,
+};
+const eqLock = {};
+const eqCap=id=>{const e=CFG.equipment.find(e=>e.id===id);return e?(e.capacity||1):1;};
+const eqLockHas=(id,oi)=>!!(eqLock[id]&&eqLock[id].has(oi));
+const eqLockFull=(id,oi)=>!!(eqLock[id]&&eqLock[id].size>=eqCap(id)&&!eqLockHas(id,oi));
+const eqLockAdd=(id,oi)=>{if(!eqLock[id])eqLock[id]=new Set();eqLock[id].add(oi);};
+const eqLockDel=(id,oi)=>{if(!eqLock[id])return;eqLock[id].delete(oi);if(eqLock[id].size===0)delete eqLock[id];};
+const eqLockClear=oi=>Object.keys(eqLock).forEach(k=>eqLockDel(k,oi));
+const activeOrders = [];
+const waitQueue = [];
+let queueSlots = [];
+let queueMarkerMeshes = [];
+let navGrid = null;
+let navGridW = 0, navGridH = 0;
+const NAV_CELL = 0.10;
+const NAV_MARGIN = 0.15;
+const pathCache = new Map();
+let pdvBusy = false;
+const prepQueue = [];
+let pickupSlots = [];
+let pickupMarkerMeshes = [];
+
+// ══════════════════════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════════════════════
+const hex2rgb = h => [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
+const snap10 = v => Math.round(v*20)/20;
+const totalTime = item => item.steps.reduce((a,s)=>a+s.time,0);
+
+// ── Poligono da sala (forma em L / recortes) ──
+const pointInPoly=(x,z,poly)=>{
+  let inside=false;
+  for(let i=0,j=poly.length-1;i<poly.length;j=i++){
+    const xi=poly[i].x,zi=poly[i].z,xj=poly[j].x,zj=poly[j].z;
+    if(((zi>z)!==(zj>z)) && (x < (xj-xi)*(z-zi)/((zj-zi)||1e-9)+xi)) inside=!inside;
+  }
+  return inside;
+};
+const wallEndpoints=(w)=>{
+  const h=w.length/2;
+  return w.horizontal?[{x:w.x-h,z:w.z},{x:w.x+h,z:w.z}]:[{x:w.x,z:w.z-h},{x:w.x,z:w.z+h}];
+};
+const ptEq=(a,b,tol)=>Math.abs(a.x-b.x)<=(tol||0.16)&&Math.abs(a.z-b.z)<=(tol||0.16);
+// Encadeia os segmentos de parede num contorno fechado (poligono). null se nao fechar.
+const contourFromWalls=(walls)=>{
+  if(!walls||walls.length<3)return null;
+  const segs=walls.map(wallEndpoints);
+  const used=new Array(segs.length).fill(false);
+  used[0]=true;
+  const poly=[segs[0][0]];
+  let cur=segs[0][1];
+  for(let step=0;step<segs.length+1;step++){
+    if(ptEq(cur,poly[0])) return poly.length>=3?poly:null; // fechou
+    poly.push(cur);
+    let found=-1,nextPt=null;
+    for(let i=0;i<segs.length;i++){
+      if(used[i])continue;
+      if(ptEq(segs[i][0],cur)){found=i;nextPt=segs[i][1];break;}
+      if(ptEq(segs[i][1],cur)){found=i;nextPt=segs[i][0];break;}
+    }
+    if(found<0)break;
+    used[found]=true;cur=nextPt;
+  }
+  return (used.every(Boolean)&&ptEq(cur,poly[0]))?poly:null;
+};
+
+const mkMat = (n, r, g, b, a) => {
+  const m = new BABYLON.StandardMaterial(n+Math.random(), scene);
+  m.diffuseColor = new BABYLON.Color3(r,g,b);
+  m.specularColor = new BABYLON.Color3(0.1,0.1,0.1);
+  if(a!==undefined&&a<1){m.alpha=a; m.backFaceCulling=false;}
+  return m;
+};
+
+const stepTo = (mesh, tx, tz, max) => {
+  const dx=tx-mesh.position.x, dz=tz-mesh.position.z, d=Math.hypot(dx,dz);
+  if(d<0.001) return true;
+  const s=Math.min(d,max);
+  mesh.position.x+=dx/d*s; mesh.position.z+=dz/d*s;
+  return d<=max;
+};
+
+const dist2=(m,tx,tz)=>Math.hypot(tx-m.position.x, tz-m.position.z);
+const dist2mm=(a,b)=>Math.hypot(a.position.x-b.position.x, a.position.z-b.position.z);
+
+// 3D to 2D screen projection
+const project3D = (pos3d) => {
+  const w=engine.getRenderWidth(), h=engine.getRenderHeight();
+  const vp=camera.viewport.toGlobal(w,h);
+  const p=BABYLON.Vector3.Project(pos3d,BABYLON.Matrix.Identity(),scene.getTransformMatrix(),vp);
+  return {x:p.x, y:p.y, behind:p.z<0||p.z>1};
+};
+
+// ══════════════════════════════════════════════════════════════
+//  NAV GRID + A* PATHFINDING
+// ══════════════════════════════════════════════════════════════
+const w2g=w=>Math.max(0,Math.min(navGridW-1,Math.round(w/NAV_CELL)));
+const g2w=g=>g*NAV_CELL;
+const gIdx=(gx,gz)=>gx+gz*navGridW;
+const gFree=(gx,gz)=>gx>=0&&gx<navGridW&&gz>=0&&gz<navGridH&&navGrid[gIdx(gx,gz)]===0;
+
+const buildNavGrid=()=>{
+  navGridW=Math.ceil(CFG.room.W/NAV_CELL)+1;
+  navGridH=Math.ceil(CFG.room.D/NAV_CELL)+1;
+  navGrid=new Uint8Array(navGridW*navGridH);
+  const markBlocked=(cx,cz,bw,bd)=>{
+    const hw=bw/2+NAV_MARGIN, hd=bd/2+NAV_MARGIN;
+    const gx0=Math.max(0,Math.floor((cx-hw)/NAV_CELL));
+    const gx1=Math.min(navGridW-1,Math.ceil((cx+hw)/NAV_CELL));
+    const gz0=Math.max(0,Math.floor((cz-hd)/NAV_CELL));
+    const gz1=Math.min(navGridH-1,Math.ceil((cz+hd)/NAV_CELL));
+    for(let gz=gz0;gz<=gz1;gz++) for(let gx=gx0;gx<=gx1;gx++) navGrid[gIdx(gx,gz)]=1;
+  };
+  CFG.equipment.forEach(eq=>{
+    const m=eqMeshes[eq.id];
+    markBlocked(m?m.position.x:eq.x, m?m.position.z:eq.z, eq.w, eq.d);
+  });
+  CFG.walls.forEach(wall=>{
+    const ww=wall.horizontal?wall.length:wall.thickness;
+    const wd=wall.horizontal?wall.thickness:wall.length;
+    markBlocked(wall.x, wall.z, ww, wd);
+  });
+  // recorte da sala (forma em L): bloqueia tudo fora do poligono
+  if(CFG.room.poly&&CFG.room.poly.length>=3){
+    for(let gz=0;gz<navGridH;gz++)for(let gx=0;gx<navGridW;gx++){
+      if(!pointInPoly(gx*NAV_CELL,gz*NAV_CELL,CFG.room.poly)) navGrid[gIdx(gx,gz)]=1;
+    }
+  }
+  const fZ=CFG.room.boh+CFG.room.corr;
+  const cgz0=Math.max(0,Math.floor((fZ-0.08)/NAV_CELL));
+  for(let gz=cgz0;gz<navGridH;gz++) for(let gx=0;gx<navGridW;gx++) navGrid[gIdx(gx,gz)]=1;
+  pathCache.clear();
+};
+
+class MinHeap{
+  constructor(){this.d=[];}
+  push(n){this.d.push(n);this._u(this.d.length-1);}
+  pop(){const t=this.d[0],l=this.d.pop();if(this.d.length>0){this.d[0]=l;this._d(0);}return t;}
+  size(){return this.d.length;}
+  _u(i){while(i>0){const p=(i-1)>>1;if(this.d[p].f<=this.d[i].f)break;[this.d[p],this.d[i]]=[this.d[i],this.d[p]];i=p;}}
+  _d(i){const n=this.d.length;while(true){let s=i,l=2*i+1,r=2*i+2;if(l<n&&this.d[l].f<this.d[s].f)s=l;if(r<n&&this.d[r].f<this.d[s].f)s=r;if(s===i)break;[this.d[s],this.d[i]]=[this.d[i],this.d[s]];i=s;}}
+}
+
+const DIRS=[[-1,0,1],[1,0,1],[0,-1,1],[0,1,1],[-1,-1,1.414],[-1,1,1.414],[1,-1,1.414],[1,1,1.414]];
+
+const findNearFree=(gx,gz,maxR)=>{
+  if(gFree(gx,gz))return{gx,gz};
+  for(let r=1;r<=maxR;r++)
+    for(let dx=-r;dx<=r;dx++)
+      for(let dz=-r;dz<=r;dz++){
+        if(Math.abs(dx)!==r&&Math.abs(dz)!==r)continue;
+        if(gFree(gx+dx,gz+dz))return{gx:gx+dx,gz:gz+dz};
+      }
+  return null;
+};
+
+const reconstructPath=(from,endKey,ex,ez,destFree)=>{
+  const raw=[];let k=endKey;
+  while(k!==undefined){raw.push(k);k=from.get(k);}
+  raw.reverse();
+  const path=[];
+  for(let i=1;i<raw.length;i++){const ggx=Math.floor(raw[i]/10000),ggz=raw[i]%10000;path.push({x:g2w(ggx),z:g2w(ggz)});}
+  if(destFree&&path.length>0)path[path.length-1]={x:ex,z:ez};
+  return path;
+};
+
+const findPath=(sx,sz,ex,ez)=>{
+  if(!navGrid)return[];
+  const sgx=w2g(sx),sgz=w2g(sz),egx=w2g(ex),egz=w2g(ez);
+  const key=sgx+','+sgz+'>'+egx+','+egz;
+  if(pathCache.has(key))return pathCache.get(key).slice();
+  if(sgx===egx&&sgz===egz){
+    if(gFree(egx,egz))return[{x:ex,z:ez}];
+    return[];
+  }
+  const fs=findNearFree(sgx,sgz,20);
+  if(!fs)return[];
+  const fe=findNearFree(egx,egz,20);
+  if(!fe)return[];
+  const fsx=fs.gx,fsz=fs.gz,fex=fe.gx,fez=fe.gz;
+  const destFree=gFree(egx,egz);
+  const open=new MinHeap();
+  const gScoreMap=new Map(),from=new Map(),closed=new Set();
+  const heur=(gx,gz)=>{const dx=Math.abs(gx-fex),dz=Math.abs(gz-fez);return Math.max(dx,dz)+0.414*Math.min(dx,dz);};
+  const startKey=fsx*10000+fsz;
+  gScoreMap.set(startKey,0);
+  open.push({gx:fsx,gz:fsz,f:heur(fsx,fsz)});
+  let iter=0,bestKey=startKey,bestDist=heur(fsx,fsz);
+  while(open.size()>0&&iter<6000){
+    iter++;
+    const cur=open.pop();
+    const curKey=cur.gx*10000+cur.gz;
+    if(closed.has(curKey))continue;
+    closed.add(curKey);
+    const dh=heur(cur.gx,cur.gz);
+    if(dh<bestDist){bestDist=dh;bestKey=curKey;}
+    if(cur.gx===fex&&cur.gz===fez){
+      const path=reconstructPath(from,curKey,ex,ez,destFree);
+      if(path.length>0){if(pathCache.size>500)pathCache.clear();pathCache.set(key,path);return path.slice();}
+    }
+    const cg=gScoreMap.get(curKey);
+    for(const[dx,dz,cost]of DIRS){
+      const nx=cur.gx+dx,nz=cur.gz+dz;
+      if(!gFree(nx,nz))continue;
+      if(dx!==0&&dz!==0&&(!gFree(cur.gx+dx,cur.gz)||!gFree(cur.gx,cur.gz+dz)))continue;
+      const nKey=nx*10000+nz;
+      if(closed.has(nKey))continue;
+      const ng=cg+cost;
+      if(!gScoreMap.has(nKey)||ng<gScoreMap.get(nKey)){
+        gScoreMap.set(nKey,ng);from.set(nKey,curKey);
+        open.push({gx:nx,gz:nz,f:ng+heur(nx,nz)});
+      }
+    }
+  }
+  if(bestKey!==startKey){
+    const path=reconstructPath(from,bestKey,ex,ez,false);
+    if(path.length>0)return path;
+  }
+  if(pathCache.size>500)pathCache.clear();
+  pathCache.set(key,[]);
+  return[];
+};
+
+const setOpTarget=(op,tx,tz)=>{
+  const maxZ=CFG.room.boh+CFG.room.corr-0.12;
+  tz=Math.min(tz,maxZ);
+  const hasPath=op.path&&op.path.length>0;
+  if(hasPath&&Math.abs(op.tX-tx)<0.08&&Math.abs(op.tZ-tz)<0.08)return;
+  op.tX=tx;op.tZ=tz;
+  op.path=findPath(op.mesh.position.x,op.mesh.position.z,tx,tz);
+  op.pathIdx=0;
+};
+
+const stepAlongPath=(op,spd)=>{
+  if(!op.path||op.path.length===0)return false;
+  if(op.pathIdx>=op.path.length)return true;
+  const wp=op.path[op.pathIdx];
+  if(stepTo(op.mesh,wp.x,wp.z,spd)){
+    op.pathIdx++;
+    if(op.pathIdx>=op.path.length)return true;
+  }
+  return false;
+};
+
+// ══════════════════════════════════════════════════════════════
+//  QUEUE MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+const computeQueuePositions=(max)=>{
+  queueSlots=[];
+  const pos=CFG.equipment.find(e=>e.id==='pos');
+  const posX=pos?pos.x:CFG.room.W-0.45;
+  const fZ=CFG.room.boh+CFG.room.corr;
+  const startZ=fZ+0.50;
+  const rowSpacing=0.55;
+  const colSpacing=0.50;
+  const margin=0.40;
+  let row=0,count=0;
+  while(count<max){
+    const z=startZ+row*rowSpacing;
+    if(z>CFG.room.D-0.20)break;
+    const goingLeft=(row%2===0);
+    const sX=goingLeft?posX:margin;
+    const eX=goingLeft?margin:posX;
+    const step=goingLeft?-colSpacing:colSpacing;
+    let x=sX;
+    while(count<max){
+      if(goingLeft?(x<eX):(x>eX))break;
+      queueSlots.push({x,z});
+      x+=step;
+      count++;
+    }
+    row++;
+  }
+};
+
+const computePickupSlots=(max)=>{
+  pickupSlots=[];
+  const fZ=CFG.room.boh+CFG.room.corr;
+  const colSpacing=0.45;
+  const rowSpacing=0.50;
+  const maxX=CFG.room.W*0.45;
+  let row=0,count=0;
+  while(count<max){
+    const z=fZ+0.35+row*rowSpacing;
+    let x=0.55;
+    while(count<max&&x<=maxX){
+      pickupSlots.push({x,z});
+      x+=colSpacing;
+      count++;
+    }
+    row++;
+    if(row>3)break;
+  }
+};
+
+const buildPickupMarkers=()=>{
+  pickupMarkerMeshes.forEach(m=>m.dispose());pickupMarkerMeshes=[];
+  for(let i=0;i<pickupSlots.length;i++){
+    const s=pickupSlots[i];
+    const box=BABYLON.MeshBuilder.CreateBox('pm_'+i,{width:0.26,height:0.005,depth:0.26},scene);
+    box.position.set(s.x,0.006,s.z);box.material=mkMat('pmm_'+i,0.25,0.55,0.95,0.25);box.isPickable=false;
+    pickupMarkerMeshes.push(box);
+  }
+};
+
+const buildQueueMarkers=()=>{
+  queueMarkerMeshes.forEach(m=>m.dispose());queueMarkerMeshes=[];
+  const max=Math.min(queueSlots.length,12);
+  for(let i=0;i<max;i++){
+    const s=queueSlots[i];
+    const box=BABYLON.MeshBuilder.CreateBox('qm_'+i,{width:0.30,height:0.005,depth:0.30},scene);
+    box.position.set(s.x,0.006,s.z);box.material=mkMat('qmm_'+i,0.95,0.85,0.25,0.15);box.isPickable=false;
+    queueMarkerMeshes.push(box);
+  }
+};
+
+const buildStanchions=()=>{
+  stanchionMeshes.forEach(m=>m.dispose());stanchionMeshes=[];
+  if(queueSlots.length<2)return;
+  for(let i=0;i<queueSlots.length-1;i++){
+    const a=queueSlots[i],b=queueSlots[i+1];
+    const dx=b.x-a.x,dz=b.z-a.z;
+    const len=Math.hypot(dx,dz);
+    if(len<0.01)continue;
+    const line=BABYLON.MeshBuilder.CreateBox('stch_'+i,{width:len,height:0.003,depth:0.04},scene);
+    line.position.set((a.x+b.x)/2,0.004,(a.z+b.z)/2);
+    line.rotation.y=Math.atan2(dx,dz)+Math.PI/2;
+    line.material=mkMat('stchM_'+i,0.6,0.6,0.6,0.3);
+    line.isPickable=false;
+    stanchionMeshes.push(line);
+  }
+};
+
+const buildPickupZone=()=>{
+  if(pickupZoneMesh){pickupZoneMesh.dispose();pickupZoneMesh=null;}
+  if(pickupSlots.length<1)return;
+  const fZ=CFG.room.boh+CFG.room.corr;
+  const firstX=pickupSlots[0].x;
+  const lastX=pickupSlots[pickupSlots.length-1].x;
+  const w=lastX-firstX+0.50;
+  const d=0.55;
+  pickupZoneMesh=BABYLON.MeshBuilder.CreateGround('pickupZone',{width:w,height:d},scene);
+  pickupZoneMesh.position.set((firstX+lastX)/2,0.004,fZ+0.35);
+  pickupZoneMesh.material=mkMat('pzM',0.2,0.55,0.95,0.15);
+  pickupZoneMesh.isPickable=false;
+};
+
+const updateQueueZone=()=>{
+  const qLen=waitQueue.length;
+  const fZ=CFG.room.boh+CFG.room.corr;
+  if(qLen===0){if(queueZoneMesh){queueZoneMesh.isVisible=false;}return;}
+  const lastSlot=queueSlots[Math.min(qLen-1,queueSlots.length-1)];
+  const depth=lastSlot?lastSlot.z-fZ+0.40:1.0;
+  if(!queueZoneMesh){
+    queueZoneMesh=BABYLON.MeshBuilder.CreateGround('qZone',{width:CFG.room.W-0.4,height:1},scene);
+    queueZoneMesh.isPickable=false;
+    queueZoneMesh.material=mkMat('qzM',0.1,0.78,0.38,0.12);
+  }
+  queueZoneMesh.isVisible=true;
+  queueZoneMesh.scaling.z=depth;
+  queueZoneMesh.position.set(CFG.room.W/2,0.005,fZ+depth/2);
+  const mat=queueZoneMesh.material;
+  if(qLen>10){mat.diffuseColor.set(0.88,0.18,0.22);mat.alpha=0.15;}
+  else if(qLen>5){mat.diffuseColor.set(0.92,0.82,0.15);mat.alpha=0.13;}
+  else{mat.diffuseColor.set(0.1,0.78,0.38);mat.alpha=0.10;}
+};
+
+const enqueueCustomer=c=>{waitQueue.push(c);c.queuePos=waitQueue.length-1;S.maxQueue=Math.max(S.maxQueue,waitQueue.length);};
+const dequeueCustomer=()=>{const c=waitQueue.shift();waitQueue.forEach((cu,i)=>cu.queuePos=i);return c;};
+const removeFromQueue=id=>{const idx=waitQueue.findIndex(c=>c.id===id);if(idx>=0)waitQueue.splice(idx,1);waitQueue.forEach((cu,i)=>cu.queuePos=i);};
+
+// ══════════════════════════════════════════════════════════════
+//  WAIT-TIME VISUAL INDICATOR (no balk)
+// ══════════════════════════════════════════════════════════════
+const colorByWait=(c,tol)=>{
+  const wt=simTime-c.tArr;
+  const ratio=wt/Math.max(1,tol);
+  if(ratio<0.5)c.mesh.material.diffuseColor.set(0.1,0.78,0.38);
+  else if(ratio<0.8)c.mesh.material.diffuseColor.set(0.92,0.82,0.15);
+  else c.mesh.material.diffuseColor.set(0.88,0.18,0.22);
+};
+
+// ══════════════════════════════════════════════════════════════
+//  FOOD MESH
+// ══════════════════════════════════════════════════════════════
+const foodColors={spaccata:[0.65,0.35,0.12],panino:[0.8,0.65,0.3],bebida:[0.2,0.5,0.9]};
+const createFoodMesh=(itemId,op)=>{
+  disposeFoodMesh(op);
+  const fc=foodColors[itemId]||[0.7,0.5,0.2];
+  const mesh=BABYLON.MeshBuilder.CreateBox('food_'+op.idx+'_'+Date.now(),{width:0.14,height:0.10,depth:0.14},scene);
+  mesh.parent=op.mesh;mesh.position.set(0.28,0.25,0);
+  mesh.material=mkMat('fm_'+op.idx,fc[0],fc[1],fc[2]);mesh.isPickable=false;
+  op.foodMesh=mesh;
+};
+const disposeFoodMesh=op=>{if(op.foodMesh){op.foodMesh.dispose();op.foodMesh=null;}};
+// ══════════════════════════════════════════════════════════════
+//  EQUIPMENT COLLISION
+// ══════════════════════════════════════════════════════════════
+const checkCollision = (eqId, x, z, w, d) => {
+  for (const other of CFG.equipment) {
+    if (other.id === eqId) continue;
+    if (Math.abs(x-other.x)<(w+other.w)/2+0.02 && Math.abs(z-other.z)<(d+other.d)/2+0.02) return other;
+  }
+  for (const wall of CFG.walls) {
+    if (wall.id === eqId) continue;
+    const ww=wall.horizontal?wall.length:wall.thickness;
+    const wd=wall.horizontal?wall.thickness:wall.length;
+    if (Math.abs(x-wall.x)<(w+ww)/2+0.02 && Math.abs(z-wall.z)<(d+wd)/2+0.02) return {id:wall.id,name:wall.name};
+  }
+  return null;
+};
+const checkWallCollision = (wallId, x, z, ww, wd) => {
+  for (const eq of CFG.equipment) {
+    if (Math.abs(x-eq.x)<(ww+eq.w)/2+0.02 && Math.abs(z-eq.z)<(wd+eq.d)/2+0.02) return eq;
+  }
+  for (const other of CFG.walls) {
+    if (other.id === wallId) continue;
+    const ow=other.horizontal?other.length:other.thickness;
+    const od=other.horizontal?other.thickness:other.length;
+    if (Math.abs(x-other.x)<(ww+ow)/2+0.02 && Math.abs(z-other.z)<(wd+od)/2+0.02) return {id:other.id,name:other.name};
+  }
+  return null;
+};
+let dragging=false, dragHasCollision=false, dragPrevPos=null;
+
+// ══════════════════════════════════════════════════════════════
+//  SIDEBAR CATEGORIES
+// ══════════════════════════════════════════════════════════════
+const showSbCat=(id,el)=>{
+  document.querySelectorAll('.sb-panel').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.sb-cat').forEach(b=>b.classList.remove('on'));
+  const panel=document.getElementById('sb-'+id);
+  if(panel)panel.classList.add('on');
+  if(el)el.classList.add('on');
+};
+
+// ══════════════════════════════════════════════════════════════
+//  DRAG CELL HIGHLIGHTING
+// ══════════════════════════════════════════════════════════════
+const DRAG_CELL=0.10;
+let dragFootprint=null;
+const clearDragCells=()=>{
+  dragCellMeshes.forEach(m=>m.dispose());dragCellMeshes=[];
+  if(dragFootprint){dragFootprint.dispose();dragFootprint=null;}
+};
+const showDragCells=(eqId,cx,cz,w,d)=>{
+  dragCellMeshes.forEach(m=>m.dispose());dragCellMeshes.length=0;
+  if(!dragFootprint){
+    dragFootprint=BABYLON.MeshBuilder.CreateGround('dragFP',{width:1,height:1},scene);
+    dragFootprint.material=mkMat('dfpM',0.2,0.7,1.0,0.18);
+    dragFootprint.isPickable=false;
+  }
+  dragFootprint.scaling.set(w,1,d);
+  dragFootprint.position.set(cx,0.012,cz);
+  dragFootprint.isVisible=true;
+  const otherBoxes=CFG.equipment.filter(e=>e.id!==eqId).map(e=>({x:e.x,z:e.z,hw:e.w/2,hd:e.d/2}));
+  CFG.walls.filter(wl=>wl.id!==eqId).forEach(wl=>{
+    const ww=wl.horizontal?wl.length:wl.thickness;
+    const wd=wl.horizontal?wl.thickness:wl.length;
+    otherBoxes.push({x:wl.x,z:wl.z,hw:ww/2,hd:wd/2});
+  });
+  const hw=w/2, hd=d/2;
+  const x0=cx-hw, x1=cx+hw, z0=cz-hd, z1=cz+hd;
+  const gx0=Math.floor(x0/DRAG_CELL), gx1=Math.ceil(x1/DRAG_CELL);
+  const gz0=Math.floor(z0/DRAG_CELL), gz1=Math.ceil(z1/DRAG_CELL);
+  let hasConflict=false;
+  for(let gx=gx0;gx<gx1;gx++){
+    for(let gz=gz0;gz<gz1;gz++){
+      const cellCx=(gx+0.5)*DRAG_CELL, cellCz=(gz+0.5)*DRAG_CELL;
+      for(const ob of otherBoxes){
+        if(Math.abs(cellCx-ob.x)<ob.hw+DRAG_CELL*0.3 && Math.abs(cellCz-ob.z)<ob.hd+DRAG_CELL*0.3){
+          hasConflict=true;
+          const box=BABYLON.MeshBuilder.CreateGround('dc_'+gx+'_'+gz,{width:DRAG_CELL*0.92,height:DRAG_CELL*0.92},scene);
+          box.position.set(cellCx,0.018,cellCz);
+          box.material=mkMat('dcR',0.95,0.12,0.12,0.6);
+          box.isPickable=false;
+          dragCellMeshes.push(box);
+          break;
+        }
+      }
+    }
+  }
+  if(hasConflict){dragFootprint.material.diffuseColor.set(0.95,0.3,0.2);dragFootprint.material.alpha=0.25;}
+  else{dragFootprint.material.diffuseColor.set(0.2,0.7,1.0);dragFootprint.material.alpha=0.18;}
+};
+
+// ══════════════════════════════════════════════════════════════
+//  WALL MANAGEMENT
+// ══════════════════════════════════════════════════════════════
+const buildAllWalls=()=>{
+  Object.values(wallMeshes).forEach(m=>m.dispose());
+  Object.keys(wallMeshes).forEach(k=>delete wallMeshes[k]);
+  CFG.walls.forEach(createWallMesh);
+  buildNavGrid();
+};
+const createWallMesh=(wall)=>{
+  const ww=wall.horizontal?wall.length:wall.thickness;
+  const wd=wall.horizontal?wall.thickness:wall.length;
+  const mesh=BABYLON.MeshBuilder.CreateBox(wall.id,{width:ww,height:wall.height,depth:wd},scene);
+  mesh.position.set(wall.x,wall.height/2,wall.z);
+  mesh.material=mkMat(wall.id+'_m',0.55,0.50,0.42);
+  mesh.material.specularColor=new BABYLON.Color3(0.1,0.1,0.1);
+  const drag=new BABYLON.PointerDragBehavior({dragPlaneNormal:BABYLON.Vector3.Up()});
+  drag.onDragStartObservable.add(()=>{dragging=true;dragHasCollision=false;dragPrevPos={x:wall.x,z:wall.z};});
+  drag.onDragObservable.add(()=>{
+    mesh.position.x=snap10(Math.max(ww/2+0.02,Math.min(CFG.room.W-ww/2-0.02,mesh.position.x)));
+    mesh.position.z=snap10(Math.max(wd/2+0.02,Math.min(CFG.room.D-wd/2-0.02,mesh.position.z)));
+    mesh.position.y=wall.height/2;
+    const col=checkWallCollision(wall.id,mesh.position.x,mesh.position.z,ww,wd);
+    dragHasCollision=!!col;
+    const warn=document.getElementById('collision-warn');
+    if(col){warn.textContent='Sobrepondo: '+col.name;warn.style.display='block';mesh.material.emissiveColor=new BABYLON.Color3(0.6,0.05,0.05);}
+    else{warn.style.display='none';mesh.material.emissiveColor=BABYLON.Color3.Black();}
+    wall.x=mesh.position.x;wall.z=mesh.position.z;
+    showDragCells(wall.id,wall.x,wall.z,ww,wd);
+  });
+  drag.onDragEndObservable.add(()=>{
+    dragging=false;document.getElementById('collision-warn').style.display='none';
+    if(dragHasCollision&&dragPrevPos){wall.x=dragPrevPos.x;wall.z=dragPrevPos.z;mesh.position.x=wall.x;mesh.position.z=wall.z;}
+    mesh.material.emissiveColor=BABYLON.Color3.Black();
+    dragPrevPos=null;clearDragCells();buildNavGrid();
+  });
+  mesh.addBehavior(drag);
+  addEqLabel(mesh,wall.name,wall.height);
+  wallMeshes[wall.id]=mesh;
+};
+const addWall=()=>{
+  const id='wall_'+Date.now();
+  const cx=snap10(CFG.room.W/2);
+  const cz=snap10(CFG.room.D/2);
+  CFG.walls.push({id,name:'Parede '+(CFG.walls.length+1),length:1.50,thickness:0.12,height:2.40,x:cx,z:cz,horizontal:true});
+  buildAllWalls();renderWallPanel();
+};
+const removeWall=(id)=>{
+  CFG.walls=CFG.walls.filter(w=>w.id!==id);
+  if(wallMeshes[id]){wallMeshes[id].dispose();delete wallMeshes[id];}
+  buildNavGrid();renderWallPanel();
+};
+const applyWall=(id)=>{
+  const wall=CFG.walls.find(w=>w.id===id);if(!wall)return;
+  wall.length=parseFloat(document.getElementById('wl_'+id)?.value)||wall.length;
+  wall.thickness=parseFloat(document.getElementById('wt_'+id)?.value)||wall.thickness;
+  wall.height=parseFloat(document.getElementById('wh_'+id)?.value)||wall.height;
+  wall.horizontal=document.getElementById('wo_'+id)?.value==='h';
+  if(wallMeshes[id]){wallMeshes[id].dispose();delete wallMeshes[id];}
+  createWallMesh(wall);buildNavGrid();renderWallPanel();
+};
+const renderWallPanel=()=>{
+  const el=document.getElementById('wall-list');if(!el)return;el.innerHTML='';
+  CFG.walls.forEach(wall=>{
+    const d=document.createElement('div');d.className='mic';
+    d.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:#8b949e">${wall.horizontal?'&#8596; Horizontal':'&#8597; Vertical'} &mdash; ${wall.length.toFixed(2)} m</span>
+        <button class="rm-btn" onclick="removeWall('${wall.id}')">x</button>
+      </div>
+      <div class="r2">
+        <div class="fi"><label>Orientacao</label><select id="wo_${wall.id}"><option value="h"${wall.horizontal?' selected':''}>Horizontal</option><option value="v"${!wall.horizontal?' selected':''}>Vertical</option></select></div>
+        <div class="fi"><label>Extensao (m)</label><input type="number" id="wl_${wall.id}" value="${wall.length}" min="0.2" max="15" step="0.05"></div>
+      </div>
+      <div class="r2">
+        <div class="fi"><label>Espessura (m)</label><input type="number" id="wt_${wall.id}" value="${wall.thickness}" min="0.05" max="0.50" step="0.01"></div>
+        <div class="fi"><label>Altura (m)</label><input type="number" id="wh_${wall.id}" value="${wall.height}" min="0.5" max="4" step="0.1"></div>
+      </div>
+      <button class="btn btn-blue" style="padding:5px;font-size:11px;margin-top:2px" onclick="applyWall('${wall.id}')">Aplicar</button>`;
+    el.appendChild(d);
+  });
+};
+
+// ══════════════════════════════════════════════════════════════
+//  SCENE
+// ══════════════════════════════════════════════════════════════
+const initScene = () => {
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.05,0.07,0.1,1);
+
+  camera = new BABYLON.ArcRotateCamera('c',-Math.PI/2, Math.PI/3.5, 9,
+    new BABYLON.Vector3(CFG.room.W/2,0,CFG.room.D/2), scene);
+  camera.lowerRadiusLimit=2.5; camera.upperRadiusLimit=22;
+  camera.lowerBetaLimit=0.1; camera.upperBetaLimit=Math.PI/2-0.05;
+  camera.attachControl(canvas,true);
+
+  new BABYLON.HemisphericLight('hl',BABYLON.Vector3.Up(),scene).intensity=0.85;
+  const dl=new BABYLON.DirectionalLight('dl',new BABYLON.Vector3(-1,-2,-0.5),scene);
+  dl.intensity=0.35;
+
+  scene.onPointerDown = (evt, pick) => {
+    if(evt.button!==0||!pick.pickedMesh) return;
+    let name=pick.pickedMesh.name;
+    if(pick.pickedMesh.parent) name=pick.pickedMesh.parent.name;
+    if(eqMeshes[name]) selectEq(name);
+  };
+
+  buildRoom(); buildAllEquip(); buildAllWalls(); buildOperators();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  ROOM
+// ══════════════════════════════════════════════════════════════
+const buildRoom = () => {
+  roomMeshes.forEach(m=>m.dispose()); roomMeshes=[];
+  const {W,D,boh,corr}=CFG.room, fohZ=boh+corr;
+
+  const fl=BABYLON.MeshBuilder.CreateGround('fl',{width:W,height:D},scene);
+  fl.position.set(W/2,0,D/2); fl.isPickable=false;
+  if(BABYLON.GridMaterial){
+    const gm=new BABYLON.GridMaterial('gm',scene);
+    gm.majorUnitFrequency=1;gm.minorUnitVisibility=0.4;gm.gridRatio=1;
+    gm.mainColor=new BABYLON.Color3(0.2,0.25,0.35);
+    gm.lineColor=new BABYLON.Color3(0.35,0.42,0.55);
+    gm.backFaceCulling=false; fl.material=gm;
+  }
+  roomMeshes.push(fl);
+
+  // recorte da sala (forma em L): cobre area inexistente com piso escuro
+  if(CFG.room.poly&&CFG.room.poly.length>=3){
+    const voidMat=mkMat('voidm',0.03,0.04,0.06,0.97);
+    const cell=0.10, nx=Math.ceil(W/cell), nz=Math.ceil(D/cell);
+    for(let gz=0;gz<nz;gz++){
+      let run=-1;
+      for(let gx=0;gx<=nx;gx++){
+        const out = gx<nx && !pointInPoly((gx+0.5)*cell,(gz+0.5)*cell,CFG.room.poly);
+        if(out){ if(run<0)run=gx; }
+        else if(run>=0){
+          const x0=run*cell, vw=(gx-run)*cell, z0=gz*cell;
+          const m=BABYLON.MeshBuilder.CreateGround('void_'+gz+'_'+run,{width:vw,height:cell},scene);
+          m.position.set(x0+vw/2,0.006,z0+cell/2); m.material=voidMat; m.isPickable=false;
+          roomMeshes.push(m); run=-1;
+        }
+      }
+    }
+  }
+
+  const addOv=(id,w,h,x,z,r,g,b,a)=>{
+    const m=BABYLON.MeshBuilder.CreateGround(id,{width:w,height:h},scene);
+    m.position.set(x,0.003,z); m.material=mkMat(id,r,g,b,a||0.18); m.isPickable=false;
+    roomMeshes.push(m);
+  };
+  addOv('boh_ov',W,boh,W/2,boh/2,0.5,0.28,0.05);
+  addOv('foh_ov',W,D-fohZ,W/2,fohZ+(D-fohZ)/2,0.05,0.4,0.22,0.08);
+
+  const counter=BABYLON.MeshBuilder.CreateBox('counter',{width:W+0.02,height:1.0,depth:0.12},scene);
+  counter.position.set(W/2,0.50,fohZ);counter.material=mkMat('counterM',0.52,0.33,0.16);counter.isPickable=false;
+  roomMeshes.push(counter);
+  const cTop=BABYLON.MeshBuilder.CreateBox('cTop',{width:W+0.04,height:0.04,depth:0.22},scene);
+  cTop.position.set(W/2,1.01,fohZ);cTop.material=mkMat('cTopM',0.62,0.42,0.22);cTop.isPickable=false;
+  roomMeshes.push(cTop);
+
+  if(BABYLON.GridMaterial){
+    const bohFl=BABYLON.MeshBuilder.CreateGround('bohGrid',{width:W,height:boh+corr-0.06},scene);
+    bohFl.position.set(W/2,0.005,(boh+corr-0.06)/2);
+    const bgm=new BABYLON.GridMaterial('bgm',scene);
+    bgm.majorUnitFrequency=20;bgm.minorUnitVisibility=0.4;bgm.gridRatio=0.05;
+    bgm.mainColor=new BABYLON.Color3(0.45,0.35,0.22);
+    bgm.lineColor=new BABYLON.Color3(0.6,0.48,0.28);
+    bgm.backFaceCulling=false;bohFl.material=bgm;bohFl.isPickable=false;
+    roomMeshes.push(bohFl);
+  }
+
+  const wm=mkMat('wm',0.7,0.65,0.55,0.14);
+  [[W,2.4,0.1,W/2,1.2,-0.05],[0.1,2.4,D,-0.05,1.2,D/2],[0.1,2.4,D,W+0.05,1.2,D/2]].forEach(([w,h,d,x,y,z],i)=>{
+    const wall=BABYLON.MeshBuilder.CreateBox('wall'+i,{width:w,height:h,depth:d},scene);
+    wall.position.set(x,y,z); wall.material=wm; wall.isPickable=false; roomMeshes.push(wall);
+  });
+
+  const ent=BABYLON.MeshBuilder.CreateBox('ent',{width:1.2,height:0.01,depth:0.06},scene);
+  ent.position.set(W/2,0.01,D+0.04); ent.material=mkMat('em',0.18,0.95,0.55); ent.isPickable=false;
+  roomMeshes.push(ent);
+
+  addZoneLabel('BoH  Producao',W/2,0.02,boh*0.4,[1,0.55,0.15]);
+  camera.target.set(W/2,0,D/2);
+  computeQueuePositions(40);
+  buildQueueMarkers();
+  buildStanchions();
+  computePickupSlots(20);
+  buildPickupMarkers();
+  buildPickupZone();
+  addZoneLabel('Retirada',(pickupSlots[0].x+pickupSlots[Math.min(pickupSlots.length-1,3)].x)/2,0.02,fohZ+0.60,[0.2,0.6,1.0]);
+  buildNavGrid();
+};
+
+const addZoneLabel=(text,x,y,z,rgb)=>{
+  const p=BABYLON.MeshBuilder.CreatePlane('zl_'+text,{width:3,height:0.55},scene);
+  p.rotation.x=Math.PI/2; p.position.set(x,y,z); p.isPickable=false; roomMeshes.push(p);
+  const dt=new BABYLON.DynamicTexture('dzt_'+text,{width:512,height:80},scene);
+  dt.drawText(text,null,null,'bold 28px Arial',
+    `rgba(${rgb.map(v=>Math.round(v*255)).join(',')},0.85)`,'transparent',true);
+  const m=new BABYLON.StandardMaterial('zlm_'+text,scene);
+  m.diffuseTexture=dt; m.opacityTexture=dt;
+  m.emissiveColor=new BABYLON.Color3(...rgb); m.backFaceCulling=false; p.material=m;
+};
+
+// ══════════════════════════════════════════════════════════════
+//  EQUIPMENT
+// ══════════════════════════════════════════════════════════════
+const buildAllEquip=()=>{
+  Object.values(eqMeshes).forEach(m=>m.dispose());
+  Object.keys(eqMeshes).forEach(k=>delete eqMeshes[k]);
+  CFG.equipment.forEach(createEqMesh);
+  buildNavGrid();
+};
+
+const createEqMesh=(eq)=>{
+  const [r,g,b]=hex2rgb(eq.color);
+  const mesh=BABYLON.MeshBuilder.CreateBox(eq.id,{width:eq.w,height:eq.h,depth:eq.d},scene);
+  mesh.position.set(eq.x,eq.h/2,eq.z);
+  const mat=new BABYLON.StandardMaterial(eq.id+'_m',scene);
+  mat.diffuseColor=new BABYLON.Color3(r,g,b);
+  mat.specularColor=new BABYLON.Color3(0.2,0.2,0.2);
+  mesh.material=mat;
+
+  const drag=new BABYLON.PointerDragBehavior({dragPlaneNormal:BABYLON.Vector3.Up()});
+  drag.onDragStartObservable.add(()=>{dragging=true;dragHasCollision=false;dragPrevPos={x:eq.x,z:eq.z};});
+  drag.onDragObservable.add(()=>{
+    const eqMaxZ=CFG.room.boh+CFG.room.corr-0.06;
+    mesh.position.x=snap10(Math.max(eq.w/2+0.05,Math.min(CFG.room.W-eq.w/2-0.05,mesh.position.x)));
+    mesh.position.z=snap10(Math.max(eq.d/2+0.05,Math.min(eqMaxZ,mesh.position.z)));
+    mesh.position.y=eq.h/2;
+    const col=checkCollision(eq.id,mesh.position.x,mesh.position.z,eq.w,eq.d);
+    dragHasCollision=!!col;
+    const warn=document.getElementById('collision-warn');
+    if(col){warn.textContent='Sobrepondo: '+col.name;warn.style.display='block';mat.emissiveColor=new BABYLON.Color3(0.6,0.05,0.05);}
+    else{warn.style.display='none';mat.emissiveColor=selEqId===eq.id?new BABYLON.Color3(0.4,0.4,0.1):BABYLON.Color3.Black();}
+    eq.x=mesh.position.x;eq.z=mesh.position.z;
+    showDragCells(eq.id,eq.x,eq.z,eq.w,eq.d);
+  });
+  drag.onDragEndObservable.add(()=>{
+    dragging=false;document.getElementById('collision-warn').style.display='none';
+    if(dragHasCollision&&dragPrevPos){eq.x=dragPrevPos.x;eq.z=dragPrevPos.z;mesh.position.x=eq.x;mesh.position.z=eq.z;}
+    mat.emissiveColor=selEqId===eq.id?new BABYLON.Color3(0.4,0.4,0.1):BABYLON.Color3.Black();
+    dragPrevPos=null;clearDragCells();
+    buildNavGrid();
+  });
+  mesh.addBehavior(drag);
+  addEqLabel(mesh,eq.name,eq.h);
+  eqMeshes[eq.id]=mesh;
+};
+
+const addEqLabel=(parent,text,h)=>{
+  const p=BABYLON.MeshBuilder.CreatePlane('lbl_'+text,{width:1.3,height:0.3},scene);
+  p.position.y=h/2+0.25;p.billboardMode=BABYLON.Mesh.BILLBOARDMODE_ALL;
+  p.parent=parent;p.isPickable=false;
+  const dt=new BABYLON.DynamicTexture('dtl_'+text,{width:256,height:52},scene);
+  dt.drawText(text,null,null,'bold 18px Arial','#fff','rgba(0,0,0,0.6)',true);
+  const m=new BABYLON.StandardMaterial('ml_'+text,scene);
+  m.diffuseTexture=dt;m.opacityTexture=dt;
+  m.emissiveColor=BABYLON.Color3.White();m.backFaceCulling=false;p.material=m;
+};
+
+const activeEqs=new Set();
+const flashEq=id=>{activeEqs.add(id);};
+const updateEqFlash=()=>{
+  CFG.equipment.forEach(eq=>{
+    const m=eqMeshes[eq.id];if(!m||dragging)return;
+    const isA=activeEqs.has(eq.id),isS=selEqId===eq.id;
+    if(isA){const t=performance.now()/600;m.material.emissiveColor=new BABYLON.Color3((Math.sin(t)+1)*0.25,(Math.sin(t)+1)*0.1,0);}
+    else if(!isS){m.material.emissiveColor=BABYLON.Color3.Black();}
+  });
+  activeEqs.clear();
+};
+
+const selectEq=id=>{
+  if(selEqId&&eqMeshes[selEqId])eqMeshes[selEqId].material.emissiveColor=BABYLON.Color3.Black();
+  selEqId=id;
+  if(eqMeshes[id])eqMeshes[id].material.emissiveColor=new BABYLON.Color3(0.4,0.4,0.1);
+  showTab('equip',document.querySelectorAll('.tb')[1]);
+  renderEqPanel();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  OPERATORS
+// ══════════════════════════════════════════════════════════════
+const buildOperators=()=>{
+  operators.forEach(op=>{op.mesh.dispose();op.head.dispose();if(op.labelEl)op.labelEl.remove();if(op.trailMesh)op.trailMesh.dispose();});
+  operators=[];
+  const n=parseInt(document.getElementById('cfgOps').value)||2;
+  const colors=[
+    {r:0.08,g:0.38,b:0.92}, {r:0.15,g:0.65,b:0.35},
+    {r:0.7,g:0.2,b:0.7},    {r:0.1,g:0.7,b:0.7}
+  ];
+  for(let i=0;i<n;i++){
+    const mesh=BABYLON.MeshBuilder.CreateCylinder('op'+i,{height:1.7,diameter:0.38,tessellation:10},scene);
+    const head=BABYLON.MeshBuilder.CreateSphere('oph'+i,{diameter:0.36},scene);
+    head.parent=mesh;head.position.y=1.0;
+    const c=colors[i%colors.length];
+    const mFree=mkMat('opF'+i,c.r,c.g,c.b);
+    const mBusy=mkMat('opB'+i,0.85,0.6,0.05);
+    const mWait=mkMat('opW'+i,0.95,0.25,0.25);
+    mesh.material=mFree;head.material=mkMat('opH'+i,1,0.88,0.78);
+    mesh.isPickable=false;
+    const ix=1.50+i*1.20, iz=CFG.room.boh*0.55;
+    mesh.position.set(ix,0.85,iz);
+
+    const lbl=document.createElement('div');
+    lbl.className='lbl-3d lbl-op';
+    lbl.textContent=`Op ${i+1} - Livre`;
+    labelsContainer.appendChild(lbl);
+
+    operators.push({
+      mesh,head,mFree,mBusy,mWait,
+      state:'idle',task:null,
+      idleX:ix,idleZ:iz,tX:ix,tZ:iz,
+      busyTime:0,labelEl:lbl,
+      statusText:'Livre',
+      trail:[],trailMesh:null,trailColor:new BABYLON.Color3(c.r,c.g,c.b),
+      idx:i,
+      path:[],pathIdx:0,
+      foodMesh:null,stuckTimer:0,
+      fixedEq:'',fixoStep:null,placedAtStation:false
+    });
+    S.opBusy[i]=0;
+  }
+  renderOpAssignments();applyOpAssignments();
+};
+
+const renderOpAssignments=()=>{
+  const n=parseInt(document.getElementById('cfgOps').value)||2;
+  const opts='<option value="">Volante (anda entre estacoes)</option>'
+    +CFG.equipment.map(eq=>`<option value="${eq.id}">Fixo no ${eq.name}</option>`).join('');
+  const wrap=document.getElementById('opAssignments');
+  if(!wrap)return;
+  let h='';
+  for(let i=0;i<n;i++){
+    const cur=(operators[i]&&operators[i].fixedEq)||'';
+    h+=`<div style="margin:3px 0"><label style="display:block;color:#8b949e;font-size:10px;margin-bottom:1px">Op ${i+1} - funcao</label><select id="opAssign_${i}" onchange="applyOpAssignments()" style="width:100%;background:#0d1117;border:1px solid #30363d;color:#cdd9e5;padding:4px 6px;border-radius:4px;font-size:11px">${opts.replace('value="'+cur+'"','value="'+cur+'" selected')}</select></div>`;
+  }
+  document.getElementById('opAssignments').innerHTML=h;
+};
+
+const applyOpAssignments=()=>{
+  operators.forEach((op,i)=>{
+    const sel=document.getElementById('opAssign_'+i);
+    const newFix=sel?sel.value:'';
+    if(newFix!==op.fixedEq){
+      op.fixedEq=newFix;
+      op.placedAtStation=false;
+      if(op.fixoStep){delete op.fixoStep.busy;delete op.fixoStep.elapsed;op.fixoStep=null;}
+      if(!newFix){
+        op.state='idle';op.task=null;
+        op.labelEl.className='lbl-3d lbl-op';
+        op.labelEl.textContent='Op '+(i+1)+' - Livre';
+      }
+    }
+  });
+};
+
+// ══════════════════════════════════════════════════════════════
+//  CUSTOMERS
+// ══════════════════════════════════════════════════════════════
+// Curva de demanda: retorna multiplicador da taxa baseado no horario simulado
+const demandMultiplier=(timeMin)=>{
+  const curve=document.getElementById('cfgDemandCurve')?.value||'flat';
+  if(curve==='flat')return 1;
+  const h=timeMin/60; // hora simulada (10..22)
+  // gaussiana centrada
+  const peak=(center,sigma,amp)=>amp*Math.exp(-Math.pow(h-center,2)/(2*sigma*sigma));
+  let m=0.35; // baseline baixo
+  if(curve==='lunch'||curve==='both') m+=peak(13,1.0,2.0); // pico 12-14h
+  if(curve==='dinner'||curve==='both') m+=peak(20,1.0,1.6); // pico 19-21h
+  if(curve==='lunch'&&h>16) m=0.30;
+  return Math.max(0.1,m);
+};
+
+const spawnCustomer=()=>{
+  const id=S.nextId++;
+  const mesh=BABYLON.MeshBuilder.CreateSphere('c'+id,{diameter:0.30},scene);
+  mesh.position.set(CFG.room.W/2+(Math.random()-.5)*0.7, 0.18, CFG.room.D+0.35);
+  mesh.material=mkMat('cm'+id,0.9,0.9,0.9);
+  mesh.isPickable=false;
+
+  const lbl=document.createElement('div');
+  lbl.className='lbl-3d lbl-cust waiting';
+  lbl.textContent='Entrando...';
+  labelsContainer.appendChild(lbl);
+
+  customers.push({id,mesh,state:'entering',tArr:simTime,tSS:null,qX:0,itemId:null,itemName:null,labelEl:lbl,orderNum:null,queuePos:-1,pdvTimer:0,pickupSlot:0});
+  const baseRate=(parseInt(document.getElementById('cfgRate').value)||30)/60;
+  const rate=Math.max(0.001,baseRate*demandMultiplier(simTime));
+  S.nextArr=simTime+(-Math.log(Math.random())/rate);
+};
+
+// ══════════════════════════════════════════════════════════════
+//  TICK
+// ══════════════════════════════════════════════════════════════
+const pickByCategory=cat=>{
+  const sandwiches=CFG.menu.filter(m=>m.steps.some(s=>s.eqId==='forno'||s.eqId==='bancada'));
+  const drinks=CFG.menu.filter(m=>!sandwiches.includes(m));
+  const pool=cat==='sandwich'?sandwiches:drinks;
+  if(pool.length===0)return null;
+  const total=pool.reduce((a,m)=>a+m.prob,0);
+  let r=Math.random()*total,acc=0;
+  for(const it of pool){acc+=it.prob;if(r<=acc)return it;}
+  return pool[0];
+};
+
+const generateOrder=()=>{
+  const maxItems=Math.max(1,Math.min(6,parseInt(document.getElementById('cfgMaxItems').value)||3));
+  const bias=Math.max(0,Math.min(100,parseInt(document.getElementById('cfgGroupBias').value)||30))/100;
+  // bias 0 → quase sempre 1 item; bias 1 → distribuicao quase uniforme ate maxItems
+  const decay=Math.pow(0.05,bias); // bias 0 → 0.05 (forte queda), bias 1 → 1 (uniforme)
+  const weights=[];
+  for(let n=1;n<=maxItems;n++)weights.push(Math.pow(decay,n-1));
+  const tot=weights.reduce((a,b)=>a+b,0);
+  let r=Math.random()*tot,acc=0,nItems=1;
+  for(let i=0;i<maxItems;i++){acc+=weights[i];if(r<=acc){nItems=i+1;break;}}
+  const pattern=[];
+  for(let i=0;i<nItems;i++)pattern.push('sandwich');
+  if(Math.random()<0.6)pattern.push('drink');
+  const orders=[];
+  for(const cat of pattern){
+    const item=pickByCategory(cat);
+    if(!item)continue; // pula categoria sem itens (ex: sem bebida no menu)
+    orders.push({id:item.id,name:item.name,price:item.price,steps:item.steps.map(s=>({...s,done:false}))});
+  }
+  // garante ao menos 1 item
+  if(orders.length===0&&CFG.menu.length>0){
+    const it=CFG.menu[0];
+    orders.push({id:it.id,name:it.name,price:it.price,steps:it.steps.map(s=>({...s,done:false}))});
+  }
+  return orders;
+};
+
+const frontOf=eq=>{
+  const m=eqMeshes[eq.id];
+  const cx=m?m.position.x:eq.x, cz=m?m.position.z:eq.z;
+  const fZ=CFG.room.boh+CFG.room.corr;
+  let tx=cx, tz=cz+eq.d/2+0.35;
+  if(tz>fZ-0.12)tz=cz-eq.d/2-0.30;
+  if(navGrid){
+    let gx=w2g(tx),gz=w2g(tz);
+    if(!gFree(gx,gz)){
+      const near=findNearFree(gx,gz,8);
+      if(near){tx=g2w(near.gx);tz=g2w(near.gz);}
+    }
+    const maxZ=fZ-0.12;
+    if(tz>maxZ)tz=maxZ;
+  }
+  return{x:tx,z:tz};
+};
+
+const WSPD=1.8;
+
+const tick=dt=>{
+  if(simTime>=S.nextArr) spawnCustomer();
+  const spd=dt*WSPD;
+  const tol=parseInt(document.getElementById('cfgTol').value)||12;
+  const fohZ=CFG.room.boh+CFG.room.corr;
+
+  // Coleta historico a cada minuto simulado
+  if(simTime-S.lastHistMin>=1.0){
+    S.servedHist.push(S.served);
+    S.balkedHist.push(S.balked);
+    S.queueHist.push(waitQueue.length);
+    S.lastHistMin=simTime;
+    // limita a ultimas 12h * 60 min
+    if(S.servedHist.length>720)S.servedHist.shift();
+    if(S.balkedHist.length>720)S.balkedHist.shift();
+    if(S.queueHist.length>720)S.queueHist.shift();
+  }
+
+  CFG.equipment.forEach(eq=>{
+    if(!S.eqTotal[eq.id])S.eqTotal[eq.id]=0;
+    if(!S.eqBusy[eq.id])S.eqBusy[eq.id]=0;
+    S.eqTotal[eq.id]+=dt;
+  });
+
+  // -- customers --
+  for(let i=customers.length-1;i>=0;i--){
+    const c=customers[i];
+    if(!c.mesh){if(c.labelEl)c.labelEl.remove();customers.splice(i,1);continue;}
+
+    if(c.state==='entering'){
+      const slot=queueSlots[waitQueue.length]||queueSlots[queueSlots.length-1]||{x:CFG.room.W/2,z:fohZ+0.30};
+      if(stepTo(c.mesh,slot.x,slot.z,spd)||dist2(c.mesh,slot.x,slot.z)<0.15){
+        c.state='waiting';c.qX=slot.x;
+        const order=generateOrder();
+        c.order=order;
+        c.orderTotal=order.reduce((s,it)=>s+it.price,0);
+        c.orderItemNames=order.map(it=>it.name).join(' + ');
+        c.itemId=order[0].id;c.itemName=c.orderItemNames;
+        enqueueCustomer(c);
+        c.labelEl.textContent=c.orderItemNames;
+        c.labelEl.className='lbl-3d lbl-cust waiting';
+      }
+    }
+    else if(c.state==='waiting'){
+      const slot=queueSlots[c.queuePos]||queueSlots[queueSlots.length-1];
+      if(slot)stepTo(c.mesh,slot.x,slot.z,spd);
+      const avgSvc=S.served>0?(S.totalActualPrep/S.served):3;
+      const estWait=(c.queuePos+1)*avgSvc/Math.max(1,operators.length);
+      colorByWait(c,tol);
+      c.labelEl.textContent='#'+(c.queuePos+1)+' | '+c.itemName+' | ~'+estWait.toFixed(1)+'m';c.labelEl.style.color='';
+      // Balk: cliente abandona se esperar mais que tolerancia
+      const waited=simTime-c.tArr;
+      if(waited>tol){
+        c.state='leaving';
+        c.labelEl.textContent='Desistiu! ('+waited.toFixed(1)+'m)';c.labelEl.style.color='#f85149';
+        c.labelEl.className='lbl-3d lbl-cust waiting';
+        c.mesh.material.diffuseColor.set(0.7,0.2,0.2);
+        S.balked++;
+        removeFromQueue(c.id);
+        continue;
+      }
+      if(c.queuePos===0&&!pdvBusy){
+        pdvBusy=true;
+        dequeueCustomer();
+        c.state='at_pdv';c.pdvTimer=0;
+        c.mesh.material.diffuseColor.set(0.1,0.78,0.38);
+        c.labelEl.textContent=c.itemName+' - Pagando...';
+        c.labelEl.className='lbl-3d lbl-cust served';
+      }
+    }
+    else if(c.state==='at_pdv'){
+      const posEq=CFG.equipment.find(e=>e.id==='pos');
+      const pdvX=posEq?posEq.x:CFG.room.W-0.45;
+      const pdvZ=fohZ+0.25;
+      if(stepTo(c.mesh,pdvX,pdvZ,spd)||dist2(c.mesh,pdvX,pdvZ)<0.12){
+        c.pdvTimer=(c.pdvTimer||0)+dt;
+        const payTime=posEq?posEq.opTime:0.5;
+        flashEq('pos');
+        S.eqBusy['pos']=(S.eqBusy['pos']||0)+dt;
+        c.labelEl.textContent=c.orderItemNames+' - Pagando '+Math.min(100,Math.round(c.pdvTimer/payTime*100))+'%';
+        if(c.pdvTimer>=payTime){
+          S.revenue+=c.orderTotal;S.revenueBruto+=c.orderTotal;
+          c.order.forEach(it=>{S.itemsSold[it.id]=(S.itemsSold[it.id]||0)+1;});
+          pdvBusy=false;
+          const usedSlots=customers.filter(cu=>cu.state==='waiting_pickup').map(cu=>cu.pickupSlot);
+          let ps=-1;
+          for(let s=0;s<pickupSlots.length;s++){if(!usedSlots.includes(s)){ps=s;break;}}
+          if(ps<0){const usedCount={};usedSlots.forEach(s=>{usedCount[s]=(usedCount[s]||0)+1;});ps=0;let minUse=999;for(let s=0;s<pickupSlots.length;s++){if((usedCount[s]||0)<minUse){minUse=usedCount[s]||0;ps=s;}}}
+          c.pickupSlot=ps;c.state='waiting_pickup';c.tSS=simTime;
+          const orderNum=++S.orderNum;c.orderNum=orderNum;
+          // Agrupar steps de mesma estacao em lote: primeiro item = tempo completo, adicionais = +50%
+          const eqOrder=[],stepByEq={};
+          c.order.forEach(it=>{
+            it.steps.forEach(s=>{
+              if(!stepByEq[s.eqId]){eqOrder.push(s.eqId);stepByEq[s.eqId]=0;}
+              stepByEq[s.eqId]+=stepByEq[s.eqId]===0?s.time:s.time*0.5;
+            });
+          });
+          const allSteps=eqOrder.map(eqId=>({eqId,time:stepByEq[eqId],done:false}));
+          prepQueue.push({customer:c,items:c.order,orderNum,startTime:simTime,steps:allSteps,custArrTime:c.tArr});
+          activeOrders.push({num:orderNum,items:c.order.map(it=>it.name),opIdx:-1,status:'Fila preparo',startTime:simTime,custId:c.id,
+            steps:allSteps.map(s=>{const eq=CFG.equipment.find(e=>e.id===s.eqId);return eq?eq.name.slice(0,5):s.eqId;}),
+            totalSteps:allSteps.length+1,currentStep:0,phase:'queued'});
+          c.mesh.material.diffuseColor.set(0.2,0.55,0.9);
+          c.labelEl.textContent='#'+orderNum+' '+c.orderItemNames+' - Aguardando';
+          c.labelEl.className='lbl-3d lbl-cust served';
+        }
+      }
+    }
+    else if(c.state==='waiting_pickup'){
+      const slot=pickupSlots[c.pickupSlot]||pickupSlots[0]||{x:0.55,z:fohZ+0.30};
+      stepTo(c.mesh,slot.x,slot.z,spd);
+      const pickupWait=simTime-(c.tSS||simTime);
+      const pickupLimit=parseInt(document.getElementById('cfgPickupTimeout').value)||30;
+      if(pickupWait>pickupLimit){
+        c.state='leaving';c.mesh.material.diffuseColor.set(0.7,0.3,0.3);
+        c.labelEl.textContent='#'+(c.orderNum||'')+' Reclamou!';c.labelEl.style.color='#f85149';
+        S.balkedPickup++;
+        S.reembolsos+=(c.orderTotal||0);
+        S.revenue=S.revenueBruto-S.reembolsos;
+        c.order.forEach(it=>{if(S.itemsSold[it.id])S.itemsSold[it.id]--;});
+        const pi=prepQueue.findIndex(p=>p.customer===c);if(pi>=0)prepQueue.splice(pi,1);
+        if(c.orderNum)removeOrder(c.orderNum);
+        operators.forEach(op=>{if(op.task&&op.task.customer===c)op.task.customer=null;});
+      }else if(pickupWait>pickupLimit*0.66){
+        c.mesh.material.diffuseColor.set(0.88,0.4,0.18);
+        c.labelEl.textContent='#'+(c.orderNum||'')+' '+c.itemName+' - Impaciente';
+      }
+    }
+    else if(c.state==='leaving'){
+      stepTo(c.mesh,c.mesh.position.x,CFG.room.D+1.5,spd*2);
+      if(c.mesh.position.z>CFG.room.D+1.1){c.mesh.dispose();c.mesh=null;c.labelEl.remove();customers.splice(i,1);}
+    }
+  }
+
+  // -- customer repulsion (prevent overlap) --
+  const CUST_MIN_DIST=0.35,CUST_REPULSION=0.4;
+  const fohZMin=fohZ+0.15;
+  for(let i=0;i<customers.length;i++){
+    const ci=customers[i];
+    if(!ci.mesh||ci.state==='leaving')continue;
+    for(let j=i+1;j<customers.length;j++){
+      const cj=customers[j];
+      if(!cj.mesh||cj.state==='leaving')continue;
+      const dx=ci.mesh.position.x-cj.mesh.position.x,dz=ci.mesh.position.z-cj.mesh.position.z;
+      const d=Math.hypot(dx,dz);
+      if(d<CUST_MIN_DIST&&d>0.001){
+        const ov=(CUST_MIN_DIST-d)*CUST_REPULSION;
+        const nx=dx/d,nz=dz/d;
+        ci.mesh.position.x+=nx*ov*0.5;ci.mesh.position.z+=nz*ov*0.5;
+        cj.mesh.position.x-=nx*ov*0.5;cj.mesh.position.z-=nz*ov*0.5;
+      }
+    }
+    ci.mesh.position.x=Math.max(0.2,Math.min(CFG.room.W-0.2,ci.mesh.position.x));
+    ci.mesh.position.z=Math.max(fohZMin,Math.min(CFG.room.D-0.15,ci.mesh.position.z));
+  }
+
+  updateQueueZone();
+
+  // -- assign prep queue to idle volante operators (fixos nunca pegam pedidos da fila) --
+  operators.forEach(op=>{
+    if(op.fixedEq)return;
+    if(op.state!=='idle'||prepQueue.length===0)return;
+    const order=prepQueue.shift();
+    op.task={customer:order.customer,items:order.items,steps:order.steps,si:0,atEq:false,tAtEq:0,
+      orderNum:order.orderNum,startTime:order.startTime,pickedAt:simTime,deliverTimer:0,
+      totalSteps:order.steps.length+1,currentStep:0,phase:'preparing',
+      custArrTime:order.custArrTime};
+    op.state='working';
+    op.statusText='Preparando #'+op.task.orderNum;
+    op.mesh.material=op.mBusy;op.labelEl.className='lbl-3d lbl-op busy';
+    const ao=activeOrders.find(a=>a.num===op.task.orderNum);
+    if(ao){ao.opIdx=op.idx;ao.status='Preparando';}
+  });
+
+  // -- operators --
+  operators.forEach((op,oi)=>{
+    // FIXO: parado na estacao, processa steps em paralelo (marcha)
+    if(op.fixedEq){
+      const eqCfg=CFG.equipment.find(e=>e.id===op.fixedEq);
+      if(!eqCfg){op.labelEl.textContent='Op '+(oi+1)+' [fixo invalido]';return;}
+      if(!op.placedAtStation){
+        const fr=frontOf(eqCfg);
+        op.mesh.position.x=fr.x;op.mesh.position.z=fr.z;
+        op.idleX=fr.x;op.idleZ=fr.z;op.path=[];op.placedAtStation=true;
+      }
+      if(!op.fixoStep){
+        let cand=null;
+        // Prioridade 1: desbloquear volantes ja alocados (steps do op.task atual)
+        for(const op2 of operators){
+          if(!op2.task||op2.fixedEq)continue;
+          for(const st of op2.task.steps){
+            if(st.eqId===op.fixedEq&&!st.done&&st.busy===undefined){cand=st;break;}
+          }
+          if(cand)break;
+        }
+        // Prioridade 2: marchar adiantando a prepQueue (FIFO)
+        if(!cand){
+          for(const order of prepQueue){
+            for(const st of order.steps){
+              if(st.eqId===op.fixedEq&&!st.done&&st.busy===undefined){cand=st;break;}
+            }
+            if(cand)break;
+          }
+        }
+        if(cand){
+          // marca busy IMEDIATAMENTE para evitar race com outro fixo na mesma estacao
+          cand.busy=op.idx;cand.elapsed=0;
+          op.fixoStep=cand;
+        }
+      }
+      if(op.fixoStep){
+        op.mesh.material=op.mBusy;op.labelEl.className='lbl-3d lbl-op busy fixo';
+        flashEq(op.fixedEq);
+        S.eqBusy[op.fixedEq]=(S.eqBusy[op.fixedEq]||0)+dt;
+        S.opBusy[oi]=(S.opBusy[oi]||0)+dt;
+        op.fixoStep.elapsed+=dt;
+        const pct=Math.min(100,Math.round(op.fixoStep.elapsed/op.fixoStep.time*100));
+        op.statusText=eqCfg.name+' '+pct+'%';
+        if(op.fixoStep.elapsed>=op.fixoStep.time){
+          op.fixoStep.done=true;
+          delete op.fixoStep.busy;delete op.fixoStep.elapsed;
+          S.eqCount[op.fixedEq]=(S.eqCount[op.fixedEq]||0)+1;
+          op.fixoStep=null;
+        }
+      }else{
+        op.mesh.material=op.mFree;op.labelEl.className='lbl-3d lbl-op fixo';
+        op.statusText='aguardando em '+eqCfg.name;
+      }
+      op.labelEl.innerHTML='<span class="fbadge">FIXO</span>Op '+(oi+1)+': '+op.statusText;
+      return;
+    }
+    if(op.state!=='idle'&&simOn){
+      const last=op.trail[op.trail.length-1];
+      if(!last||Math.hypot(op.mesh.position.x-last.x,op.mesh.position.z-last.z)>0.15){
+        op.trail.push({x:op.mesh.position.x,z:op.mesh.position.z});
+        if(op.trail.length>80)op.trail.shift();
+      }
+    }
+    if(op.state==='idle'){
+      setOpTarget(op,op.idleX,op.idleZ);
+      stepAlongPath(op,spd);
+      op.mesh.material=op.mFree;op.statusText='Livre';
+      op.labelEl.className='lbl-3d lbl-op';
+      op.stuckTimer=0;
+      return;
+    }
+    if(!op.path||op.path.length===0){
+      op.stuckTimer+=dt;
+      if(op.stuckTimer>0.5){pathCache.clear();op.stuckTimer=0;}
+    }else{op.stuckTimer=0;}
+    S.opBusy[oi]=(S.opBusy[oi]||0)+dt;
+
+    if(op.state==='working'){
+      const t=op.task;
+      if(!t||t.si>=t.steps.length){
+        eqLockClear(oi);
+        createFoodMesh(t.items?t.items[0].id:'spaccata',op);
+        op.state='to_balcao';
+        const cx=t.customer&&t.customer.mesh?t.customer.mesh.position.x:CFG.room.W/2;
+        setOpTarget(op,cx,fohZ-0.30);
+        op.statusText='Levando #'+t.orderNum;
+        t.phase='delivering';t.currentStep=t.steps.length;
+        updateOrderStatus(t.orderNum,'Entregando');
+        updateOrderPhase(t.orderNum,t.steps.length,'delivering');
+        return;
+      }
+      const step=t.steps[t.si];
+      // Step ja feito por fixo? pular
+      if(step.done){
+        t.si++;t.atEq=false;t.tAtEq=0;t.currentStep=t.si;
+        updateOrderPhase(t.orderNum,t.si,'preparing');
+        return;
+      }
+      // Existe fixo nessa estacao? volante aguarda (nao caminha ate la)
+      const hasFixoHere=operators.some(o=>o.fixedEq===step.eqId);
+      if(hasFixoHere){
+        op.mesh.material=op.mWait;op.labelEl.className='lbl-3d lbl-op wait';
+        const eqN=CFG.equipment.find(e=>e.id===step.eqId);
+        op.statusText='Aguardando fixo: '+(eqN?eqN.name:step.eqId);
+        updateOrderStatus(t.orderNum,'Fixo trabalhando '+(eqN?eqN.name:step.eqId));
+        return;
+      }
+      const eqCfg=CFG.equipment.find(e=>e.id===step.eqId);
+      if(!eqCfg){t.si++;return;}
+      const fr=frontOf(eqCfg);
+      if(!t.atEq){
+        if(eqLockFull(step.eqId,oi)){
+          op.mesh.material=op.mWait;op.statusText='Aguardando '+eqCfg.name;
+          op.labelEl.className='lbl-3d lbl-op wait';
+          updateOrderStatus(t.orderNum,'Aguardando '+eqCfg.name);return;
+        }
+        op.mesh.material=op.mBusy;op.labelEl.className='lbl-3d lbl-op busy';
+        op.statusText='Indo p/ '+eqCfg.name;
+        setOpTarget(op,fr.x,fr.z);
+        if(stepAlongPath(op,spd)){t.atEq=true;eqLockAdd(step.eqId,oi);op.stuckTimer=0;}
+        else if(!op.path||op.path.length===0){
+          op.stuckTimer+=dt;
+          if(op.stuckTimer>1.0){t.atEq=true;eqLockAdd(step.eqId,oi);op.stuckTimer=0;}
+        }
+      }else{
+        op.mesh.material=op.mBusy;op.labelEl.className='lbl-3d lbl-op busy';
+        flashEq(step.eqId);
+        S.eqBusy[step.eqId]=(S.eqBusy[step.eqId]||0)+dt;
+        t.tAtEq+=dt;
+        const pct=Math.round(t.tAtEq/step.time*100);
+        op.statusText=eqCfg.name+' '+Math.min(pct,100)+'%';
+        updateOrderStatus(t.orderNum,eqCfg.name+' '+(t.si+1)+'/'+t.steps.length+' ('+Math.min(pct,100)+'%)');
+        if(t.tAtEq>=step.time){
+          S.eqCount[step.eqId]=(S.eqCount[step.eqId]||0)+1;
+          eqLockDel(step.eqId,oi);t.si++;t.atEq=false;t.tAtEq=0;
+          t.currentStep=t.si;
+          updateOrderPhase(t.orderNum,t.si,'preparing');
+        }
+      }
+    }
+    else if(op.state==='to_balcao'){
+      op.mesh.material=op.mBusy;op.labelEl.className='lbl-3d lbl-op busy';
+      const arrived=stepAlongPath(op,spd);
+      if(arrived||(!op.path||op.path.length===0)&&op.stuckTimer>1.0){
+        op.state='delivering';op.task.deliverTimer=0;op.statusText='Entregando #'+op.task.orderNum;op.stuckTimer=0;
+      }
+    }
+    else if(op.state==='delivering'){
+      op.mesh.material=op.mBusy;
+      op.task.deliverTimer+=dt;
+      if(op.task.deliverTimer>=0.3){
+        const c=op.task.customer;
+        const slaTarget=parseInt(document.getElementById('cfgSLA').value)||15;
+        const prepDur=simTime-op.task.startTime;
+        const actualPrepDur=simTime-(op.task.pickedAt||op.task.startTime);
+        const queueWaitDur=(op.task.pickedAt||op.task.startTime)-op.task.startTime;
+        if(prepDur<=slaTarget)S.slaOk++;
+        S.served++;S.totalPrepTime+=prepDur;
+        S.totalActualPrep+=actualPrepDur;S.totalQueueWait+=queueWaitDur;
+        S.opOrders[op.idx]=(S.opOrders[op.idx]||0)+1;
+        if(c&&c.mesh){
+          S.totalWait+=simTime-(op.task.custArrTime||op.task.startTime);
+          S.servedRevenue+=(c.orderTotal||0);
+          c.state='leaving';c.mesh.material.diffuseColor.set(0.18,0.9,0.28);
+          c.labelEl.textContent='#'+(c.orderNum||'')+' Pronto!';c.labelEl.style.color='#3fb950';
+        }else{
+          S.totalWait+=simTime-(op.task.custArrTime||op.task.startTime);
+          S.servedRevenue+=(op.task.items?op.task.items.reduce((s,it)=>s+it.price,0):0);
+        }
+        disposeFoodMesh(op);removeOrder(op.task.orderNum);
+        op.task=null;op.state='idle';
+      }
+    }
+    op.labelEl.textContent='Op '+(oi+1)+': '+op.statusText;
+  });
+
+  updateEqFlash();
+};
+
+// Order management
+const updateOrderStatus=(num,status)=>{
+  const o=activeOrders.find(x=>x.num===num);if(o)o.status=status;
+};
+const removeOrder=num=>{
+  const idx=activeOrders.findIndex(x=>x.num===num);
+  if(idx>=0)activeOrders.splice(idx,1);
+};
+const updateOrderPhase=(num,step,phase)=>{
+  const o=activeOrders.find(x=>x.num===num);
+  if(o){o.currentStep=step;o.phase=phase;}
+};
+
+// ══════════════════════════════════════════════════════════════
+//  TRAILS
+// ══════════════════════════════════════════════════════════════
+const updateTrails=()=>{
+  operators.forEach(op=>{
+    if(op.trailMesh){op.trailMesh.dispose();op.trailMesh=null;}
+    if(!showTrails||op.trail.length<2) return;
+    const pts=op.trail.map(p=>new BABYLON.Vector3(p.x,0.03,p.z));
+    try{
+      op.trailMesh=BABYLON.MeshBuilder.CreateLines('trail_'+op.idx,{points:pts},scene);
+      op.trailMesh.color=op.trailColor;op.trailMesh.alpha=0.5;op.trailMesh.isPickable=false;
+    }catch(e){}
+  });
+};
+const toggleTrails=()=>{showTrails=document.getElementById('cfgTrails').value==='1';};
+
+// ══════════════════════════════════════════════════════════════
+//  LABELS UPDATE
+// ══════════════════════════════════════════════════════════════
+const updateLabels=()=>{
+  const cw=document.getElementById('cw');
+  const rect=cw.getBoundingClientRect();
+
+  operators.forEach(op=>{
+    const p=project3D(new BABYLON.Vector3(op.mesh.position.x,2.3,op.mesh.position.z));
+    if(p.behind){op.labelEl.style.opacity='0';return;}
+    op.labelEl.style.opacity='1';
+    op.labelEl.style.left=(p.x-rect.left)+'px';
+    op.labelEl.style.top=(p.y-rect.top)+'px';
+  });
+
+  customers.forEach(c=>{
+    if(!c.mesh||!c.labelEl)return;
+    const p=project3D(new BABYLON.Vector3(c.mesh.position.x,0.6,c.mesh.position.z));
+    if(p.behind||c.state==='entering'){c.labelEl.style.opacity='0';return;}
+    c.labelEl.style.opacity='1';
+    c.labelEl.style.left=(p.x-rect.left)+'px';
+    c.labelEl.style.top=(p.y-rect.top)+'px';
+  });
+};
+
+// ══════════════════════════════════════════════════════════════
+//  RENDER LOOP
+// ══════════════════════════════════════════════════════════════
+initScene();
+const rate0=(parseInt(document.getElementById('cfgRate').value)||30)/60;
+S.nextArr=10*60+0.3;
+
+engine.runRenderLoop(()=>{
+  frameCount++;
+  if(simOn){
+    const now=performance.now();
+    const dt=(now-lastMs)/1000*simSpd/60;
+    lastMs=now;simTime+=dt;
+    if(simTime>=22*60){
+      simTime=22*60;simOn=false;
+      document.getElementById('btnPlay').textContent='FIM DO DIA';
+      if(!mcRunning&&!document.getElementById('eodModal').classList.contains('on')){
+        updateUI();
+        setTimeout(()=>showEodModal(),200);
+      }
+    }
+    tick(dt);
+    if(frameCount%3===0) updateUI();
+    if(frameCount%15===0) updateTrails();
+  }
+  if(frameCount%2===0) updateLabels();
+  scene.render();
+});
+window.addEventListener('resize',()=>engine.resize());
+
+// Atalhos de teclado
+window.addEventListener('keydown',(e)=>{
+  // Ignora se digitando em input/textarea
+  const tag=document.activeElement?.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'||tag==='SELECT')return;
+  switch(e.key){
+    case ' ': e.preventDefault(); toggleSim(); break;
+    case 'r': case 'R': resetSim(); break;
+    case '1': document.querySelectorAll('.spd').forEach(b=>b.classList.remove('on')); document.querySelectorAll('.spd')[0]?.classList.add('on'); simSpd=1; break;
+    case '2': document.querySelectorAll('.spd').forEach(b=>b.classList.remove('on')); document.querySelectorAll('.spd')[1]?.classList.add('on'); simSpd=5; break;
+    case '3': document.querySelectorAll('.spd').forEach(b=>b.classList.remove('on')); document.querySelectorAll('.spd')[2]?.classList.add('on'); simSpd=15; break;
+    case '4': document.querySelectorAll('.spd').forEach(b=>b.classList.remove('on')); document.querySelectorAll('.spd')[3]?.classList.add('on'); simSpd=60; break;
+    case '+': case '=': simSpd=Math.min(120,simSpd*2); break;
+    case '-': simSpd=Math.max(1,Math.floor(simSpd/2)); break;
+  }
+});
+
+// ══════════════════════════════════════════════════════════════
+//  UI
+// ══════════════════════════════════════════════════════════════
+const toggleSim=()=>{
+  simOn=!simOn;
+  document.getElementById('btnPlay').textContent=simOn?'PAUSAR':'INICIAR';
+  if(simOn)lastMs=performance.now();
+};
+
+const resetSim=()=>{
+  simOn=false;document.getElementById('btnPlay').textContent='INICIAR';
+  simTime=10*60;
+  customers.forEach(c=>{c.mesh?.dispose();c.labelEl?.remove();});customers=[];
+  operators.forEach(op=>disposeFoodMesh(op));
+  activeOrders.length=0;waitQueue.length=0;prepQueue.length=0;pdvBusy=false;
+  if(queueZoneMesh){queueZoneMesh.dispose();queueZoneMesh=null;}
+  Object.assign(S,{nextId:0,orderNum:0,served:0,balked:0,balkedPickup:0,totalWait:0,totalPrepTime:0,totalQueueWait:0,totalActualPrep:0,revenue:0,revenueBruto:0,reembolsos:0,servedRevenue:0,itemsSold:{},eqBusy:{},eqTotal:{},eqCount:{},opBusy:[],opOrders:[],simStartTime:10*60,maxQueue:0,slaOk:0,servedHist:[],balkedHist:[],queueHist:[],lastHistMin:10*60});
+  Object.keys(eqLock).forEach(k=>delete eqLock[k]);
+  pathCache.clear();
+  const rate=(parseInt(document.getElementById('cfgRate').value)||30)/60;
+  S.nextArr=10*60+0.3;
+  buildOperators();buildNavGrid();updateUI();
+};
+
+const setSpd=(v,el)=>{simSpd=v;document.querySelectorAll('.spd').forEach(b=>b.classList.remove('on'));el.classList.add('on');};
+
+const updateUI=()=>{
+  const h=Math.floor(simTime/60),m=Math.floor(simTime%60);
+  document.getElementById('clk').textContent=String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  const qLen=customers.filter(c=>c.state==='waiting'||c.state==='at_pdv').length;
+  const wpLen=customers.filter(c=>c.state==='waiting_pickup').length;
+  document.getElementById('mS').textContent=S.served;
+  document.getElementById('mQ').textContent=qLen;
+  document.getElementById('mWP').textContent=wpLen;
+  document.getElementById('mW').textContent=S.served>0?(S.totalWait/S.served).toFixed(1)+'m':'--';
+  const elapsed=(simTime-S.simStartTime)/60;
+  document.getElementById('mT').textContent=elapsed>0?Math.round(S.served/elapsed)+'/h':'0/h';
+  document.getElementById('mRH').textContent=elapsed>0?'R$'+Math.round(S.revenue/elapsed)+'/h':'--';
+  document.getElementById('mTM').textContent=S.served>0?'R$'+(S.servedRevenue/S.served).toFixed(0):'--';
+  // Custo e margem
+  const opCost=parseFloat(document.getElementById('cfgOpCost')?.value)||0;
+  const fixedCost=parseFloat(document.getElementById('cfgFixedCost')?.value)||0;
+  const elapsedH=Math.max(0,(simTime-S.simStartTime)/60);
+  const totalCost=opCost*operators.length*elapsedH+fixedCost*(elapsedH/12); // fixed cost prorated over 12h day
+  const margin=S.revenue-totalCost;
+  document.getElementById('mCost').textContent='R$'+Math.round(totalCost);
+  const mEl=document.getElementById('mMargin');
+  mEl.textContent='R$'+Math.round(margin);
+  mEl.style.color=margin>=0?'#3fb950':'#f85149';
+  document.getElementById('mTP').textContent=S.served>0?(S.totalActualPrep/S.served).toFixed(1)+'m':'--';
+  document.getElementById('mQW').textContent=S.served>0?(S.totalQueueWait/S.served).toFixed(1)+'m':'--';
+  document.getElementById('mPQ').textContent=S.maxQueue;
+  document.getElementById('mB').textContent=S.balked;
+  const totalArrived=S.nextId;
+  const balkPct=totalArrived>0?Math.round(S.balked/totalArrived*100):0;
+  document.getElementById('mBPct').textContent=balkPct+'%';
+  const slaPct=S.served>0?Math.round(S.slaOk/S.served*100):0;
+
+  // Sparkline: served/h por janela movel de 30min
+  const sparkEl=document.getElementById('sparkContainer');
+  if(sparkEl){
+    if(S.servedHist.length<3){
+      sparkEl.innerHTML='<div style="font-size:10px;color:#6e7681;text-align:center;padding:14px">Aguardando dados...</div>';
+    }else{
+      const win=30; // janela de 30 min para taxa instantanea
+      const rate=[]; // pedidos/h em cada ponto
+      for(let i=0;i<S.servedHist.length;i++){
+        const j=Math.max(0,i-win);
+        const dt=i-j;
+        const delta=S.servedHist[i]-S.servedHist[j];
+        rate.push(dt>0?(delta/dt)*60:0);
+      }
+      const maxR=Math.max(1,...rate);
+      const w=240,hSvg=50;
+      const points=rate.map((v,i)=>`${(i/Math.max(1,rate.length-1))*w},${hSvg-(v/maxR)*hSvg}`).join(' ');
+      // Marca picos almoco e jantar (se cabem na escala 10h-22h)
+      const xAt=h=>((h-10)*60/Math.max(1,rate.length-1))*w;
+      const lunchMark=rate.length>120?`<line x1="${xAt(13)}" y1="0" x2="${xAt(13)}" y2="${hSvg}" stroke="#d29922" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6"/>`:'';
+      const dinnerMark=rate.length>480?`<line x1="${xAt(20)}" y1="0" x2="${xAt(20)}" y2="${hSvg}" stroke="#d29922" stroke-width="0.5" stroke-dasharray="2,2" opacity="0.6"/>`:'';
+      const curRate=rate[rate.length-1]||0;
+      sparkEl.innerHTML=`<svg viewBox="0 0 ${w} ${hSvg}" style="width:100%;height:50px;display:block">
+        ${lunchMark}${dinnerMark}
+        <polyline points="${points}" fill="none" stroke="#58a6ff" stroke-width="1.2"/>
+        <polyline points="0,${hSvg} ${points} ${w},${hSvg}" fill="rgba(88,166,255,0.15)" stroke="none"/>
+      </svg>
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:#6e7681;margin-top:4px">
+        <span>10h</span><span>Atual: <strong style="color:#58a6ff">${curRate.toFixed(0)}/h</strong></span><span>22h</span>
+      </div>`;
+    }
+  }
+
+  // Operator util
+  const opEl=document.getElementById('opUtil');let opH='';
+  const totalT=Math.max(1,simTime-S.simStartTime);
+  const fmtT=m=>m<60?Math.round(m)+'m':(m/60).toFixed(1)+'h';
+  operators.forEach((op,i)=>{
+    const busyMin=S.opBusy[i]||0;
+    const idleMin=Math.max(0,totalT-busyMin);
+    const pct=Math.min(100,Math.round(busyMin/totalT*100));
+    const col=pct>85?'#f85149':pct>60?'#d29922':'#3fb950';
+    const orders=S.opOrders[i]||0;
+    opH+=`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px"><span style="color:#8b949e">Op ${i+1}</span><span style="color:${col};font-weight:600">${pct}%</span></div><div class="util-bar"><div class="util-fill" style="width:${pct}%;background:${col}"></div></div><div style="font-size:9px;color:#6e7681;margin-top:2px">${fmtT(busyMin)} ativo | ${fmtT(idleMin)} parado | ${orders} pedidos</div></div>`;
+  });
+  opEl.innerHTML=opH;
+
+  // Equipment util + pending queue
+  const euEl=document.getElementById('eqUtil');let euH='';
+  let maxUtil=0,bottleneckId=null;
+  CFG.equipment.forEach(eq=>{
+    const busyEq=S.eqBusy[eq.id]||0;
+    const idleEq=Math.max(0,totalT-busyEq);
+    const pct=Math.min(100,Math.round(busyEq/totalT*100));
+    if(pct>maxUtil){maxUtil=pct;bottleneckId=eq.id;}
+    const pending=prepQueue.reduce((n,order)=>n+order.steps.filter(s=>s.eqId===eq.id).length,0)
+      +operators.filter(op=>op.task&&op.task.steps[op.task.si]&&op.task.steps[op.task.si].eqId===eq.id&&!op.task.atEq).length;
+    const cnt=S.eqCount[eq.id]||0;
+    const col=pct>70?'#f85149':pct>40?'#d29922':'#3fb950';
+    const pendStr=pending>0?` <span style="color:#d29922">| ${pending} aguard.</span>`:'';
+    euH+=`<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px"><span style="color:#8b949e">${eq.name}</span><span style="color:${col};font-weight:600">${pct}%</span></div><div class="util-bar"><div class="util-fill" style="width:${pct}%;background:${col}"></div></div><div style="font-size:9px;color:#6e7681;margin-top:2px">${fmtT(busyEq)} ativo | ${fmtT(idleEq)} parado | ${cnt} usos${pendStr}</div></div>`;
+  });
+  euEl.innerHTML=euH;
+
+  // KDS panel
+  const ordEl=document.getElementById('ordersPanel');
+  const slaTarget=parseInt(document.getElementById('cfgSLA').value)||15;
+  if(activeOrders.length===0){ordEl.innerHTML='<div style="font-size:11px;color:#6e7681">Nenhum pedido ativo</div>';}
+  else{
+    const sorted=[...activeOrders].sort((a,b)=>{
+      const pri={preparing:0,delivering:1,queued:2};
+      return (pri[a.phase]??2)-(pri[b.phase]??2)||(a.startTime-b.startTime);
+    });
+    ordEl.innerHTML=sorted.slice(0,10).map(o=>{
+      const el=simTime-o.startTime;
+      const ratio=Math.min(1,el/slaTarget);
+      const barPct=Math.round(ratio*100);
+      const barCol=ratio<0.5?'#3fb950':ratio<0.8?'#d29922':'#f85149';
+      const rowBg=ratio<0.5?'rgba(35,134,54,0.08)':ratio<0.8?'rgba(210,153,34,0.08)':'rgba(248,81,73,0.10)';
+      const badgeBg=o.phase==='preparing'?'#9e6a03':o.phase==='delivering'?'#238636':'#484f58';
+      const badgeText=o.phase==='preparing'?'PREP':o.phase==='delivering'?'ENTREGA':'FILA';
+      const opLabel=o.opIdx>=0?'Op '+(o.opIdx+1):'--';
+      const itemsStr=(o.items?o.items.join('+'):o.item||'').slice(0,28);
+      return `<div style="background:${rowBg};border-radius:4px;padding:4px 6px;margin-bottom:3px;display:flex;align-items:center;gap:4px"><span style="font-size:10px;color:#f0f6fc;font-weight:600;min-width:24px">#${o.num}</span><span style="font-size:10px;color:#cdd9e5;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${itemsStr}</span><span style="font-size:8px;padding:1px 4px;border-radius:2px;background:${badgeBg};color:#fff;white-space:nowrap">${badgeText}</span><span style="font-size:9px;color:#8b949e;min-width:22px;text-align:center">${opLabel}</span><div style="width:36px;height:5px;background:#21262d;border-radius:3px;flex-shrink:0"><div style="width:${barPct}%;height:5px;background:${barCol};border-radius:3px"></div></div><span style="font-size:9px;color:${barCol};min-width:28px;text-align:right">${el.toFixed(1)}m</span></div>`;
+    }).join('');
+  }
+
+  // Analysis - Diagnostico
+  let ana='';
+  if(S.served<5){ana='<div class="alr alr-b">Aguardando dados (min 5 atendidos)...</div>';}
+  else{
+    const aw=S.totalWait/S.served;
+    if(aw>8)ana+=`<div class="ana-card"><div class="ana-title">Tempo de Espera Critico</div><div class="alr alr-r">Media ${aw.toFixed(1)}min — considere +1 operador ou reduza tempos de preparo</div></div>`;
+    else if(aw>4)ana+=`<div class="ana-card"><div class="ana-title">Tempo de Espera</div><div class="alr alr-y">Media ${aw.toFixed(1)}min — monitorando</div></div>`;
+    else ana+=`<div class="ana-card"><div class="ana-title">Tempo de Espera</div><div class="alr alr-g">Media ${aw.toFixed(1)}min — saudavel</div></div>`;
+
+    const avgPrep=S.totalPrepTime/S.served;
+    const late=S.served-S.slaOk;
+    const slaCol=slaPct>=80?'#238636':'#da3633';
+    ana+=`<div class="ana-card"><div class="ana-title">Prazo de Entrega (alvo: ${slaTarget}min)</div><div style="display:flex;gap:6px;margin-top:4px"><div style="flex:1;text-align:center;padding:5px;background:#0d1117;border-radius:4px;border:1px solid #238636"><div style="font-size:15px;font-weight:700;color:#3fb950">${S.slaOk}</div><div style="font-size:9px;color:#6e7681">no prazo (${slaPct}%)</div></div><div style="flex:1;text-align:center;padding:5px;background:#0d1117;border-radius:4px;border:1px solid ${late>0?'#da3633':'#21262d'}"><div style="font-size:15px;font-weight:700;color:${late>0?'#f85149':'#6e7681'}">${late}</div><div style="font-size:9px;color:#6e7681">atrasados (${100-slaPct}%)</div></div></div><div style="font-size:9px;color:#8b949e;margin-top:4px;text-align:center">Media ${avgPrep.toFixed(1)}min por pedido (preparo ate entrega)</div></div>`;
+
+    const opCount=operators.length;
+    const avgOpUtil=S.opBusy.slice(0,opCount).reduce((a,b)=>a+(b||0),0)/opCount;
+    const avgOpPct=Math.round(avgOpUtil/totalT*100);
+    if(avgOpPct>90)ana+=`<div class="ana-card"><div class="ana-title">Operadores Sobrecarregados</div><div class="alr alr-r">Utilizacao media ${avgOpPct}% — adicione operadores</div></div>`;
+    else if(avgOpPct<30&&S.served>10)ana+=`<div class="ana-card"><div class="ana-title">Operadores Ociosos</div><div class="alr alr-y">Utilizacao media ${avgOpPct}% — considere reduzir equipe</div></div>`;
+
+    if(S.balkedPickup>0)ana+=`<div class="ana-card"><div class="ana-title">Abandonos na Retirada</div><div class="alr alr-r">${S.balkedPickup} cliente(s) abandonaram apos pagar — pedidos feitos sem entrega</div></div>`;
+    if(balkPct>15)ana+=`<div class="ana-card"><div class="ana-title">Desistencias na Fila Criticas</div><div class="alr alr-r">${S.balked} clientes (${balkPct}%) sairam sem ser atendidos — fila longa demais</div></div>`;
+    else if(balkPct>5)ana+=`<div class="ana-card"><div class="ana-title">Desistencias na Fila</div><div class="alr alr-y">${S.balked} clientes (${balkPct}%) sairam sem ser atendidos</div></div>`;
+  }
+  document.getElementById('ana').innerHTML=ana;
+
+  // Analysis - Vendas
+  let salesH='';
+  if(S.served<1){salesH='<div style="font-size:11px;color:#6e7681">Aguardando dados...</div>';}
+  else{
+    const soldKeys=Object.keys(S.itemsSold);
+    if(soldKeys.length>0){
+      salesH+='<div style="display:grid;gap:4px">';
+      const sortedKeys=[...soldKeys].sort((a,b)=>(S.itemsSold[b]||0)-(S.itemsSold[a]||0));
+      sortedKeys.forEach(k=>{
+        const it=CFG.menu.find(m=>m.id===k);
+        const qty=S.itemsSold[k]||0;
+        const rev=qty*(it?.price||0);
+        const pctOfTotal=S.served>0?Math.round(qty/S.served*100):0;
+        salesH+=`<div style="background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:6px 8px;display:flex;justify-content:space-between;align-items:center"><div><span style="font-size:11px;font-weight:600;color:#f0f6fc">${it?.name||k}</span><span style="font-size:9px;color:#6e7681;margin-left:6px">${pctOfTotal}% dos pedidos</span></div><div style="text-align:right"><span style="font-size:12px;font-weight:700;color:#3fb950">${qty}x</span><span style="font-size:10px;color:#d29922;margin-left:6px">R$${rev}</span></div></div>`;
+      });
+      salesH+='</div>';
+      const hasReemb=S.reembolsos>0;
+      salesH+=`<div style="margin-top:8px;padding:6px 8px;background:#0d1117;border:1px solid #21262d;border-radius:4px"><div style="display:flex;justify-content:space-between;font-size:10px;color:#6e7681;margin-bottom:3px"><span>Receita Bruta</span><span style="color:#f0f6fc;font-weight:600">R$${Math.round(S.revenueBruto)}</span></div>${hasReemb?`<div style="display:flex;justify-content:space-between;font-size:10px;color:#6e7681;margin-bottom:3px"><span>Reembolsos (${S.balkedPickup} aband.)</span><span style="color:#f85149;font-weight:600">- R$${Math.round(S.reembolsos)}</span></div>`:''}${hasReemb?`<div style="border-top:1px solid #21262d;margin-top:4px;padding-top:4px;display:flex;justify-content:space-between;font-size:11px"><span style="color:#6e7681;font-weight:600">Receita Liquida</span><span style="color:#3fb950;font-weight:700">R$${Math.round(S.revenue)}</span></div>`:`<div style="text-align:center"><span style="font-size:14px;font-weight:700;color:#3fb950">R$${Math.round(S.revenue)}</span></div>`}</div>`;
+    }
+  }
+  document.getElementById('anaSales').innerHTML=salesH;
+
+  // Analysis - Gargalos
+  let bH='';
+  if(S.served<5){bH='<div style="font-size:11px;color:#6e7681">Aguardando dados...</div>';}
+  else{
+    const eqUtils=CFG.equipment.map(eq=>{
+      const total=S.eqTotal[eq.id]||1,busy=S.eqBusy[eq.id]||0;
+      return{name:eq.name,pct:Math.min(100,Math.round(busy/total*100)),id:eq.id};
+    }).sort((a,b)=>b.pct-a.pct);
+    bH+='<div style="display:grid;gap:4px">';
+    eqUtils.forEach(eu=>{
+      const col=eu.pct>70?'#f85149':eu.pct>40?'#d29922':'#3fb950';
+      const barW=Math.max(3,eu.pct);
+      bH+=`<div style="background:#0d1117;border:1px solid #21262d;border-radius:4px;padding:6px 8px"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px"><span style="color:#cdd9e5">${eu.name}</span><span style="color:${col};font-weight:700">${eu.pct}%</span></div><div class="util-bar"><div class="util-fill" style="width:${barW}%;background:${col}"></div></div></div>`;
+    });
+    bH+='</div>';
+    if(bottleneckId&&maxUtil>50){
+      const bn=CFG.equipment.find(e=>e.id===bottleneckId);
+      bH+=`<div class="alr alr-y" style="margin-top:8px">Principal gargalo: <strong>${bn?.name}</strong> a ${maxUtil}% — considere adicionar outro ou reduzir tempo de operacao</div>`;
+    }
+  }
+  document.getElementById('anaBottlenecks').innerHTML=bH;
+};
+
+// ══════════════════════════════════════════════════════════════
+//  TABS
+// ══════════════════════════════════════════════════════════════
+const showTab=(id,el)=>{
+  document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
+  document.getElementById('tp-'+id).classList.add('on');
+  if(el)el.classList.add('on');
+  if(id==='equip')renderEqPanel();
+  if(id==='menu')renderMenuPanel();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  EQUIPMENT PANEL
+// ══════════════════════════════════════════════════════════════
+const renderEqPanel=()=>{
+  const el=document.getElementById('eq-list');el.innerHTML='';
+  CFG.equipment.forEach(eq=>{
+    const d=document.createElement('div');
+    d.className='ec'+(selEqId===eq.id?' sel':'');
+    d.innerHTML=`
+      <div class="ec-h" style="cursor:pointer" onclick="selectEq('${eq.id}')">
+        <div class="ec-dot" style="background:${eq.color}"></div>
+        <div><div class="ec-n">${eq.name}</div>
+        <div class="ec-d">${eq.w}m x ${eq.d}m x h${eq.h}m | op: ${eq.opTime}min | cap: ${eq.capacity||1}</div></div>
+      </div>
+      <div class="ec-f">
+        <div class="r2">
+          <div class="fi"><label>Nome</label><input id="en_${eq.id}" value="${eq.name}"></div>
+          <div class="fi"><label>Cor</label><input type="color" id="ec_${eq.id}" value="${eq.color}" style="height:31px;padding:2px"></div>
+        </div>
+        <div class="r2">
+          <div class="fi"><label>Largura (m)</label><input type="number" id="ew_${eq.id}" value="${eq.w}" min="0.1" max="5" step="0.05"></div>
+          <div class="fi"><label>Prof. (m)</label><input type="number" id="ed_${eq.id}" value="${eq.d}" min="0.1" max="5" step="0.05"></div>
+        </div>
+        <div class="r2">
+          <div class="fi"><label>Altura (m)</label><input type="number" id="eh_${eq.id}" value="${eq.h}" min="0.1" max="3" step="0.05"></div>
+          <div class="fi"><label>Tempo op. (min)</label><input type="number" id="et_${eq.id}" value="${eq.opTime}" min="0.1" max="30" step="0.1"></div>
+          <div class="fi"><label>Capacidade (simult.)</label><input type="number" id="ecap_${eq.id}" value="${eq.capacity||1}" min="1" max="8" step="1"></div>
+        </div>
+        <div class="r2">
+          <div class="fi"><label>Pos X (m)</label><input type="number" id="ex_${eq.id}" value="${eq.x}" min="0" max="20" step="0.1"></div>
+          <div class="fi"><label>Pos Z (m)</label><input type="number" id="ez_${eq.id}" value="${eq.z}" min="0" max="20" step="0.1"></div>
+        </div>
+        <div style="display:flex;gap:5px;margin-top:4px">
+          <button class="btn btn-blue" style="flex:1;padding:6px" onclick="applyEq('${eq.id}')">Aplicar</button>
+          <button class="btn btn-gray" style="flex:0 0 40px;padding:6px;color:#f85149" onclick="removeEq('${eq.id}')">X</button>
+        </div>
+      </div>`;
+    el.appendChild(d);
+  });
+};
+
+const applyEq=id=>{
+  const eq=CFG.equipment.find(e=>e.id===id);if(!eq)return;
+  const nX=parseFloat(document.getElementById('ex_'+id)?.value)||eq.x;
+  const nZ=parseFloat(document.getElementById('ez_'+id)?.value)||eq.z;
+  const nW=parseFloat(document.getElementById('ew_'+id).value);
+  const nD=parseFloat(document.getElementById('ed_'+id).value);
+  const col=checkCollision(id,nX,nZ,nW,nD);
+  if(col){alert('Colisao com: '+col.name);return;}
+  eq.name=document.getElementById('en_'+id).value;
+  eq.color=document.getElementById('ec_'+id).value;
+  eq.w=nW;eq.d=nD;
+  eq.h=parseFloat(document.getElementById('eh_'+id).value);
+  eq.opTime=parseFloat(document.getElementById('et_'+id).value);
+  eq.capacity=parseInt(document.getElementById('ecap_'+id).value)||1;
+  eq.x=nX;eq.z=nZ;
+  if(eqMeshes[id]){eqMeshes[id].dispose();delete eqMeshes[id];}
+  createEqMesh(eq);buildNavGrid();renderEqPanel();
+};
+
+const removeEq=id=>{
+  CFG.equipment=CFG.equipment.filter(e=>e.id!==id);
+  if(eqMeshes[id]){eqMeshes[id].dispose();delete eqMeshes[id];}
+  if(selEqId===id)selEqId=null;
+  renderEqPanel();
+};
+
+const addEquip=()=>{
+  const id='eq_'+Date.now();
+  let px=CFG.room.W/2,pz=CFG.room.D/2;
+  for(let a=0;a<20;a++){
+    const tx=0.5+Math.random()*(CFG.room.W-1),tz=0.5+Math.random()*(CFG.room.D-1);
+    if(!checkCollision(id,tx,tz,0.6,0.6)){px=snap10(tx);pz=snap10(tz);break;}
+  }
+  CFG.equipment.push({id,name:'Novo Equipamento',color:'#888888',w:0.6,d:0.6,h:0.9,opTime:2,capacity:1,x:px,z:pz});
+  buildAllEquip();selectEq(id);
+};
+
+// ══════════════════════════════════════════════════════════════
+//  ROOM
+// ══════════════════════════════════════════════════════════════
+const applyRoom=()=>{
+  CFG.room.W=parseFloat(document.getElementById('rW').value);
+  CFG.room.D=parseFloat(document.getElementById('rD').value);
+  CFG.room.boh=parseFloat(document.getElementById('rBoh').value);
+  CFG.room.corr=parseFloat(document.getElementById('rCorr').value);
+  CFG.room.poly=null; // sala retangular manual descarta recorte em L
+  buildRoom();buildNavGrid();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  MENU PANEL
+// ══════════════════════════════════════════════════════════════
+const renderMenuPanel=()=>{
+  const el=document.getElementById('menu-list');el.innerHTML='';
+  CFG.menu.forEach((item,ii)=>{
+    const d=document.createElement('div');d.className='mic';
+    const tt=totalTime(item);
+
+    let flowH='<div class="flow-vis">';
+    item.steps.forEach((s,si)=>{
+      const eq=CFG.equipment.find(e=>e.id===s.eqId);
+      flowH+=`<span class="flow-chip" style="background:${eq?eq.color:'#555'}">${eq?eq.name:s.eqId} ${s.time}m</span>`;
+      if(si<item.steps.length-1)flowH+=`<span class="flow-arrow">&#9654;</span>`;
+    });
+    flowH+='</div>';
+
+    d.innerHTML=`
+      <div class="mi-h">
+        <div>
+          <input value="${item.name}" style="background:none;border:none;color:#f0f6fc;font-size:13px;font-weight:600;padding:0;width:140px"
+            onchange="CFG.menu[${ii}].name=this.value">
+          <div class="mi-sub">
+            Prob: <input type="number" value="${Math.round(item.prob*100)}" min="1" max="100"
+              style="width:40px;padding:2px 4px;background:#21262d;border:1px solid #30363d;color:#cdd9e5;border-radius:3px;font-size:10px"
+              onchange="CFG.menu[${ii}].prob=this.value/100;normProbs()">%
+            R$ <input type="number" value="${item.price}" min="0"
+              style="width:50px;padding:2px 4px;background:#21262d;border:1px solid #30363d;color:#cdd9e5;border-radius:3px;font-size:10px"
+              onchange="CFG.menu[${ii}].price=+this.value">
+          </div>
+        </div>
+        <button class="rm-btn" onclick="removeMenuItem(${ii})">x</button>
+      </div>
+      <div class="mi-total">Tempo total: ${tt.toFixed(1)} min</div>
+      ${flowH}
+      <div style="font-size:10px;color:#6e7681;text-transform:uppercase;letter-spacing:.8px;margin:6px 0 5px">Etapas de Producao</div>
+      ${item.steps.map((s,si)=>`
+        <div class="sr">
+          <div class="sr-num">${si+1}</div>
+          <select onchange="CFG.menu[${ii}].steps[${si}].eqId=this.value;renderMenuPanel()">
+            ${CFG.equipment.map(e=>`<option value="${e.id}"${e.id===s.eqId?' selected':''}>${e.name}</option>`).join('')}
+          </select>
+          <input type="number" value="${s.time}" min="0.1" max="30" step="0.1"
+            onchange="CFG.menu[${ii}].steps[${si}].time=+this.value;renderMenuPanel()">
+          <span class="sr-lbl">min</span>
+          <button class="mv-btn" onclick="moveStep(${ii},${si},-1)">&#9650;</button>
+          <button class="mv-btn" onclick="moveStep(${ii},${si},1)">&#9660;</button>
+          <button class="rm-btn" onclick="rmStep(${ii},${si});renderMenuPanel()">x</button>
+        </div>`).join('')}
+      <button class="add-s" onclick="CFG.menu[${ii}].steps.push({eqId:CFG.equipment[0]?.id||'',time:2});renderMenuPanel()">+ Etapa</button>`;
+    el.appendChild(d);
+  });
+};
+
+const normProbs=()=>{const t=CFG.menu.reduce((a,m)=>a+m.prob,0);if(t>0)CFG.menu.forEach(m=>m.prob/=t);};
+const rmStep=(ii,si)=>CFG.menu[ii].steps.splice(si,1);
+const moveStep=(ii,si,dir)=>{
+  const s=CFG.menu[ii].steps,ni=si+dir;
+  if(ni<0||ni>=s.length)return;
+  [s[si],s[ni]]=[s[ni],s[si]];
+  renderMenuPanel();
+};
+const removeMenuItem=ii=>{CFG.menu.splice(ii,1);normProbs();renderMenuPanel();};
+const addMenuItem=()=>{
+  CFG.menu.push({id:'it_'+Date.now(),name:'Novo Item',prob:0.1,price:30,
+    steps:[{eqId:CFG.equipment[0]?.id||'',time:2}]});
+  normProbs();renderMenuPanel();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  SAVE / LOAD
+// ══════════════════════════════════════════════════════════════
+const saveConfig=()=>{
+  const data={room:CFG.room,equipment:CFG.equipment,menu:CFG.menu,walls:CFG.walls,
+    ops:document.getElementById('cfgOps').value,
+    rate:document.getElementById('cfgRate').value,
+    tol:document.getElementById('cfgTol').value,
+    pickupTimeout:document.getElementById('cfgPickupTimeout').value,
+    slaTarget:document.getElementById('cfgSLA').value,
+    maxItems:document.getElementById('cfgMaxItems').value,
+    groupBias:document.getElementById('cfgGroupBias').value,
+    opCost:document.getElementById('cfgOpCost')?.value,
+    demandCurve:document.getElementById('cfgDemandCurve')?.value};
+  localStorage.setItem('panino_cfg',JSON.stringify(data));
+  showSaveStatus('Salvo!','#3fb950');
+};
+
+const loadConfig=()=>{
+  const raw=localStorage.getItem('panino_cfg');
+  if(!raw){showSaveStatus('Nenhuma config salva','#f85149');return;}
+  const data=JSON.parse(raw);
+  Object.assign(CFG.room,data.room);CFG.room.poly=data.room.poly||null;CFG.equipment=data.equipment;CFG.menu=data.menu;CFG.walls=data.walls||[];
+  if(data.ops)document.getElementById('cfgOps').value=data.ops;
+  if(data.rate)document.getElementById('cfgRate').value=data.rate;
+  if(data.tol)document.getElementById('cfgTol').value=data.tol;
+  if(data.pickupTimeout)document.getElementById('cfgPickupTimeout').value=data.pickupTimeout;
+  if(data.slaTarget)document.getElementById('cfgSLA').value=data.slaTarget;
+  if(data.maxItems)document.getElementById('cfgMaxItems').value=data.maxItems;
+  if(data.groupBias)document.getElementById('cfgGroupBias').value=data.groupBias;
+  if(data.opCost&&document.getElementById('cfgOpCost'))document.getElementById('cfgOpCost').value=data.opCost;
+  if(data.demandCurve&&document.getElementById('cfgDemandCurve'))document.getElementById('cfgDemandCurve').value=data.demandCurve;
+  document.getElementById('rW').value=CFG.room.W;document.getElementById('rD').value=CFG.room.D;
+  document.getElementById('rBoh').value=CFG.room.boh;document.getElementById('rCorr').value=CFG.room.corr;
+  buildRoom();buildAllEquip();buildAllWalls();renderWallPanel();resetSim();
+  showSaveStatus('Carregado!','#3fb950');
+};
+
+const exportConfig=()=>{
+  const blob=new Blob([JSON.stringify({room:CFG.room,equipment:CFG.equipment,menu:CFG.menu,walls:CFG.walls},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='panino-config.json';a.click();
+};
+
+const importConfig=()=>{
+  document.getElementById('importFileInput').value='';
+  document.getElementById('importFileInput').click();
+};
+
+const handleImportFile=ev=>{
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(data.room){Object.assign(CFG.room,data.room);CFG.room.poly=data.room.poly||null;}
+      if(data.equipment&&Array.isArray(data.equipment)){
+        // Merge by id: update existing, append new
+        data.equipment.forEach(eq=>{
+          const idx=CFG.equipment.findIndex(e=>e.id===eq.id);
+          if(idx>=0)Object.assign(CFG.equipment[idx],eq);
+          else CFG.equipment.push(eq);
+        });
+      }
+      if(data.menu&&Array.isArray(data.menu)){
+        data.menu.forEach(mi=>{
+          const idx=CFG.menu.findIndex(m=>m.id===mi.id);
+          if(idx>=0)Object.assign(CFG.menu[idx],mi);
+          else CFG.menu.push(mi);
+        });
+      }
+      if(data.walls&&Array.isArray(data.walls))CFG.walls=data.walls;
+      // Sync room input fields
+      document.getElementById('rW').value=CFG.room.W;
+      document.getElementById('rD').value=CFG.room.D;
+      document.getElementById('rBoh').value=CFG.room.boh;
+      document.getElementById('rCorr').value=CFG.room.corr;
+      buildRoom();buildAllEquip();
+      renderEqPanel();renderMenuPanel();
+      showSaveStatus('JSON importado!','#3fb950');
+    }catch(err){
+      showSaveStatus('Erro: JSON invalido','#f85149');
+    }
+  };
+  reader.readAsText(file);
+};
+
+const loadPreset=size=>{
+  if(size==='allantico'){
+    // All Antico Panino — Vitre Shopping Campos do Jordao (real dimensions)
+    CFG.room.W=2.60;CFG.room.D=5.50;CFG.room.boh=2.30;CFG.room.corr=0.40;
+    const eqReal=[
+      {id:'forno',    x:0.55,z:0.50,opTime:1.5,capacity:2},
+      {id:'geladeira',x:2.20,z:1.40,opTime:0.5,capacity:1},
+      {id:'bancada',  x:1.50,z:0.50,opTime:1.5,capacity:1},
+      {id:'pia',      x:2.20,z:0.40,opTime:0.5,capacity:1},
+      {id:'saladette',x:1.10,z:2.40,opTime:0.5,capacity:1},
+      {id:'pos',      x:2.30,z:2.60,opTime:1.5,capacity:1},
+    ];
+    eqReal.forEach(eq=>{const idx=CFG.equipment.findIndex(e=>e.id===eq.id);if(idx>=0)Object.assign(CFG.equipment[idx],eq);});
+  } else if(size==='small'){
+    CFG.room.W=3.50;CFG.room.D=4.50;CFG.room.boh=2.00;CFG.room.corr=0.40;
+  } else {
+    CFG.room.W=7.00;CFG.room.D=5.00;CFG.room.boh=3.20;CFG.room.corr=0.50;
+  }
+  CFG.room.poly=null;
+  document.getElementById('rW').value=CFG.room.W;document.getElementById('rD').value=CFG.room.D;
+  document.getElementById('rBoh').value=CFG.room.boh;document.getElementById('rCorr').value=CFG.room.corr;
+  buildRoom();buildAllEquip();
+};
+
+// ══════════════════════════════════════════════════════════════
+//  KPI EXPORT + END-OF-DAY REPORT
+// ══════════════════════════════════════════════════════════════
+const computeKPIs=()=>{
+  const totalArrived=S.nextId;
+  const elapsedH=Math.max(0.001,(simTime-S.simStartTime)/60);
+  const opCost=parseFloat(document.getElementById('cfgOpCost')?.value)||0;
+  const fixedCost=parseFloat(document.getElementById('cfgFixedCost')?.value)||0;
+  const totalCost=opCost*operators.length*elapsedH+fixedCost*(elapsedH/12);
+  const margin=S.revenue-totalCost;
+  const slaPct=S.served>0?(S.slaOk/S.served*100):0;
+  const balkPct=totalArrived>0?(S.balked/totalArrived*100):0;
+  const eqUtils={};
+  CFG.equipment.forEach(eq=>{
+    const total=S.eqTotal[eq.id]||1, busy=S.eqBusy[eq.id]||0;
+    eqUtils[eq.id]=Math.min(100,Math.round(busy/total*100));
+  });
+  const opUtils=operators.map((op,i)=>{
+    const busyMin=S.opBusy[i]||0;
+    return Math.min(100,Math.round(busyMin/elapsedH/60*100));
+  });
+  return {
+    timestamp: new Date().toISOString(),
+    config: {
+      operators: operators.length,
+      fixedAssignments: operators.map(o=>o.fixedEq||'volante'),
+      rate: parseInt(document.getElementById('cfgRate').value),
+      maxItems: parseInt(document.getElementById('cfgMaxItems').value),
+      groupBias: parseInt(document.getElementById('cfgGroupBias').value),
+      tolerance: parseInt(document.getElementById('cfgTol').value),
+      slaTarget: parseInt(document.getElementById('cfgSLA').value),
+      pickupTimeout: parseInt(document.getElementById('cfgPickupTimeout').value),
+      opCostHour: opCost,
+      fixedCostDay: fixedCost,
+      demandCurve: document.getElementById('cfgDemandCurve').value,
+    },
+    elapsedHours: +elapsedH.toFixed(2),
+    arrived: totalArrived,
+    served: S.served,
+    balked: S.balked,
+    balkedPickup: S.balkedPickup,
+    balkPct: +balkPct.toFixed(1),
+    serviceRate: totalArrived>0?+((S.served/totalArrived)*100).toFixed(1):0,
+    throughputPerHour: +(S.served/elapsedH).toFixed(1),
+    avgWaitMin: S.served>0?+(S.totalWait/S.served).toFixed(2):0,
+    avgPrepTimeMin: S.served>0?+(S.totalPrepTime/S.served).toFixed(2):0,
+    avgActualPrepMin: S.served>0?+(S.totalActualPrep/S.served).toFixed(2):0,
+    avgQueueWaitMin: S.served>0?+(S.totalQueueWait/S.served).toFixed(2):0,
+    maxQueue: S.maxQueue,
+    slaOk: S.slaOk,
+    slaPct: +slaPct.toFixed(1),
+    revenueGross: Math.round(S.revenueBruto),
+    refunds: Math.round(S.reembolsos),
+    revenueNet: Math.round(S.revenue),
+    operationalCost: Math.round(totalCost),
+    margin: Math.round(margin),
+    avgTicket: S.served>0?+(S.servedRevenue/S.served).toFixed(2):0,
+    itemsSold: {...S.itemsSold},
+    eqUtilizationPct: eqUtils,
+    opUtilizationPct: opUtils,
+  };
+};
+
+const exportKPIs=fmt=>{
+  const kpis=computeKPIs();
+  let blob,filename;
+  if(fmt==='csv'){
+    const rows=[];
+    rows.push(['Metrica','Valor']);
+    const flat=(obj,prefix='')=>{
+      Object.entries(obj).forEach(([k,v])=>{
+        const key=prefix?prefix+'.'+k:k;
+        if(v&&typeof v==='object'&&!Array.isArray(v))flat(v,key);
+        else rows.push([key,Array.isArray(v)?v.join(';'):v]);
+      });
+    };
+    flat(kpis);
+    const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+    filename='panino-kpis-'+Date.now()+'.csv';
+  }else{
+    blob=new Blob([JSON.stringify(kpis,null,2)],{type:'application/json'});
+    filename='panino-kpis-'+Date.now()+'.json';
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  showSaveStatus('KPIs exportados!','#3fb950');
+};
+
+const generateRecommendations=k=>{
+  const recs=[];
+  if(k.served<5)return ['Simulacao curta demais — rode ate o fim do dia para recomendacoes confiaveis.'];
+  if(k.balkPct>15)recs.push(`<strong>Critico:</strong> ${k.balkPct}% dos clientes desistiram. Adicione operador, acelere preparo ou amplie tolerancia.`);
+  if(k.slaPct<70)recs.push(`<strong>SLA baixo (${k.slaPct}%):</strong> menos de 70% dos pedidos no prazo. Reduza tempo de preparo ou redistribua operadores.`);
+  const avgOpU=k.opUtilizationPct.length?k.opUtilizationPct.reduce((a,b)=>a+b,0)/k.opUtilizationPct.length:0;
+  if(avgOpU>85)recs.push(`<strong>Operadores saturados (${avgOpU.toFixed(0)}%):</strong> considere +1 operador no horario de pico.`);
+  else if(avgOpU<35&&k.served>20)recs.push(`<strong>Operadores ociosos (${avgOpU.toFixed(0)}%):</strong> considere reduzir time ou reutilizar para outras tarefas.`);
+  const bottleneck=Object.entries(k.eqUtilizationPct).sort((a,b)=>b[1]-a[1])[0];
+  if(bottleneck&&bottleneck[1]>75){
+    const eq=CFG.equipment.find(e=>e.id===bottleneck[0]);
+    recs.push(`<strong>Gargalo:</strong> ${eq?eq.name:bottleneck[0]} a ${bottleneck[1]}%. Adicione capacidade ou acelere a etapa.`);
+  }
+  if(k.margin<0)recs.push(`<strong>Prejuizo: R$${k.margin}.</strong> Receita atual nao cobre custo operacional. Revise preco, custos ou volume.`);
+  else if(k.margin/Math.max(1,k.revenueNet)<0.15)recs.push(`<strong>Margem baixa (${Math.round(k.margin/k.revenueNet*100)}%):</strong> considere otimizar custos ou aumentar ticket medio.`);
+  if(k.maxQueue>10)recs.push(`<strong>Fila de pico ${k.maxQueue} pessoas:</strong> avalie sinalizacao de espera e capacidade de fila fisica.`);
+  if(recs.length===0)recs.push('Operacao saudavel. Sem alertas criticos identificados.');
+  return recs;
+};
+
+const showEodModal=()=>{
+  const k=computeKPIs();
+  document.getElementById('eodTitle').textContent=simTime>=22*60?'Relatorio - Fim do Dia':'Resumo Parcial (sim. em andamento)';
+  const recs=generateRecommendations(k);
+  let html=`<div class="eod-kpi">
+    <div class="mc"><div class="mv">${k.served}</div><div class="ml">Pedidos servidos</div></div>
+    <div class="mc"><div class="mv">${k.throughputPerHour}/h</div><div class="ml">Throughput</div></div>
+    <div class="mc"><div class="mv">R$${k.revenueNet}</div><div class="ml">Receita liquida</div></div>
+    <div class="mc"><div class="mv" style="color:${k.margin>=0?'#3fb950':'#f85149'}">R$${k.margin}</div><div class="ml">Margem</div></div>
+    <div class="mc"><div class="mv">${k.avgActualPrepMin.toFixed(1)}m</div><div class="ml">Preparo medio</div></div>
+    <div class="mc"><div class="mv">${k.slaPct.toFixed(0)}%</div><div class="ml">No SLA</div></div>
+    <div class="mc"><div class="mv" style="color:#f85149">${k.balked}</div><div class="ml">Desistencias (${k.balkPct.toFixed(0)}%)</div></div>
+    <div class="mc"><div class="mv">${k.maxQueue}</div><div class="ml">Pico de fila</div></div>
+  </div>`;
+  html+='<div style="font-size:12px;font-weight:600;color:#f0f6fc;margin:14px 0 6px">Recomendacoes</div>';
+  recs.forEach(r=>{html+=`<div class="eod-reco">${r}</div>`;});
+  document.getElementById('eodBody').innerHTML=html;
+  document.getElementById('eodModal').classList.add('on');
+};
+
+const closeEodModal=()=>document.getElementById('eodModal').classList.remove('on');
+
+// ══════════════════════════════════════════════════════════════
+//  A/B COMPARE + MONTE CARLO
+// ══════════════════════════════════════════════════════════════
+const compareSnapshots=[];
+
+const saveSnapshotCompare=()=>{
+  const k=computeKPIs();
+  const name=prompt('Nome deste cenario:','Cenario '+(compareSnapshots.length+1));
+  if(!name)return;
+  compareSnapshots.push({name,kpis:k});
+  showSaveStatus('Cenario salvo ('+compareSnapshots.length+' total)','#3fb950');
+};
+
+const showCompareModal=()=>{
+  if(compareSnapshots.length===0){alert('Salve ao menos 1 cenario antes de comparar.');return;}
+  const cur=computeKPIs();
+  const all=[{name:'ATUAL',kpis:cur},...compareSnapshots];
+  document.getElementById('eodTitle').textContent='Comparacao de Cenarios';
+  const metrics=[
+    {k:'served',l:'Servidos',fmt:v=>v},
+    {k:'throughputPerHour',l:'Throughput/h',fmt:v=>v.toFixed(1)},
+    {k:'avgActualPrepMin',l:'Preparo (min)',fmt:v=>v.toFixed(1)},
+    {k:'slaPct',l:'SLA %',fmt:v=>v.toFixed(0)+'%'},
+    {k:'balked',l:'Desistencias',fmt:v=>v},
+    {k:'revenueNet',l:'Receita liq.',fmt:v=>'R$'+v},
+    {k:'operationalCost',l:'Custo',fmt:v=>'R$'+v},
+    {k:'margin',l:'Margem',fmt:v=>'R$'+v},
+  ];
+  let html='<table style="width:100%;border-collapse:collapse;font-size:11px"><tr><th style="text-align:left;padding:5px;border-bottom:1px solid #30363d;color:#8b949e">Metrica</th>';
+  all.forEach(s=>html+=`<th style="padding:5px;border-bottom:1px solid #30363d;color:#58a6ff">${s.name}</th>`);
+  html+='</tr>';
+  metrics.forEach(m=>{
+    html+=`<tr><td style="padding:5px;border-bottom:1px solid #21262d;color:#cdd9e5">${m.l}</td>`;
+    const vals=all.map(s=>s.kpis[m.k]||0);
+    const max=Math.max(...vals), min=Math.min(...vals);
+    all.forEach((s,i)=>{
+      const v=s.kpis[m.k]||0;
+      const isBest=(m.k==='balked'||m.k==='operationalCost')?v===min:v===max;
+      const col=isBest&&all.length>1?'#3fb950':'#cdd9e5';
+      html+=`<td style="padding:5px;border-bottom:1px solid #21262d;color:${col};font-weight:${isBest?'700':'400'};text-align:center">${m.fmt(v)}</td>`;
+    });
+    html+='</tr>';
+  });
+  html+='</table>';
+  html+=`<button class="btn btn-gray" style="margin-top:12px" onclick="compareSnapshots.length=0;closeEodModal();showSaveStatus('Cenarios limpos','#d29922')">Limpar Cenarios Salvos</button>`;
+  document.getElementById('eodBody').innerHTML=html;
+  document.getElementById('eodModal').classList.add('on');
+};
+
+let mcRunning=false;
+const runMonteCarlo=async()=>{
+  if(mcRunning){alert('Monte Carlo ja em execucao');return;}
+  if(!confirm('Rodar 5 simulacoes do dia inteiro em sequencia? Pode demorar 30-60 segundos.'))return;
+  mcRunning=true;
+  const wasOn=simOn;simOn=false;
+  const results=[];
+  for(let i=0;i<5;i++){
+    showSaveStatus('MC: rodando '+(i+1)+'/5...','#58a6ff');
+    resetSim();
+    // roda em chunks para nao travar UI
+    while(simTime<22*60){
+      for(let j=0;j<300;j++){
+        if(simTime>=22*60)break;
+        const dt=0.1; // 0.1 min por step
+        simTime+=dt;
+        tick(dt);
+      }
+      await new Promise(r=>setTimeout(r,0));
+    }
+    results.push(computeKPIs());
+  }
+  mcRunning=false;simOn=wasOn;
+  // mostra resumo
+  const agg=(key)=>{
+    const vals=results.map(r=>r[key]||0);
+    const mean=vals.reduce((a,b)=>a+b,0)/vals.length;
+    const sd=Math.sqrt(vals.reduce((a,b)=>a+Math.pow(b-mean,2),0)/vals.length);
+    return{mean:mean.toFixed(1),sd:sd.toFixed(1),min:Math.min(...vals).toFixed(1),max:Math.max(...vals).toFixed(1)};
+  };
+  const keys=[['served','Servidos'],['throughputPerHour','Throughput/h'],['avgActualPrepMin','Preparo min'],['slaPct','SLA %'],['balked','Desistencias'],['revenueNet','Receita liq.'],['margin','Margem']];
+  document.getElementById('eodTitle').textContent='Monte Carlo — 5 execucoes';
+  let html='<table style="width:100%;border-collapse:collapse;font-size:11px"><tr>';
+  ['Metrica','Media','+/- DP','Min','Max'].forEach(h=>html+=`<th style="text-align:left;padding:5px;border-bottom:1px solid #30363d;color:#8b949e">${h}</th>`);
+  html+='</tr>';
+  keys.forEach(([k,l])=>{
+    const a=agg(k);
+    html+=`<tr><td style="padding:5px;border-bottom:1px solid #21262d;color:#cdd9e5">${l}</td><td style="padding:5px;color:#58a6ff;font-weight:600">${a.mean}</td><td style="padding:5px;color:#8b949e">${a.sd}</td><td style="padding:5px;color:#6e7681">${a.min}</td><td style="padding:5px;color:#6e7681">${a.max}</td></tr>`;
+  });
+  html+='</table>';
+  html+='<div style="font-size:10px;color:#8b949e;margin-top:10px">Cada simulacao do dia 10h-22h foi rodada com mesma config, sementes aleatorias diferentes.</div>';
+  document.getElementById('eodBody').innerHTML=html;
+  document.getElementById('eodModal').classList.add('on');
+  showSaveStatus('MC concluido!','#3fb950');
+};
+
+const showSaveStatus=(msg,col)=>{
+  const st=document.getElementById('save-status');
+  st.textContent=msg;st.style.color=col;st.style.display='block';
+  setTimeout(()=>st.style.display='none',3000);
+};
+
+// ══════════════════════════════════════════════════════════════
+//  DESENHAR PAREDES (vista de cima — clicar e digitar metros)
+// ══════════════════════════════════════════════════════════════
+const wd = { start:null, hover:null, walls:[] };
+const WD_PAD = 26;
+
+const openWallDraw=()=>{
+  wd.walls = CFG.walls.map(w=>({...w}));
+  wd.start=null; wd.hover=null;
+  document.getElementById('wallDrawModal').classList.add('on');
+  document.getElementById('wdStatus').textContent='Clique no ponto inicial da parede.';
+  wdRender();
+};
+const wdClose=()=>document.getElementById('wallDrawModal').classList.remove('on');
+const wdCancelStart=()=>{wd.start=null;document.getElementById('wdStatus').textContent='Clique no ponto inicial da parede.';wdRender();};
+
+const wdScale=()=>{
+  const cv=document.getElementById('wallCanvas');
+  return Math.min((cv.width-2*WD_PAD)/CFG.room.W,(cv.height-2*WD_PAD)/CFG.room.D);
+};
+const wdToCanvas=(x,z)=>{const s=wdScale();return {cx:WD_PAD+x*s, cy:WD_PAD+z*s};};
+const wdFromCanvas=(cx,cy)=>{const s=wdScale();return {x:(cx-WD_PAD)/s, z:(cy-WD_PAD)/s};};
+
+const wdEventPoint=(ev)=>{
+  const cv=document.getElementById('wallCanvas');
+  const r=cv.getBoundingClientRect();
+  return wdFromCanvas((ev.clientX-r.left)*(cv.width/r.width),(ev.clientY-r.top)*(cv.height/r.height));
+};
+
+// pontos de encaixe: cantos da sala + pontas das paredes ja feitas
+const wdSnapTargets=()=>{
+  const t=[{x:0,z:0},{x:CFG.room.W,z:0},{x:0,z:CFG.room.D},{x:CFG.room.W,z:CFG.room.D}];
+  wd.walls.forEach(w=>{
+    if(w.horizontal){t.push({x:w.x-w.length/2,z:w.z},{x:w.x+w.length/2,z:w.z});}
+    else{t.push({x:w.x,z:w.z-w.length/2},{x:w.x,z:w.z+w.length/2});}
+  });
+  return t;
+};
+const wdSnap=(p)=>{
+  let best=null,bd=0.18;
+  wdSnapTargets().forEach(t=>{const d=Math.hypot(t.x-p.x,t.z-p.z);if(d<bd){bd=d;best=t;}});
+  if(best)return {x:best.x,z:best.z,snapped:true};
+  return {x:Math.max(0,Math.min(CFG.room.W,snap10(p.x))), z:Math.max(0,Math.min(CFG.room.D,snap10(p.z))), snapped:false};
+};
+
+// dado o ponto inicial e o alvo (clique/mouse), calcula a parede no eixo dominante
+// usando a medida digitada (ou a distancia real se o campo estiver vazio)
+const wdComputeEnd=(start,target)=>{
+  const dx=target.x-start.x, dz=target.z-start.z;
+  const horizontal=Math.abs(dx)>=Math.abs(dz);
+  const typed=parseFloat(document.getElementById('wdLen').value);
+  const useTyped = typed && typed>0;
+  let len = useTyped ? typed : (horizontal?Math.abs(dx):Math.abs(dz));
+  const sign = horizontal ? (dx>=0?1:-1) : (dz>=0?1:-1);
+  let ex = horizontal ? start.x+sign*len : start.x;
+  let ez = horizontal ? start.z : start.z+sign*len;
+  ex=Math.max(0,Math.min(CFG.room.W,ex));
+  ez=Math.max(0,Math.min(CFG.room.D,ez));
+  const length=+(horizontal?Math.abs(ex-start.x):Math.abs(ez-start.z)).toFixed(2);
+  return {x:ex,z:ez,horizontal,length,useTyped};
+};
+
+const wdCanvasMove=(ev)=>{wd.hover=wdSnap(wdEventPoint(ev));wdRender();};
+const wdCanvasLeave=()=>{wd.hover=null;wdRender();};
+
+const wdCanvasClick=(ev)=>{
+  const p=wdSnap(wdEventPoint(ev));
+  if(!wd.start){
+    wd.start={x:p.x,z:p.z};
+    document.getElementById('wdStatus').textContent='Digite a medida e clique na direcao da parede.';
+    wdRender();return;
+  }
+  const end=wdComputeEnd(wd.start,p);
+  if(end.length<0.1){document.getElementById('wdStatus').textContent='Medida muito curta — verifique o comprimento ou clique mais longe.';return;}
+  const th=parseFloat(document.getElementById('wdTh').value)||0.12;
+  const h=parseFloat(document.getElementById('wdH').value)||2.40;
+  wd.walls.push({
+    id:'wall_'+Date.now()+'_'+wd.walls.length,
+    name:'Parede '+(wd.walls.length+1),
+    length:end.length, thickness:th, height:h,
+    x:snap10((wd.start.x+end.x)/2), z:snap10((wd.start.z+end.z)/2),
+    horizontal:end.horizontal
+  });
+  wd.start=null;
+  document.getElementById('wdStatus').textContent='Parede adicionada. Clique no proximo ponto inicial (encaixa nas pontas).';
+  wdRender();
+};
+
+const wdUndo=()=>{wd.walls.pop();wdRender();};
+const wdRemove=(i)=>{wd.walls.splice(i,1);wd.walls.forEach((w,k)=>w.name='Parede '+(k+1));wdRender();};
+
+const wdRender=()=>{
+  const cv=document.getElementById('wallCanvas');if(!cv)return;
+  const ctx=cv.getContext('2d');const s=wdScale();
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const o=wdToCanvas(0,0), e=wdToCanvas(CFG.room.W,CFG.room.D);
+  // zona BoH
+  const bohC=wdToCanvas(CFG.room.W,CFG.room.boh);
+  ctx.fillStyle='rgba(160,90,18,0.16)';ctx.fillRect(o.cx,o.cy,e.cx-o.cx,bohC.cy-o.cy);
+  // grade 0.5m
+  ctx.strokeStyle='rgba(120,130,150,0.22)';ctx.lineWidth=1;
+  for(let gx=0.5;gx<CFG.room.W;gx+=0.5){const p=wdToCanvas(gx,0);ctx.beginPath();ctx.moveTo(p.cx,o.cy);ctx.lineTo(p.cx,e.cy);ctx.stroke();}
+  for(let gz=0.5;gz<CFG.room.D;gz+=0.5){const p=wdToCanvas(0,gz);ctx.beginPath();ctx.moveTo(o.cx,p.cy);ctx.lineTo(e.cx,p.cy);ctx.stroke();}
+  // linha do balcao
+  const fz=CFG.room.boh+CFG.room.corr;
+  if(fz<CFG.room.D){const fc=wdToCanvas(0,fz),fc2=wdToCanvas(CFG.room.W,fz);ctx.strokeStyle='#8a5a2b';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(fc.cx,fc.cy);ctx.lineTo(fc2.cx,fc2.cy);ctx.stroke();}
+  // contorno
+  ctx.strokeStyle='#3fb950';ctx.lineWidth=2;ctx.strokeRect(o.cx,o.cy,e.cx-o.cx,e.cy-o.cy);
+  // paredes
+  wd.walls.forEach(w=>{
+    const ww=w.horizontal?w.length:w.thickness, wdp=w.horizontal?w.thickness:w.length;
+    const a=wdToCanvas(w.x-ww/2, w.z-wdp/2);
+    ctx.fillStyle='#e0744b';ctx.fillRect(a.cx, a.cy, Math.max(2,ww*s), Math.max(2,wdp*s));
+  });
+  // preview / pontos
+  if(wd.start){
+    const sc=wdToCanvas(wd.start.x,wd.start.z);
+    if(wd.hover){
+      const end=wdComputeEnd(wd.start,wd.hover);
+      const ec=wdToCanvas(end.x,end.z);
+      ctx.strokeStyle='rgba(88,166,255,0.9)';ctx.lineWidth=3;ctx.setLineDash([6,4]);
+      ctx.beginPath();ctx.moveTo(sc.cx,sc.cy);ctx.lineTo(ec.cx,ec.cy);ctx.stroke();ctx.setLineDash([]);
+      // etiqueta de medida
+      const mx=(sc.cx+ec.cx)/2, my=(sc.cy+ec.cy)/2, txt=end.length.toFixed(2)+' m';
+      ctx.font='bold 12px Segoe UI';const tw=ctx.measureText(txt).width;
+      ctx.fillStyle='rgba(13,17,23,0.88)';ctx.fillRect(mx-tw/2-5,my-18,tw+10,17);
+      ctx.fillStyle='#58a6ff';ctx.textAlign='center';ctx.fillText(txt,mx,my-5);ctx.textAlign='left';
+      // ponto final
+      ctx.fillStyle='#58a6ff';ctx.beginPath();ctx.arc(ec.cx,ec.cy,4,0,Math.PI*2);ctx.fill();
+    }
+    ctx.fillStyle='#58a6ff';ctx.beginPath();ctx.arc(sc.cx,sc.cy,5,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.stroke();
+  } else if(wd.hover){
+    const hc=wdToCanvas(wd.hover.x,wd.hover.z);
+    ctx.fillStyle=wd.hover.snapped?'#3fb950':'rgba(88,166,255,0.6)';
+    ctx.beginPath();ctx.arc(hc.cx,hc.cy,wd.hover.snapped?5:4,0,Math.PI*2);ctx.fill();
+  }
+  // painel
+  document.getElementById('wdCount').textContent=wd.walls.length;
+  const list=document.getElementById('wdList');
+  list.innerHTML=wd.walls.map((w,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 6px;background:#0d1117;border:1px solid #21262d;border-radius:4px;margin-bottom:3px"><span style="color:#cdd9e5">${w.name}: ${w.length.toFixed(2)}m ${w.horizontal?'&#8596;':'&#8597;'}</span><button class="rm-btn" onclick="wdRemove(${i})">x</button></div>`).join('')||'<div style="font-size:10px;color:#6e7681">Nenhuma parede ainda</div>';
+};
+
+const wdApply=()=>{
+  const exterior=document.getElementById('wdExterior')?.checked && wd.walls.length>=3;
+  if(exterior){
+    // reconstroi o contorno fechado a partir dos segmentos desenhados
+    const poly=contourFromWalls(wd.walls);
+    if(!poly){
+      document.getElementById('wdStatus').textContent='O contorno externo nao fechou — conecte as pontas das paredes (snap verde) para formar a sala.';
+      return;
+    }
+    // bounding box do contorno -> dimensoes da sala
+    let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+    poly.forEach(p=>{minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);});
+    const newW=+Math.max(0.5,maxX-minX).toFixed(2);
+    const newD=+Math.max(0.5,maxZ-minZ).toFixed(2);
+    // desloca paredes e poligono para a origem (0,0)
+    CFG.walls = wd.walls.map(w=>({...w, x:snap10(w.x-minX), z:snap10(w.z-minZ)}));
+    CFG.room.poly = poly.map(p=>({x:+(p.x-minX).toFixed(3), z:+(p.z-minZ).toFixed(3)}));
+    CFG.room.W=newW; CFG.room.D=newD;
+    if(CFG.room.boh+CFG.room.corr>=newD){
+      CFG.room.boh=+(newD*0.55).toFixed(2);
+      CFG.room.corr=+(newD*0.08).toFixed(2);
+    }
+    document.getElementById('rW').value=CFG.room.W;
+    document.getElementById('rD').value=CFG.room.D;
+    document.getElementById('rBoh').value=CFG.room.boh;
+    document.getElementById('rCorr').value=CFG.room.corr;
+    buildRoom();
+  } else {
+    CFG.walls = wd.walls.map(w=>({...w}));
+  }
+  buildAllWalls();buildNavGrid();renderWallPanel();
+  wdClose();
+  showSaveStatus(exterior?'Sala redefinida pelo contorno!':'Paredes aplicadas!','#3fb950');
+};
+
+// Init
+renderEqPanel();renderMenuPanel();renderWallPanel();
+if(localStorage.getItem('panino_cfg')){try{loadConfig();}catch(e){}}
+</script>
+</body>
+</html>
