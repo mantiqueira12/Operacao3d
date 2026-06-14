@@ -42,6 +42,12 @@ export interface Item {
   depth: number
   /** altura vertical (3D), em metros */
   height: number
+  /**
+   * elevação da base acima do piso (m). 0 = no chão. Permite empilhar peças
+   * (uma sobre a outra) e posicionar em prateleira. A peça ocupa a faixa vertical
+   * [level, level + height]; duas peças só colidem se as faixas verticais se cruzam.
+   */
+  level?: number
   color: string
   arch?: Arch3D | null
 }

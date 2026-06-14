@@ -2,7 +2,7 @@
    para avaliação de espaço/dimensões. Etapa "3D" do fluxo 2D → 3D → Simulação. */
 
 import { useEffect, useMemo, useState } from 'react'
-import { loja206Scene, type RestaurantScene } from '../domain'
+import { collisionSet, loja206Scene, topOf, type RestaurantScene } from '../domain'
 import { createStorage } from '../storage'
 import Scene3D from './Scene3D'
 import './view3d.css'
@@ -31,10 +31,15 @@ export default function View3D({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
+  const collisions = useMemo(
+    () => (scene ? collisionSet(scene.items) : new Set<string>()),
+    [scene],
+  )
+
   const info = useMemo(() => {
     if (!scene) return null
     const pieces = scene.items.filter((i) => i.type !== 'porta' && i.type !== 'extintor' && i.type !== 'wall' && i.type !== 'painel')
-    const maxH = scene.items.reduce((m, i) => Math.max(m, i.height), 0)
+    const maxH = scene.items.reduce((m, i) => Math.max(m, topOf(i)), 0)
     return { area: scene.room.labeledAreaM2 ?? 0, pieces: pieces.length, maxH }
   }, [scene])
 
@@ -53,6 +58,7 @@ export default function View3D({ onClose }: { onClose: () => void }) {
             <span>{info.area.toFixed(1).replace('.', ',')} m²</span>
             <span>{info.pieces} peças</span>
             <span>alt. máx {info.maxH.toFixed(2).replace('.', ',')} m</span>
+            {collisions.size > 0 && <span className="warn">⚠ {collisions.size} sobrepos.</span>}
           </div>
         )}
         <div className="toolgroup">
@@ -63,7 +69,7 @@ export default function View3D({ onClose }: { onClose: () => void }) {
       </header>
 
       <main id="v3d-stage">
-        {scene ? <Scene3D scene={scene} wallsTransparent={transparent} /> : <div className="v3d-empty">Carregando cena…</div>}
+        {scene ? <Scene3D scene={scene} wallsTransparent={transparent} collisions={collisions} /> : <div className="v3d-empty">Carregando cena…</div>}
         <div className="v3d-hint">Arraste: orbitar · roda: zoom · botão direito: deslocar</div>
       </main>
     </div>

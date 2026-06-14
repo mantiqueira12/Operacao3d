@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import { CATALOG, type Item, type ItemCategory, type RestaurantScene } from '../domain'
+import { CATALOG, levelOf, stackTopBelow, type Item, type ItemCategory, type RestaurantScene } from '../domain'
 import { MIN_SIZE, clampPosition } from './geometry'
 import { SCALE, SceneLayers, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
@@ -19,6 +19,12 @@ const CAT_LABEL: Record<ItemCategory, string> = {
   atendimento: 'Atendimento', cozinha: 'Cozinha', gerais: 'Gerais', estrutura: 'Estrutura',
 }
 const SWATCHES = ['#E2000F', '#1A1A1A', '#2B2B2B', '#9A9284', '#2A6FDB', '#1F8A5B']
+const LEVEL_PRESETS: Array<{ label: string; z: number }> = [
+  { label: 'Piso', z: 0 },
+  { label: 'Bancada', z: 0.9 },
+  { label: 'Prateleira', z: 1.5 },
+  { label: 'Alto', z: 1.8 },
+]
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
 
 type View = { zoom: number; panX: number; panY: number }
@@ -281,6 +287,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
               scene={scene}
               selectedId={ed.selectedId}
               zoom={view.zoom}
+              collisions={ed.collisions}
               onItemPointerDown={onItemDown}
               onHandleDown={onHandleDown}
               onRotate={onRotate}
@@ -314,6 +321,9 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           {!sel && <div className="empty">Selecione uma peça no desenho para editar dimensões e posição — ou insira uma do catálogo.</div>}
           {sel && (
             <div className="props">
+              {ed.collisions.has(sel.id) && (
+                <div className="conflict-banner">⚠ Sobrepõe outra peça neste nível — o layout não vai dar certo.</div>
+              )}
               <div className="field name">
                 <label>Nome</label>
                 <input value={sel.name} onChange={(e) => ed.patchItem(sel.id, { name: e.target.value })} />
@@ -327,6 +337,39 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
                 <NumField label="Posição Y" value={sel.y} onCommit={(v) => ed.moveItem(sel.id, sel.x, v)} />
               </div>
               <NumField label="Altura (3D)" value={sel.height} onCommit={(v) => ed.patchItem(sel.id, { height: Math.max(MIN_SIZE, v) })} />
+              <div className="field">
+                <label>Nível · elevação base (z)</label>
+                <div className="unit">
+                  <input
+                    inputMode="decimal"
+                    key={levelOf(sel)}
+                    defaultValue={levelOf(sel).toFixed(2)}
+                    onBlur={(e) => {
+                      const v = parseFloat(e.target.value.replace(',', '.'))
+                      if (!Number.isNaN(v)) ed.patchItem(sel.id, { level: Math.max(0, v) })
+                    }}
+                  />
+                </div>
+                <div className="lvl-presets">
+                  {LEVEL_PRESETS.map((p) => (
+                    <button
+                      key={p.label}
+                      className={`lvl-preset${Math.abs(levelOf(sel) - p.z) < 1e-3 ? ' active' : ''}`}
+                      onClick={() => ed.patchItem(sel.id, { level: p.z })}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  className="pbtn stack"
+                  disabled={stackTopBelow(sel, scene.items) == null}
+                  onClick={() => ed.stackOnBelow(sel.id)}
+                >
+                  Empilhar sobre o de baixo
+                </button>
+                <div className="lvl-info">base {fmt(levelOf(sel))} m · topo {fmt(levelOf(sel) + sel.height)} m</div>
+              </div>
               <div className="field">
                 <label>Zona / cor</label>
                 <div className="swatches">
@@ -342,6 +385,36 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
               <button className="pbtn danger" onClick={() => ed.removeItem(sel.id)}><Icon name="trash" />Excluir peça</button>
             </div>
           )}
+        </div>
+
+        <div className="sec">
+          <h3>Validação</h3>
+          <div className="valid">
+            {ed.conflicts.length === 0 ? (
+              <div className="valid-ok">✓ Sem sobreposições de volume</div>
+            ) : (
+              <>
+                <div className="valid-bad">
+                  ⚠ {ed.conflicts.length} sobreposiç{ed.conflicts.length > 1 ? 'ões' : 'ão'} — revise o layout
+                </div>
+                <ul className="valid-list">
+                  {ed.conflicts.map((c, i) => (
+                    <li key={i}>
+                      <button onClick={() => ed.select(c.a.id)}>{c.a.name}</button>
+                      <span className="x">✕</span>
+                      <button onClick={() => ed.select(c.b.id)}>{c.b.name}</button>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div className="valid-legend">
+              <span><i className="lg bad" />&lt; 0,60</span>
+              <span><i className="lg warn" />0,60–0,90</span>
+              <span><i className="lg ok" />≥ 0,90 m</span>
+            </div>
+            <div className="valid-hint">Selecione uma peça para ver as folgas (vãos, corredores e passagens) até vizinhos e paredes.</div>
+          </div>
         </div>
 
         <div className="sec">

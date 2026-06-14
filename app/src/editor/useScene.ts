@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  collisionPairs,
+  collisionSet,
   createItem,
   loja206Scene,
+  stackTopBelow,
   type Item,
   type RestaurantScene,
   type TitleBlock,
@@ -67,6 +70,16 @@ export function useScene() {
   const grid = scene?.snap ?? 0.05
   const bounds = useMemo(
     () => (scene ? boundsOf(scene.room.polygon) : null),
+    [scene],
+  )
+
+  /** Peças que ocupam o mesmo volume (sobreposição plano ∩ altura). Recalcula ao vivo. */
+  const collisions = useMemo(
+    () => (scene ? collisionSet(scene.items) : new Set<string>()),
+    [scene],
+  )
+  const conflicts = useMemo(
+    () => (scene ? collisionPairs(scene.items) : []),
     [scene],
   )
 
@@ -163,6 +176,18 @@ export function useScene() {
     })
   }, [])
 
+  /** Eleva a peça para o topo da(s) peça(s) sob o mesmo footprint ("colocar em cima de"). */
+  const stackOnBelow = useCallback((id: string) => {
+    setScene((s) => {
+      if (!s) return s
+      const it = s.items.find((i) => i.id === id)
+      if (!it) return s
+      const top = stackTopBelow(it, s.items)
+      if (top == null) return s
+      return { ...s, items: s.items.map((i) => (i.id === id ? { ...i, level: top } : i)) }
+    })
+  }, [])
+
   const selected = scene?.items.find((i) => i.id === selectedId) ?? null
 
   return {
@@ -178,6 +203,9 @@ export function useScene() {
     removeItem,
     duplicateItem,
     rotateItem,
+    stackOnBelow,
+    collisions,
+    conflicts,
     patchTitleBlock,
     replaceScene,
   }

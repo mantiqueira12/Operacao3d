@@ -4,12 +4,23 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Ferramenta de arquitetura — níveis, colisão e folgas** (`app/src/domain/spatial.ts`, puro+testado).
+  Cada peça ganhou `level` (elevação-base z, m) → ocupa a faixa vertical `[level, level+height]`:
+  empilhar / prateleira sem falso conflito. `collisionSet`/`collisionPairs` (sobreposição
+  plano ∩ altura) destacam em vermelho (hachura+badge+banner) e alimentam o painel **Validação**
+  (lista de conflitos clicável) — "sinaliza mas permite". `clearances()` desenha as cotas de
+  circulação da peça selecionada p/ vizinho/parede nas 4 direções, graduadas (vermelho <0,60 ·
+  laranja <0,90 · verde ≥0,90 m), ignorando obstáculos em outro nível — port + melhoria do
+  `drawClearances` do protótipo, agora por-polígono (L), não hardcoded. UI no Planner: campo z +
+  presets (Piso/Bancada/Prateleira/Alto) + "Empilhar sobre o de baixo". 3D eleva peças por `level`
+  e tinge conflitos; header 3D mostra contagem de sobreposições. **+20 testes (82 no total).**
+  typecheck/lint/build/82 testes + serving HTTP 200. SEM verificação visual em browser.
 - **Motor DES espacial completo e validado** em `app/src/sim/` (port canônico de `sim-core.js`).
   Cadeia: `geometry`/`nav` (casca L + A*) → `engine.ts` (`SimEngine`: demanda Poisson+curva,
   ciclo do cliente, FSM atendente volante/fixo + padeiro BOH, pão, P&L, `tick`/`computeKPIs`)
   → `worker-core.ts`+`worker.ts` (Web Worker: protocolo `init|run|step|reset|snapshot` →
   `ready|kpis|frame|done|error`, laço ao vivo play/pause). `runReplicas` (Monte Carlo, IC95) e
-  `adapter.ts` (`RestaurantScene` do editor → `SceneItem[]`). **62 testes** no total.
+  `adapter.ts` (`RestaurantScene` do editor → `SceneItem[]`). **62 testes** nesta cadeia.
 - **Cross-check estatístico vs Python — PASSOU.** Modelos diferentes (DES espacial × pipeline
   SimPy), então comparação direcional/ordem de grandeza, não igualdade. No cenário comparável
   de sobrecarga (120/h, 8h, 2 ops): TS throughput **15,4/h** vs Python **13,8/h** (±12%),
@@ -40,8 +51,9 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Verificação visual** (rodar `npm run dev`): conferir animação do painel 2D e legibilidade/
-   proporções da vista 3D — único passo sem cobertura automática.
+1. **Verificação visual** (rodar `npm run dev`): conferir as novas camadas — destaque de colisão
+   (hachura/banner/badge), cotas de folga ao selecionar uma peça, badges de nível e o
+   empilhamento no 3D — além da animação do painel 2D e proporções do 3D. Sem cobertura automática.
 2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206; o 3D
    já é por-projeto (lê `room.polygon`), só o motor de simulação ainda usa casca fixa.
 3. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
@@ -78,6 +90,9 @@
 - (nenhum)
 
 ## Decisões (ADR-lite)
+- 2026-06-14: Níveis = elevação-base `z` livre (m) + presets; colisão volumétrica (plano ∩ altura),
+  permitindo empilhamento/prateleira sem falso conflito.
+- 2026-06-14: Colisão "sinaliza mas permite" (vermelho + painel Validação), não bloqueia o arraste.
 - 2026-06-13: Stack-alvo = React + Vite + TypeScript (Svelte como alternativa).
 - 2026-06-13: Simulação canônica em TS no cliente; Python = golden reference.
 - 2026-06-13: Persistência via StorageAdapter (localStorage → nuvem free tier).

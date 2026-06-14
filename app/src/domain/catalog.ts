@@ -96,6 +96,7 @@ export function createItem(
     width: overrides.width ?? entry.width,
     depth: overrides.depth ?? entry.depth,
     height: overrides.height ?? entry.height,
+    level: overrides.level ?? 0,
     color: overrides.color ?? entry.color,
     arch: overrides.arch ?? entry.arch ?? null,
   }

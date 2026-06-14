@@ -6,6 +6,7 @@
 import { useEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { levelOf } from '../domain'
 import type { Arch3D, Item, RestaurantScene } from '../domain/types'
 
 const WALL_H = 2.8
@@ -67,11 +68,17 @@ function archMaterial(arch: Arch3D | null | undefined, color: string): THREE.Mes
   }
 }
 
-function itemMesh(it: Item): THREE.Mesh {
+function itemMesh(it: Item, conflict: boolean): THREE.Mesh {
   const h = Math.max(0.05, it.height)
+  const base = levelOf(it) // elevação da base (m): empilhamento / prateleira
   const geo = new THREE.BoxGeometry(it.width, h, it.depth)
-  const mesh = new THREE.Mesh(geo, archMaterial(it.arch, it.color))
-  mesh.position.set(it.x + it.width / 2, h / 2, it.y + it.depth / 2)
+  const mat = archMaterial(it.arch, it.color)
+  if (conflict) {
+    mat.emissive = new THREE.Color('#E2000F')
+    mat.emissiveIntensity = 0.55
+  }
+  const mesh = new THREE.Mesh(geo, mat)
+  mesh.position.set(it.x + it.width / 2, base + h / 2, it.y + it.depth / 2)
   mesh.castShadow = true
   return mesh
 }
@@ -86,7 +93,7 @@ function disposeGroup(g: THREE.Group) {
   })
 }
 
-export default function Scene3D({ scene, wallsTransparent }: { scene: RestaurantScene; wallsTransparent: boolean }) {
+export default function Scene3D({ scene, wallsTransparent, collisions }: { scene: RestaurantScene; wallsTransparent: boolean; collisions?: Set<string> }) {
   const hostRef = useRef<HTMLDivElement | null>(null)
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null)
   const sceneRef = useRef<THREE.Scene | null>(null)
@@ -189,9 +196,9 @@ export default function Scene3D({ scene, wallsTransparent }: { scene: Restaurant
     content.add(wallsGroup(scene.room.polygon, wallsTransparent, maxY))
     scene.items.forEach((it) => {
       if (it.type === 'porta' || it.type === 'extintor') return
-      content.add(itemMesh(it))
+      content.add(itemMesh(it, collisions?.has(it.id) ?? false))
     })
-  }, [scene, wallsTransparent])
+  }, [scene, wallsTransparent, collisions])
 
   return <div ref={hostRef} className="scene3d-host" />
 }

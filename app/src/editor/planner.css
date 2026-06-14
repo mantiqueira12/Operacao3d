@@ -179,3 +179,51 @@
 #app.hide-zones .zone-layer { display: none; }
 #app.hide-items .item-layer { display: none; }
 #app.hide-fohboh .fohboh-layer { display: none; }
+
+/* ---------- folgas / cotas de circulação (clearances) ---------- */
+.clr-l { fill: none; stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.clr.ok .clr-l { stroke: #1F8A5B; }
+.clr.warn .clr-l { stroke: #C97B00; }
+.clr.bad .clr-l { stroke: var(--rosso); }
+.clr-t { font-family: var(--mono); font-weight: 600; paint-order: stroke; stroke: var(--panna); stroke-width: 3.5; stroke-linejoin: round; }
+.clr.ok .clr-t { fill: #1F8A5B; }
+.clr.warn .clr-t { fill: #C97B00; }
+.clr.bad .clr-t { fill: var(--rosso); }
+
+/* ---------- colisão / conflito de volume ---------- */
+.item.conflict .item-rect, .item.conflict .panel-rect { stroke: var(--rosso); stroke-width: 2.5; }
+.conflict-fill { fill: url(#conflictHatch); pointer-events: none; }
+.conflict-badge circle { fill: var(--rosso); }
+.conflict-badge-t { fill: #fff; font-family: var(--mono); font-weight: 800; text-anchor: middle; }
+
+/* ---------- nível / elevação ---------- */
+.lvl-badge rect { fill: #2A6FDB; opacity: 0.92; }
+.lvl-badge-t { fill: #fff; font-family: var(--mono); font-weight: 700; text-anchor: middle; }
+.lvl-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 2px; }
+.lvl-preset { font-size: 10px; font-weight: 700; padding: 5px 2px; border: 1px solid var(--line2); background: #fff; border-radius: 6px; color: var(--ink-soft); }
+.lvl-preset:hover { border-color: #2A6FDB; color: #2A6FDB; }
+.lvl-preset.active { background: #2A6FDB; border-color: #2A6FDB; color: #fff; }
+.pbtn.stack { width: 100%; margin-top: 8px; color: #2A6FDB; border-color: #bcd0ef; }
+.pbtn.stack:hover:not(:disabled) { background: #2A6FDB; color: #fff; border-color: #2A6FDB; }
+.pbtn.stack:disabled { opacity: 0.45; cursor: not-allowed; }
+.lvl-info { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+/* ---------- banner de conflito (propriedades) ---------- */
+.conflict-banner { background: rgba(226, 0, 15, 0.08); border: 1px solid #f0c9cc; color: var(--rosso); font-size: 11px; font-weight: 700; line-height: 1.35; padding: 8px 10px; border-radius: 7px; }
+
+/* ---------- validação ---------- */
+.valid { padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 8px; }
+.valid-ok { font-size: 12px; font-weight: 700; color: #1F8A5B; }
+.valid-bad { font-size: 12px; font-weight: 800; color: var(--rosso); line-height: 1.35; }
+.valid-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.valid-list li { display: flex; align-items: center; gap: 6px; font-size: 11px; }
+.valid-list button { background: rgba(226, 0, 15, 0.06); border: 1px solid #f0c9cc; border-radius: 5px; padding: 3px 7px; font-size: 10.5px; font-weight: 700; color: var(--inch); flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.valid-list button:hover { background: var(--rosso); color: #fff; border-color: var(--rosso); }
+.valid-list .x { color: var(--rosso); font-weight: 800; flex: 0 0 auto; }
+.valid-legend { display: flex; gap: 10px; font-family: var(--mono); font-size: 9.5px; color: var(--ink-soft); flex-wrap: wrap; }
+.valid-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.valid-legend .lg { width: 11px; height: 0; border-top: 2px solid; display: inline-block; }
+.valid-legend .lg.ok { border-color: #1F8A5B; }
+.valid-legend .lg.warn { border-color: #C97B00; }
+.valid-legend .lg.bad { border-color: var(--rosso); }
+.valid-hint { font-size: 10.5px; color: var(--muted); line-height: 1.4; }

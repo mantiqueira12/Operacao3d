@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import type { Item, RestaurantScene } from '../domain'
+import { clearances, levelOf, type Item, type RestaurantScene } from '../domain'
 
 export const SCALE = 100 // px por metro
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -168,10 +168,12 @@ function Cotas({ scene }: { scene: RestaurantScene }) {
 function ItemShape({
   item,
   selected,
+  conflict,
   onPointerDown,
 }: {
   item: Item
   selected: boolean
+  conflict: boolean
   onPointerDown: (e: ReactPointerEvent, it: Item) => void
 }) {
   const x = item.x * SCALE
@@ -180,11 +182,14 @@ function ItemShape({
   const h = item.depth * SCALE
   const cx = x + w / 2
   const isPanel = item.type === 'painel' || item.type === 'wall'
+  const lvl = levelOf(item)
+  const raised = lvl > 0.001
   const lines = wrapLabel(item.name)
   const small = h < 34
   const labelY = small ? y + 13 : y + h / 2 - 3 - (lines.length - 1) * 6
+  const cls = `item${selected ? ' sel' : ''}${conflict ? ' conflict' : ''}${raised ? ' raised' : ''}`
   return (
-    <g className={`item${selected ? ' sel' : ''}`} onPointerDown={(e) => onPointerDown(e, item)}>
+    <g className={cls} onPointerDown={(e) => onPointerDown(e, item)}>
       {isPanel ? (
         <rect className="panel-rect" x={x} y={y} width={w} height={h} />
       ) : (
@@ -193,6 +198,7 @@ function ItemShape({
           <rect className="item-accent" x={x} y={y} width={w} height={5} fill={item.color} />
         </>
       )}
+      {conflict && <rect className="conflict-fill" x={x} y={y} width={w} height={h} rx={3} />}
       {!isPanel &&
         lines.map((ln, i) => (
           <text key={i} className="item-label" x={cx} y={labelY + i * 12} fontSize={Math.min(12, Math.max(9, w / 9))}>
@@ -202,12 +208,25 @@ function ItemShape({
       {!isPanel && !small && (
         <text className="item-dim" x={cx} y={y + h - 6} fontSize={8.5}>
           {fmt(item.width)} × {fmt(item.depth)}
+          {raised ? ` · ▲${fmt(lvl)}` : ''}
         </text>
       )}
       {isPanel && (
         <text className="item-dim" x={cx} y={y + h / 2 + 3} fontSize={8.5}>
           {item.name}
         </text>
+      )}
+      {raised && (
+        <g className="lvl-badge">
+          <rect x={x + 3} y={y + 3} width={36} height={13} rx={3} />
+          <text className="lvl-badge-t" x={x + 21} y={y + 12.5} fontSize={9}>▲ {fmt(lvl)}</text>
+        </g>
+      )}
+      {conflict && (
+        <g className="conflict-badge">
+          <circle cx={x + w - 8} cy={y + 8} r={7} />
+          <text className="conflict-badge-t" x={x + w - 8} y={y + 11.5} fontSize={10}>!</text>
+        </g>
       )}
     </g>
   )
@@ -253,12 +272,41 @@ function Overlay({
   )
 }
 
+/** Cotas de folga (vãos/corredores) da peça selecionada para vizinhos e paredes. */
+function Clearances({ item, items, poly }: { item: Item; items: Item[]; poly: Array<[number, number]> }) {
+  const cls = clearances(item, items, poly)
+  return (
+    <g className="clr-layer">
+      {cls.map((c, i) => {
+        const x1 = c.from.x * SCALE
+        const y1 = c.from.y * SCALE
+        const x2 = c.to.x * SCALE
+        const y2 = c.to.y * SCALE
+        const vert = c.dir === 'top' || c.dir === 'bottom'
+        const mx = (x1 + x2) / 2
+        const my = (y1 + y2) / 2
+        return (
+          <g key={i} className={`clr ${c.level}`}>
+            <line className="clr-l" x1={x1} y1={y1} x2={x2} y2={y2} />
+            <line className="clr-l" x1={x1 - (vert ? 4 : 0)} y1={y1 - (vert ? 0 : 4)} x2={x1 + (vert ? 4 : 0)} y2={y1 + (vert ? 0 : 4)} />
+            <line className="clr-l" x1={x2 - (vert ? 4 : 0)} y1={y2 - (vert ? 0 : 4)} x2={x2 + (vert ? 4 : 0)} y2={y2 + (vert ? 0 : 4)} />
+            <text className="clr-t" x={mx + (vert ? 9 : 0)} y={my - (vert ? 0 : 5)} fontSize={9.5} textAnchor={vert ? 'start' : 'middle'}>
+              {fmt(c.gap)}
+            </text>
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
 /* ---------- composição ---------- */
 
 export function SceneLayers({
   scene,
   selectedId,
   zoom,
+  collisions,
   onItemPointerDown,
   onHandleDown,
   onRotate,
@@ -266,6 +314,7 @@ export function SceneLayers({
   scene: RestaurantScene
   selectedId: string | null
   zoom: number
+  collisions: Set<string>
   onItemPointerDown: (e: ReactPointerEvent, it: Item) => void
   onHandleDown: (e: ReactPointerEvent, it: Item, h: Handle) => void
   onRotate: (e: ReactPointerEvent, it: Item) => void
@@ -273,6 +322,8 @@ export function SceneLayers({
   const poly = scene.room.polygon
   const points = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
   const sel = scene.items.find((i) => i.id === selectedId) ?? null
+  // desenha do nível mais baixo para o mais alto (peças elevadas por cima)
+  const ordered = [...scene.items].sort((a, b) => levelOf(a) - levelOf(b))
   return (
     <>
       <defs>
@@ -282,17 +333,28 @@ export function SceneLayers({
         <marker id="ah" viewBox="0 0 8 9" refX="6" refY="4.5" markerWidth="7" markerHeight="8" orient="auto">
           <path d="M7,1 L1,4.5 L7,8 Z" fill="#3a3a3a" />
         </marker>
+        <pattern id="conflictHatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <rect width="7" height="7" fill="rgba(226,0,15,0.10)" />
+          <line x1="0" y1="0" x2="0" y2="7" stroke="rgba(226,0,15,0.5)" strokeWidth="1.4" />
+        </pattern>
       </defs>
       <Floor poly={poly} />
       <Grid poly={poly} clipId="rclip" />
       <FohBoh scene={scene} />
       <Zones scene={scene} />
       <g className="item-layer">
-        {scene.items.map((it) => (
-          <ItemShape key={it.id} item={it} selected={it.id === selectedId} onPointerDown={onItemPointerDown} />
+        {ordered.map((it) => (
+          <ItemShape
+            key={it.id}
+            item={it}
+            selected={it.id === selectedId}
+            conflict={collisions.has(it.id)}
+            onPointerDown={onItemPointerDown}
+          />
         ))}
       </g>
       <Cotas scene={scene} />
+      {sel && sel.type !== 'porta' && <Clearances item={sel} items={scene.items} poly={poly} />}
       {sel && <Overlay item={sel} zoom={zoom} onHandleDown={onHandleDown} onRotate={onRotate} />}
     </>
   )
