@@ -1,37 +1,32 @@
 # STATE — Checkpoint vivo
 
 > Ponto de partida entre agentes. Leia no início, atualize no fim do turno.
-> Mantenha curto. Última atualização: 2026-06-13.
+> Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
-- **Motor de simulação (DES) — loop dinâmico portado.** `app/src/sim/engine.ts`: classe
-  `SimEngine` encapsula todo o estado (clientes, operadores, filas, métricas S, pão BR, locks).
-  Portado fiel de `sim-core.js`: demanda (Poisson + curva horária), ciclo do cliente
-  (chegada→fila→PDV→preparo→retirada→saída), FSM dos atendentes (volante/fixo), FSM do padeiro
-  (BOH: farinha→batedeira→estufa→forno→estoque), tick(dt), computeKPIs() + breadKPIs +
-  flowDistances. Função `runSimulation(cfg, scene, {dt,until})` roda o dia headless e devolve
-  KPIs. 9 testes novos (43 no total): sanidade do dia, reprodutibilidade por seed, resposta a
-  carga (mais demanda → mais desistência), passo de tempo. Lint+typecheck+build OK.
-- **Melhorias deliberadas sobre o original** (documentadas no topo do `engine.ts`):
-  (a) RNG semeável → runs reprodutíveis; (b) `stepAlong` consome o orçamento de velocidade
-  inteiro (movimento dt-independente; o original avançava só 1 célula de 0,05 m por tick,
-  acoplando a velocidade do operador à taxa de quadros); (c) sem heatmap/trilhas (visuais).
-- **Web Worker pronto.** `worker-core.ts`: classe `SimController` (núcleo PURO e testável,
-  recebe um `post`) com protocolo de mensagens `init|run|step|reset|snapshot` →
-  `ready|kpis|frame|done|error`. `worker.ts`: shell fino que liga `self.onmessage/postMessage`
-  ao controller e gerencia o laço ao vivo (`play`/`pause` com setInterval). `engine.ts` ganhou
-  `snapshot()` (frame leve serializável: posições de clientes/operadores) e `sceneSnapshot()`
-  (cena estática: estações, bloqueadores, slots, geometria). 7 testes novos (50 no total):
-  protocolo, `run` reproduz `runSimulation`, KPIs periódicos, frame com posições, clamp no fim
-  do dia, captura de erro. Lint+typecheck+build OK.
-- Fundação espacial antes disso: `types/defaults/rng/geometry/nav` (8 testes) + editor 2D React.
+- **Motor DES espacial completo e validado** em `app/src/sim/` (port canônico de `sim-core.js`).
+  Cadeia: `geometry`/`nav` (casca L + A*) → `engine.ts` (`SimEngine`: demanda Poisson+curva,
+  ciclo do cliente, FSM atendente volante/fixo + padeiro BOH, pão, P&L, `tick`/`computeKPIs`)
+  → `worker-core.ts`+`worker.ts` (Web Worker: protocolo `init|run|step|reset|snapshot` →
+  `ready|kpis|frame|done|error`, laço ao vivo play/pause). `runReplicas` (Monte Carlo, IC95) e
+  `adapter.ts` (`RestaurantScene` do editor → `SceneItem[]`). **62 testes** no total.
+- **Cross-check estatístico vs Python — PASSOU.** Modelos diferentes (DES espacial × pipeline
+  SimPy), então comparação direcional/ordem de grandeza, não igualdade. No cenário comparável
+  de sobrecarga (120/h, 8h, 2 ops): TS throughput **15,4/h** vs Python **13,8/h** (±12%),
+  atend. 14,9% vs 11,5%, servidos 123,6 vs 110,3. Os dois motores, construídos de forma
+  independente, convergem na capacidade de saturação (~14 cli/h com 2 operadores) — validação
+  forte. Direcional confirmado: atend. cai 74%→46%→15% conforme a carga; balking 0→54%.
+  `crossCheckVsPython()` automatiza isso; golden Python validado em 2026-06-14 (`PYTHON_GOLDEN`).
+- **Melhorias deliberadas** (no topo do `engine.ts`): RNG semeável (reprodutibilidade);
+  `stepAlong` consome o orçamento de velocidade inteiro (movimento dt-independente; o original
+  avançava só 1 célula/tick); sem heatmap/trilhas (visuais, voltam no render).
+- Antes: fundação espacial + editor 2D React (paridade de UX com o protótipo).
 
-## Próximo (continuar o motor DES)
-1. **Cross-check** estatístico vs Python (médias ±tolerância sobre N réplicas com seeds) +
-   adapter RestaurantScene(editor) → SceneItem[](sim).
-2. **Painel de simulação na UI** React: instanciar o Worker
+## Próximo
+1. **Painel de simulação na UI** React: instanciar o Worker
    (`new Worker(new URL('./sim/worker.ts', import.meta.url), {type:'module'})`), rodar, ver
-   KPIs ao vivo, gargalos, P&L, pão; depois animação 2D (e 3D) a partir dos frames.
+   KPIs ao vivo + gargalos + P&L + pão; usar `adapter.sceneToSimItems(scene)` p/ ligar a planta
+   do editor ao motor. Depois: animação 2D (e 3D) a partir dos `frame`s.
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
@@ -40,11 +35,13 @@
   `sim-core.js` (mesma lógica em `delivering`). Decisão pendente: manter (fidelidade) ou
   cancelar a tarefa no abandono.
 
-## Nota: por que NÃO bate exatamente com o Python
-- `sim-core.js` = DES espacial (A*, layout, pão, 3 itens, taxa 30/h, 12h). Python = pipeline
-  abstrato SimPy (4 itens, taxa 2/min, 480 min, seed 42, cenário base degenerado: 89% balking).
-  São MODELOS diferentes. Validação = comparação estatística de KPIs agregados, não igualdade.
-  Golden Python (ref): ~112 servidos, 11,7% atend., ~14 cli/h, R$~6,9k receita (20 réplicas).
+## Nota: por que NÃO bate exatamente com o Python (resolvido — cross-check passou)
+- Motor TS = DES espacial (A*, layout, pão, 3 itens, 12h). Python = pipeline SimPy (4 itens,
+  480min, balking por estimativa de fila). MODELOS diferentes → validação estatística/direcional.
+- Golden Python validado em 2026-06-14 (20 réplicas, rate 120/h, 8h, 2 ops): servidos 110,3±5,3 ·
+  atend. 11,5%±0,9 · throughput 13,8/h±0,7 · receita R$6948±137. Em `PYTHON_GOLDEN` (replicas.ts).
+- Para reproduzir o golden: `cd prototype/python-simulator && python3 -c "from src.simulation
+  import AllAnticopaninoEnv; print(AllAnticopaninoEnv(2,2.0,480,SEED).run())"` (simpy 4.1.1).
 
 ## Dívidas do editor (refinar depois)
 - Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
@@ -55,6 +52,9 @@
   acabamentos (piso/parede), botões Operação/Ver 3D (navegação p/ módulos ainda não portados).
 - Zonas watermark ("COZINHA"/"02 · PREPARO") são aproximação; conferir textos do protótipo.
 - UI single-project; falta seletor de projetos (multi-projeto já no domínio/storage).
+- **Casca do motor ainda hardcoded** (Loja 206 em `sim/geometry.ts`): o `adapter` converte os
+  itens da cena, mas o motor ignora `room.polygon` (usa `inShell` fixo). Cenas com geometria
+  diferente da Loja 206 não navegam certo ainda — tornar a casca por-projeto é trabalho futuro.
 
 ## Bloqueios
 - (nenhum)
