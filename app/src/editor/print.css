@@ -1,11 +1,12 @@
 /* Impressão da prancha — folha de handoff do arquiteto.
-   Em tela a folha fica oculta; na impressão a planta (SVG #scene) sai como
-   página 1 e esta folha (carimbo + lista + legendas) como página 2+.
+   Em tela a folha fica oculta; na impressão uma cópia enquadrada da planta
+   (.print-plan) sai como página 1 e esta folha (carimbo + lista + legendas) na 2+.
    Visual técnico para papel: tinta preta sobre branco, fios finos de 1px,
    cabeçalhos caixa-alta espaçados, números mono alinhados à direita. */
 
-/* Em tela, nada aparece — é exclusivo da impressão. */
-.print-sheet {
+/* Em tela, nada aparece — exclusivo da impressão. */
+.print-sheet,
+.print-plan {
   display: none;
 }
 
@@ -32,16 +33,16 @@
     height: auto !important;
   }
 
+  /* Esconde a planta interativa da tela (pan/zoom): imprimimos uma cópia que enquadra a casca. */
   #canvasWrap {
-    position: static !important;
-    overflow: visible !important;
-    height: auto !important;
+    display: none !important;
   }
 
-  /* A planta (SVG) imprime como página 1. */
-  #scene {
+  /* Planta de impressão (viewBox = casca, sem pan/zoom) — página 1. Aspect ratio do
+     viewBox dá altura intrínseca, então width:100% + height:auto enquadra na página. */
+  .print-plan {
     display: block;
-    max-width: 100%;
+    width: 100%;
     height: auto;
   }
 

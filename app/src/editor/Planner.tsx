@@ -14,6 +14,7 @@ import { CatalogGlyph, Icon } from './icons'
 import { useScene } from './useScene'
 import ScheduleModal from './Schedule'
 import PrintExtras from './PrintExtras'
+import PrintPlan from './PrintPlan'
 import './planner.css'
 
 const CAT_ORDER: ItemCategory[] = ['atendimento', 'cozinha', 'gerais', 'estrutura']
@@ -474,6 +475,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         </div>
       </aside>
       {showSchedule && <ScheduleModal scene={scene} onClose={() => setShowSchedule(false)} />}
+      <PrintPlan scene={scene} />
       <PrintExtras scene={scene} />
     </div>
   )
