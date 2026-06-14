@@ -13,6 +13,9 @@ export type ItemCategory = 'atendimento' | 'cozinha' | 'gerais' | 'estrutura'
 /** Arquétipo de volume para a renderização 3D. */
 export type Arch3D = 'box' | 'counter' | 'fridge' | 'shelf' | 'panel' | 'appliance'
 
+/** Instalações que um equipamento demanda (pontos para a equipe de execução). */
+export type UtilityTag = 'eletrica' | 'hidraulica' | 'esgoto' | 'gas' | 'exaustao'
+
 /** Definição de um tipo de peça no catálogo (paramétrica, reutilizável). */
 export interface CatalogEntry {
   /** chave do tipo (ex.: "forno") */
@@ -27,6 +30,8 @@ export interface CatalogEntry {
   /** cor (hex) — padrão deriva da categoria */
   color: string
   arch?: Arch3D
+  /** instalações que o equipamento demanda (pontos p/ execução) */
+  utils?: UtilityTag[]
 }
 
 /** Peça posicionada na cena. */

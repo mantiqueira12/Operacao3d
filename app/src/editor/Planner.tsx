@@ -7,11 +7,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import { CATALOG, levelOf, stackTopBelow, type Item, type ItemCategory, type RestaurantScene } from '../domain'
+import { CATALOG, UTILITY_META, levelOf, stackTopBelow, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
 import { MIN_SIZE, clampPosition } from './geometry'
 import { SCALE, SceneLayers, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
 import { useScene } from './useScene'
+import ScheduleModal from './Schedule'
 import './planner.css'
 
 const CAT_ORDER: ItemCategory[] = ['atendimento', 'cozinha', 'gerais', 'estrutura']
@@ -25,6 +26,7 @@ const LEVEL_PRESETS: Array<{ label: string; z: number }> = [
   { label: 'Prateleira', z: 1.5 },
   { label: 'Alto', z: 1.8 },
 ]
+const UTIL_ORDER: UtilityTag[] = ['eletrica', 'hidraulica', 'esgoto', 'gas', 'exaustao']
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
 
 type View = { zoom: number; panX: number; panY: number }
@@ -45,8 +47,9 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 })
   const [tool, setTool] = useState<'select' | 'measure'>('select')
   const [snapOn, setSnapOn] = useState(true)
-  const [layers, setLayers] = useState({ cotas: true, items: true, zones: true, fohboh: true, grid: true })
+  const [layers, setLayers] = useState({ cotas: true, items: true, zones: true, fohboh: true, grid: true, utils: true })
   const [measure, setMeasure] = useState<{ a: { x: number; y: number } | null; b: { x: number; y: number } | null }>({ a: null, b: null })
+  const [showSchedule, setShowSchedule] = useState(false)
 
   const scene = ed.scene
 
@@ -213,6 +216,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
     !layers.zones && 'hide-zones',
     !layers.fohboh && 'hide-fohboh',
     !layers.grid && 'hide-grid',
+    !layers.utils && 'hide-utils',
   ].filter(Boolean).join(' ')
 
   const toggleLayer = (k: keyof typeof layers) => setLayers((l) => ({ ...l, [k]: !l[k] }))
@@ -243,6 +247,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           <button className="tbtn" onClick={fit}>Ajustar</button>
         </div>
         <div className="toolgroup">
+          <button className="tbtn" onClick={() => setShowSchedule(true)}><Icon name="export" />Lista</button>
           <button className="tbtn" onClick={exportJSON}><Icon name="export" />Exportar</button>
           <button className="tbtn" onClick={() => fileRef.current?.click()}><Icon name="import" />Importar</button>
           <button className="tbtn" onClick={() => window.print()}><Icon name="print" />Imprimir</button>
@@ -288,6 +293,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
               selectedId={ed.selectedId}
               zoom={view.zoom}
               collisions={ed.collisions}
+              outOfBounds={ed.outOfBounds}
               onItemPointerDown={onItemDown}
               onHandleDown={onHandleDown}
               onRotate={onRotate}
@@ -408,12 +414,20 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
                 </ul>
               </>
             )}
+            {ed.outOfBounds.size > 0 && (
+              <div className="valid-bad">⚠ {ed.outOfBounds.size} peça(s) fora da casca — reposicione dentro do espaço.</div>
+            )}
             <div className="valid-legend">
               <span><i className="lg bad" />&lt; 0,60</span>
               <span><i className="lg warn" />0,60–0,90</span>
               <span><i className="lg ok" />≥ 0,90 m</span>
             </div>
             <div className="valid-hint">Selecione uma peça para ver as folgas (vãos, corredores e passagens) até vizinhos e paredes.</div>
+            <div className="util-legend">
+              {UTIL_ORDER.map((t) => (
+                <span key={t}><i className="ud" style={{ background: UTILITY_META[t].color }} />{UTILITY_META[t].label}</span>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -425,6 +439,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
             <div className={`sw${layers.zones ? ' on' : ''}`} onClick={() => toggleLayer('zones')}><span>Zonas e fluxo</span><span className="toggle" /></div>
             <div className={`sw${layers.fohboh ? ' on' : ''}`} onClick={() => toggleLayer('fohboh')}><span>Setor FOH / BOH</span><span className="toggle" /></div>
             <div className={`sw${layers.grid ? ' on' : ''}`} onClick={() => toggleLayer('grid')}><span>Grade</span><span className="toggle" /></div>
+            <div className={`sw${layers.utils ? ' on' : ''}`} onClick={() => toggleLayer('utils')}><span>Instalações</span><span className="toggle" /></div>
             <div className={`sw${snapOn ? ' on' : ''}`} onClick={() => setSnapOn((s) => !s)}><span>Encaixe na grade (5 cm)</span><span className="toggle" /></div>
           </div>
         </div>
@@ -454,6 +469,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           </div>
         </div>
       </aside>
+      {showSchedule && <ScheduleModal scene={scene} onClose={() => setShowSchedule(false)} />}
     </div>
   )
 }

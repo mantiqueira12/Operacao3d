@@ -5,10 +5,13 @@ import {
   collides,
   collisionPairs,
   collisionSet,
+  footprintInside,
   isSolid,
   levelOf,
+  outOfBoundsSet,
   overlapsInHeight,
   overlapsInPlane,
+  pointInPolygon,
   stackTopBelow,
   topOf,
 } from './spatial'
@@ -195,5 +198,27 @@ describe('clearances', () => {
     const r = clearances(it, [it], L_POLY).find((c) => c.dir === 'right')!
     expect(r.gap).toBeCloseTo(0.5) // 2.0 - 1.5
     expect(r.target).toBe('wall')
+  })
+})
+
+describe('contenção na casca', () => {
+  it('pointInPolygon: dentro/fora no "L"', () => {
+    expect(pointInPolygon(1, 1, L_POLY)).toBe(true) // parte larga de cima
+    expect(pointInPolygon(2.3, 1, L_POLY)).toBe(false) // recorte do L (y<3 só vai até x=2.0)
+    expect(pointInPolygon(2.3, 4, L_POLY)).toBe(true) // parte de baixo vai até x=2.6
+  })
+  it('footprintInside: peça encostada no canto conta como dentro', () => {
+    const it = mk({ id: 'a', x: 0, y: 0, width: 1, depth: 1 })
+    expect(footprintInside(it, L_POLY)).toBe(true)
+  })
+  it('footprintInside: peça invadindo o recorte do "L" → fora', () => {
+    const it = mk({ id: 'a', x: 1.6, y: 0.5, width: 1, depth: 0.5 }) // x até 2.6 com y<3
+    expect(footprintInside(it, L_POLY)).toBe(false)
+  })
+  it('outOfBoundsSet reúne só as peças sólidas fora da casca', () => {
+    const dentro = mk({ id: 'in', x: 0.1, y: 0.1, width: 0.5, depth: 0.5 })
+    const fora = mk({ id: 'out', x: 2.2, y: 0.5, width: 0.8, depth: 0.5 })
+    const porta = mk({ id: 'door', type: 'porta', x: 2.2, y: 0.5, width: 0.8, depth: 0.12 })
+    expect(outOfBoundsSet([dentro, fora, porta], L_POLY)).toEqual(new Set(['out']))
   })
 })

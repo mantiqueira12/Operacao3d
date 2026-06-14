@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import { clearances, isSolid, levelOf, type Item, type RestaurantScene } from '../domain'
+import { UTILITY_META, clearances, isSolid, levelOf, utilsFor, type Item, type RestaurantScene } from '../domain'
 
 export const SCALE = 100 // px por metro
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -169,11 +169,13 @@ function ItemShape({
   item,
   selected,
   conflict,
+  oob,
   onPointerDown,
 }: {
   item: Item
   selected: boolean
   conflict: boolean
+  oob: boolean
   onPointerDown: (e: ReactPointerEvent, it: Item) => void
 }) {
   const x = item.x * SCALE
@@ -187,7 +189,7 @@ function ItemShape({
   const lines = wrapLabel(item.name)
   const small = h < 34
   const labelY = small ? y + 13 : y + h / 2 - 3 - (lines.length - 1) * 6
-  const cls = `item${selected ? ' sel' : ''}${conflict ? ' conflict' : ''}${raised ? ' raised' : ''}`
+  const cls = `item${selected ? ' sel' : ''}${conflict ? ' conflict' : ''}${oob ? ' oob' : ''}${raised ? ' raised' : ''}`
   return (
     <g className={cls} onPointerDown={(e) => onPointerDown(e, item)}>
       {isPanel ? (
@@ -226,6 +228,12 @@ function ItemShape({
         <g className="conflict-badge">
           <circle cx={x + w - 8} cy={y + 8} r={7} />
           <text className="conflict-badge-t" x={x + w - 8} y={y + 11.5} fontSize={10}>!</text>
+        </g>
+      )}
+      {oob && (
+        <g className="oob-badge">
+          <circle cx={x + w - 8} cy={y + h - 8} r={7} />
+          <text className="oob-badge-t" x={x + w - 8} y={y + h - 4.5} fontSize={10}>!</text>
         </g>
       )}
     </g>
@@ -300,6 +308,29 @@ function Clearances({ item, items, poly }: { item: Item; items: Item[]; poly: Ar
   )
 }
 
+/** Marcadores de instalação (elétrica/hidráulica/esgoto/gás/exaustão) por peça. */
+function UtilMarks({ item }: { item: Item }) {
+  const u = utilsFor(item.type)
+  if (!u.length) return null
+  const x = item.x * SCALE + 7
+  const cyc = (item.y + item.depth / 2) * SCALE
+  const start = cyc - (u.length - 1) * 6
+  return (
+    <g className="util-marks">
+      {u.map((tag, i) => {
+        const m = UTILITY_META[tag]
+        const yy = start + i * 12
+        return (
+          <g key={tag}>
+            <circle cx={x} cy={yy} r={5.5} fill={m.color} stroke="#fff" strokeWidth={0.8} />
+            <text className="util-mark-t" x={x} y={yy + 2.6} fontSize={7}>{m.short}</text>
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
 /* ---------- composição ---------- */
 
 export function SceneLayers({
@@ -307,6 +338,7 @@ export function SceneLayers({
   selectedId,
   zoom,
   collisions,
+  outOfBounds,
   onItemPointerDown,
   onHandleDown,
   onRotate,
@@ -315,6 +347,7 @@ export function SceneLayers({
   selectedId: string | null
   zoom: number
   collisions: Set<string>
+  outOfBounds: Set<string>
   onItemPointerDown: (e: ReactPointerEvent, it: Item) => void
   onHandleDown: (e: ReactPointerEvent, it: Item, h: Handle) => void
   onRotate: (e: ReactPointerEvent, it: Item) => void
@@ -349,8 +382,14 @@ export function SceneLayers({
             item={it}
             selected={it.id === selectedId}
             conflict={collisions.has(it.id)}
+            oob={outOfBounds.has(it.id)}
             onPointerDown={onItemPointerDown}
           />
+        ))}
+      </g>
+      <g className="util-layer">
+        {ordered.map((it) => (
+          <UtilMarks key={it.id} item={it} />
         ))}
       </g>
       <Cotas scene={scene} />

@@ -245,3 +245,53 @@ export function clearances(
     (c): c is Clearance => c !== null,
   )
 }
+
+/* ---------- contenção na casca (peça fora do polígono) ---------- */
+
+/** Ponto dentro do polígono (ray casting par/ímpar). */
+export function pointInPolygon(x: number, y: number, poly: Array<[number, number]>): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i]
+    const [xj, yj] = poly[j]
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+/**
+ * O footprint da peça está inteiramente dentro da casca? Amostra cantos, meios das
+ * arestas e o centro, com leve recuo (1 cm) para tolerar encostar na parede. Adequado
+ * a cascas ortogonais (retângulo / "L"), as do projeto.
+ */
+export function footprintInside(item: Item, poly: Array<[number, number]>): boolean {
+  const e = 0.01
+  const x0 = item.x
+  const y0 = item.y
+  const x1 = item.x + item.width
+  const y1 = item.y + item.depth
+  const cx = (x0 + x1) / 2
+  const cy = (y0 + y1) / 2
+  const pts: Array<[number, number]> = [
+    [x0, y0], [x1, y0], [x0, y1], [x1, y1],
+    [cx, y0], [cx, y1], [x0, cy], [x1, cy],
+    [cx, cy],
+  ]
+  for (const [px, py] of pts) {
+    const ix = px + Math.sign(cx - px) * Math.min(e, Math.abs(cx - px))
+    const iy = py + Math.sign(cy - py) * Math.min(e, Math.abs(cy - py))
+    if (!pointInPolygon(ix, iy, poly)) return false
+  }
+  return true
+}
+
+/** Ids das peças sólidas cujo footprint sai da casca (layout inválido). */
+export function outOfBoundsSet(items: Item[], poly: Array<[number, number]>): Set<string> {
+  const out = new Set<string>()
+  for (const it of items) {
+    if (!isSolid(it)) continue
+    if (!footprintInside(it, poly)) out.add(it.id)
+  }
+  return out
+}

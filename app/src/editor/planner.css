@@ -227,3 +227,15 @@
 .valid-legend .lg.warn { border-color: #C97B00; }
 .valid-legend .lg.bad { border-color: var(--rosso); }
 .valid-hint { font-size: 10.5px; color: var(--muted); line-height: 1.4; }
+
+/* ---------- peça fora da casca ---------- */
+.item.oob .item-rect { stroke: #C97B00; stroke-dasharray: 5 3; stroke-width: 2; }
+.oob-badge circle { fill: #C97B00; }
+.oob-badge-t { fill: #fff; font-family: var(--mono); font-weight: 800; text-anchor: middle; }
+
+/* ---------- instalações (pontos de execução) ---------- */
+.util-mark-t { fill: #fff; font-family: var(--mono); font-weight: 800; text-anchor: middle; }
+#app.hide-utils .util-layer { display: none; }
+.util-legend { display: flex; flex-direction: column; gap: 3px; font-size: 10px; color: var(--ink-soft); margin-top: 2px; }
+.util-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.util-legend .ud { width: 10px; height: 10px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1); }

@@ -4,6 +4,7 @@ import {
   collisionSet,
   createItem,
   loja206Scene,
+  outOfBoundsSet,
   stackTopBelow,
   type Item,
   type RestaurantScene,
@@ -80,6 +81,11 @@ export function useScene() {
   )
   const conflicts = useMemo(
     () => (scene ? collisionPairs(scene.items) : []),
+    [scene],
+  )
+  /** Peças sólidas cujo footprint sai da casca (layout inválido). */
+  const outOfBounds = useMemo(
+    () => (scene ? outOfBoundsSet(scene.items, scene.room.polygon) : new Set<string>()),
     [scene],
   )
 
@@ -206,6 +212,7 @@ export function useScene() {
     stackOnBelow,
     collisions,
     conflicts,
+    outOfBounds,
     patchTitleBlock,
     replaceScene,
   }

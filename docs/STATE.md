@@ -4,6 +4,15 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Entregáveis para a execução — fora-da-casca, lista de equipamentos e instalações.**
+  (1) `outOfBoundsSet`/`footprintInside`/`pointInPolygon` em `spatial.ts` sinalizam peça fora do
+  polígono (âmbar tracejado + badge + linha na Validação). (2) `domain/schedule.ts`
+  (`equipmentSchedule` agrupa idênticas, `scheduleToCSV`) + `editor/Schedule.tsx` — modal "Lista"
+  na topbar: tabela por zona, totais e **Exportar CSV** (com BOM, abre certo no Excel). (3) Catálogo
+  ganhou `utils` por tipo (elétrica/hidráulica/esgoto/gás/exaustão) + `UTILITY_META`; marcadores
+  coloridos por peça numa camada "Instalações" (toggle) + legenda. **+13 testes (95 no total);**
+  typecheck/lint/build verdes, serving 200. A Lista foi construída por agente isolado (worktree),
+  integrada e revisada. Publicado na `main` (deploy automático).
 - **Ferramenta de arquitetura — níveis, colisão e folgas** (`app/src/domain/spatial.ts`, puro+testado).
   Cada peça ganhou `level` (elevação-base z, m) → ocupa a faixa vertical `[level, level+height]`:
   empilhar / prateleira sem falso conflito. `collisionSet`/`collisionPairs` (sobreposição
@@ -51,9 +60,9 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Verificação visual** (rodar `npm run dev`): conferir as novas camadas — destaque de colisão
-   (hachura/banner/badge), cotas de folga ao selecionar uma peça, badges de nível e o
-   empilhamento no 3D — além da animação do painel 2D e proporções do 3D. Sem cobertura automática.
+1. **Verificação visual** (rodar `npm run dev`): conferir as camadas novas — colisão, fora-da-casca
+   (âmbar), folgas ao selecionar, níveis/empilhamento, marcadores de Instalações e o modal "Lista"
+   (Exportar CSV) — além do painel 2D e do 3D. Único passo sem cobertura automática.
 2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206; o 3D
    já é por-projeto (lê `room.polygon`), só o motor de simulação ainda usa casca fixa.
 3. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
@@ -76,10 +85,10 @@
 ## Dívidas do editor (refinar depois)
 - Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
   entrada empilhada). OK para o nível atual.
-- Clamp usa bbox da casca, não o polígono em L (peça pode entrar no recorte ausente). Efeito
-  colateral: as cotas de folga de uma peça *fora* da casca podem superestimar o vão na quina
-  reentrante do "L" (layout já inválido; para peça dentro da casca as cotas estão certas).
-  **Próximo forte:** detectar/sinalizar peça fora do polígono (resolve a raiz dos dois).
+- Clamp do arraste ainda usa a bbox, não o polígono em L (a peça pode ser solta no recorte). Agora
+  isso é **detectado e sinalizado** (fora-da-casca, âmbar), mas o arraste não impede — falta clampar
+  o movimento ao polígono. Enquanto isso, as cotas de folga de peça fora da casca podem superestimar
+  o vão na quina do "L" (peça dentro da casca: cotas corretas).
 - Falta: undo/redo, "+ Criar" equipamento custom + "Meus modelos", ferramenta Parede/Divisor
   como desenho por arraste (hoje inserem peça), render especial de porta/painel (hatch/folga),
   acabamentos (piso/parede), botões Operação/Ver 3D (navegação p/ módulos ainda não portados).
@@ -93,6 +102,9 @@
 - (nenhum)
 
 ## Decisões (ADR-lite)
+- 2026-06-14: Entregáveis p/ execução: detecção fora-da-casca (sinaliza, não trava), lista de
+  equipamentos com Exportar CSV, e pontos de instalação por equipamento (camada própria).
+- 2026-06-14: Deploy publica o app React (`app/dist`) no GitHub Pages só em push na `main` (ci.yml).
 - 2026-06-14: Níveis = elevação-base `z` livre (m) + presets; colisão volumétrica (plano ∩ altura),
   permitindo empilhamento/prateleira sem falso conflito.
 - 2026-06-14: Colisão "sinaliza mas permite" (vermelho + painel Validação), não bloqueia o arraste.

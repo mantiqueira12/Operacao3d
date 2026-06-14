@@ -1,4 +1,4 @@
-import type { Arch3D, CatalogEntry, Item, ItemCategory } from './types'
+import type { Arch3D, CatalogEntry, Item, ItemCategory, UtilityTag } from './types'
 
 /** Cor padrão por categoria (portado de CAT_COLORS do protótipo). */
 export const CATEGORY_COLORS: Record<ItemCategory, string> = {
@@ -18,6 +18,31 @@ const HEIGHTS: Record<string, number> = {
 
 function heightFor(type: string): number {
   return HEIGHTS[type] ?? 0.9
+}
+
+/** Instalações por tipo (pontos de execução: elétrica/hidráulica/esgoto/gás/exaustão). */
+const UTILS: Record<string, UtilityTag[]> = {
+  forno: ['gas', 'eletrica', 'exaustao'],
+  estufa: ['eletrica'],
+  batedeira: ['eletrica'],
+  geladeira: ['eletrica'],
+  bibite: ['eletrica'],
+  vitrine: ['eletrica'],
+  caixa: ['eletrica'],
+  pia: ['hidraulica', 'esgoto'],
+  prep: ['eletrica'],
+}
+function utilsForType(type: string): UtilityTag[] {
+  return UTILS[type] ?? []
+}
+
+/** Metadados de UI das instalações (sigla, rótulo, cor). */
+export const UTILITY_META: Record<UtilityTag, { short: string; label: string; color: string }> = {
+  eletrica: { short: 'E', label: 'Elétrica', color: '#E8A400' },
+  hidraulica: { short: 'H', label: 'Hidráulica (água)', color: '#2A6FDB' },
+  esgoto: { short: 'S', label: 'Esgoto', color: '#6B5B95' },
+  gas: { short: 'G', label: 'Gás', color: '#E2000F' },
+  exaustao: { short: 'X', label: 'Exaustão', color: '#7A7A7A' },
 }
 
 /** Dados crus do catálogo, por categoria (portado de CATALOG do protótipo). */
@@ -59,6 +84,7 @@ export const CATALOG: Record<ItemCategory, CatalogEntry[]> = Object.fromEntries(
       category: cat,
       height: heightFor(e.type),
       color: CATEGORY_COLORS[cat],
+      utils: utilsForType(e.type),
     })),
   ]),
 ) as Record<ItemCategory, CatalogEntry[]>
@@ -70,6 +96,11 @@ const INDEX: Map<string, CatalogEntry> = new Map(
 
 export function getCatalogEntry(type: string): CatalogEntry | undefined {
   return INDEX.get(type)
+}
+
+/** Instalações demandadas por um tipo (vazio se não mapeado). */
+export function utilsFor(type: string): UtilityTag[] {
+  return INDEX.get(type)?.utils ?? []
 }
 
 export function catalogEntries(): CatalogEntry[] {
