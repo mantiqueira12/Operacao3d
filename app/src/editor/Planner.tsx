@@ -28,7 +28,7 @@ type Drag =
   | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
   | null
 
-export default function Planner({ onOpenSim }: { onOpenSim?: () => void }) {
+export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => void; onOpen3D?: () => void }) {
   const ed = useScene()
   const wrapRef = useRef<HTMLDivElement | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
@@ -224,9 +224,10 @@ export default function Planner({ onOpenSim }: { onOpenSim?: () => void }) {
           <button className="tbtn" onClick={() => ed.addItem('wall')}><Icon name="wall" />Parede</button>
           <button className="tbtn" onClick={() => ed.addItem('painel')}><Icon name="divisor" />Divisor FOH/BOH</button>
         </div>
-        {onOpenSim && (
+        {(onOpen3D || onOpenSim) && (
           <div className="toolgroup">
-            <button className="tbtn active" onClick={onOpenSim}><Icon name="play" />Operação ▸</button>
+            {onOpen3D && <button className="tbtn" onClick={onOpen3D}>Ver 3D</button>}
+            {onOpenSim && <button className="tbtn active" onClick={onOpenSim}><Icon name="play" />Operação ▸</button>}
           </div>
         )}
         <div className="toolgroup">

@@ -1,12 +1,31 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import Planner from './editor/Planner'
-import SimPanel from './sim-ui/SimPanel'
 
 /**
- * App — módulo Operacao3d. Alterna entre o editor de planta 2D ("Planta") e o painel de
- * simulação da operação ("Operação", motor DES em Web Worker). Vista 3D: próximo passo.
+ * App — módulo Operacao3d. Alterna entre o editor de planta 2D ("Planta"), a vista 3D do espaço
+ * ("3D") e o painel de simulação da operação ("Operação", motor DES em Web Worker).
+ *
+ * 3D (Three.js) e Simulação são carregados sob demanda (code-splitting) para manter a carga
+ * inicial leve — o bundle pesado do Three só baixa ao abrir a vista 3D.
  */
+const SimPanel = lazy(() => import('./sim-ui/SimPanel'))
+const View3D = lazy(() => import('./view3d/View3D'))
+
+const Loading = () => <div style={{ display: 'grid', placeItems: 'center', height: '100vh', color: '#9a9284' }}>Carregando…</div>
+
 export default function App() {
-  const [mode, setMode] = useState<'plan' | 'sim'>('plan')
-  return mode === 'sim' ? <SimPanel onClose={() => setMode('plan')} /> : <Planner onOpenSim={() => setMode('sim')} />
+  const [mode, setMode] = useState<'plan' | 'view3d' | 'sim'>('plan')
+  if (mode === 'sim')
+    return (
+      <Suspense fallback={<Loading />}>
+        <SimPanel onClose={() => setMode('plan')} />
+      </Suspense>
+    )
+  if (mode === 'view3d')
+    return (
+      <Suspense fallback={<Loading />}>
+        <View3D onClose={() => setMode('plan')} />
+      </Suspense>
+    )
+  return <Planner onOpenSim={() => setMode('sim')} onOpen3D={() => setMode('view3d')} />
 }

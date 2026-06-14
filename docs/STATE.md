@@ -28,12 +28,23 @@
   "Operação ▸". Worker empacotado em chunk próprio (`vite build`). Verificado: typecheck/lint/
   build/62 testes + serving HTTP 200 (root e worker). NÃO houve verificação visual em browser
   (sem automação no ambiente) — conferir manualmente `npm run dev`.
-- Antes: fundação espacial + editor 2D React (paridade de UX com o protótipo).
+- **Vista 3D (Three.js).** `app/src/view3d/`: `Scene3D` (renderer imperativo: piso+paredes do
+  polígono, cada peça como volume à escala com material por `arch`, frente em vidro, OrbitControls,
+  luzes+sombras, resize/dispose) e `View3D` (carrega a cena, info de área/peças/altura, toggle
+  paredes translúcidas). Fecha o fluxo **2D → 3D → Simulação**. `App` alterna Planta/3D/Operação;
+  3D e Simulação são **lazy-loaded** (code-split: chunk do Three ~131 kB gzip só baixa no 3D;
+  índice volta a 72 kB gzip). +dep `three@0.171`.
+- **Painel de Operação 2D ao vivo** (`app/src/sim-ui/`): Worker + `SimView` + `SimPanel` (relógio,
+  controles, parâmetros, KPIs ao vivo). Verificado: typecheck/lint/build/62 testes + serving 200
+  dos chunks. SEM verificação visual em browser (sem automação) — conferir com `npm run dev`.
+- Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Vista 3D** (Three.js) a partir da mesma cena + frames do motor (avaliar espaço/volume).
-2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206.
-3. **Verificação visual** do painel (rodar `npm run dev`, conferir animação/legibilidade).
+1. **Verificação visual** (rodar `npm run dev`): conferir animação do painel 2D e legibilidade/
+   proporções da vista 3D — único passo sem cobertura automática.
+2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206; o 3D
+   já é por-projeto (lê `room.polygon`), só o motor de simulação ainda usa casca fixa.
+3. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
