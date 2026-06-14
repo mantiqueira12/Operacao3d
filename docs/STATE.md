@@ -76,7 +76,10 @@
 ## Dívidas do editor (refinar depois)
 - Paridade visual conferida lado a lado com o protótipo (paredes grossas, cotas, FOH/BOH,
   entrada empilhada). OK para o nível atual.
-- Clamp usa bbox da casca, não o polígono em L (peça pode entrar no recorte ausente).
+- Clamp usa bbox da casca, não o polígono em L (peça pode entrar no recorte ausente). Efeito
+  colateral: as cotas de folga de uma peça *fora* da casca podem superestimar o vão na quina
+  reentrante do "L" (layout já inválido; para peça dentro da casca as cotas estão certas).
+  **Próximo forte:** detectar/sinalizar peça fora do polígono (resolve a raiz dos dois).
 - Falta: undo/redo, "+ Criar" equipamento custom + "Meus modelos", ferramenta Parede/Divisor
   como desenho por arraste (hoje inserem peça), render especial de porta/painel (hatch/folga),
   acabamentos (piso/parede), botões Operação/Ver 3D (navegação p/ módulos ainda não portados).

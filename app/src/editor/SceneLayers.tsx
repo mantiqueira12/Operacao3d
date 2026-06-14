@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
-import { clearances, levelOf, type Item, type RestaurantScene } from '../domain'
+import { clearances, isSolid, levelOf, type Item, type RestaurantScene } from '../domain'
 
 export const SCALE = 100 // px por metro
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
@@ -354,7 +354,7 @@ export function SceneLayers({
         ))}
       </g>
       <Cotas scene={scene} />
-      {sel && sel.type !== 'porta' && <Clearances item={sel} items={scene.items} poly={poly} />}
+      {sel && isSolid(sel) && <Clearances item={sel} items={scene.items} poly={poly} />}
       {sel && <Overlay item={sel} zoom={zoom} onHandleDown={onHandleDown} onRotate={onRotate} />}
     </>
   )
