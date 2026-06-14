@@ -20,13 +20,20 @@
 - **Melhorias deliberadas** (no topo do `engine.ts`): RNG semeável (reprodutibilidade);
   `stepAlong` consome o orçamento de velocidade inteiro (movimento dt-independente; o original
   avançava só 1 célula/tick); sem heatmap/trilhas (visuais, voltam no render).
+- **Painel de Operação na UI (2D ao vivo).** `app/src/sim-ui/`: `useSimWorker` (cria/encerra o
+  Worker, (re)inicializa em mudança de cena/config, expõe frame+KPIs+status, start/pause/reset/
+  runFull), `SimView` (SVG em metros: casca L, estações, slots, clientes/operadores animados dos
+  `frame`s), `SimPanel` (relógio, controles, parâmetros atendentes/demanda/seed/velocidade, KPIs
+  ao vivo — clientes, P&L, pão, utilização). `App` alterna Planta⇄Operação; Planner ganhou botão
+  "Operação ▸". Worker empacotado em chunk próprio (`vite build`). Verificado: typecheck/lint/
+  build/62 testes + serving HTTP 200 (root e worker). NÃO houve verificação visual em browser
+  (sem automação no ambiente) — conferir manualmente `npm run dev`.
 - Antes: fundação espacial + editor 2D React (paridade de UX com o protótipo).
 
 ## Próximo
-1. **Painel de simulação na UI** React: instanciar o Worker
-   (`new Worker(new URL('./sim/worker.ts', import.meta.url), {type:'module'})`), rodar, ver
-   KPIs ao vivo + gargalos + P&L + pão; usar `adapter.sceneToSimItems(scene)` p/ ligar a planta
-   do editor ao motor. Depois: animação 2D (e 3D) a partir dos `frame`s.
+1. **Vista 3D** (Three.js) a partir da mesma cena + frames do motor (avaliar espaço/volume).
+2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206.
+3. **Verificação visual** do painel (rodar `npm run dev`, conferir animação/legibilidade).
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um

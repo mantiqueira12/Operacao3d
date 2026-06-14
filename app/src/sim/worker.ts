@@ -41,7 +41,12 @@ ctx.onmessage = (e) => {
     const fps = msg.fps ?? 30
     const simMinPerSec = msg.speed ?? 60
     const simMinPerTick = simMinPerSec / fps
-    timer = setInterval(() => ctl.handle({ type: 'step', simMin: simMinPerTick, dt: msg.dt }), 1000 / fps)
+    let tick = 0
+    const kpiEvery = Math.max(1, Math.round(fps / 2)) // ~2 atualizações de KPI por segundo real
+    timer = setInterval(() => {
+      tick++
+      ctl.handle({ type: 'step', simMin: simMinPerTick, dt: msg.dt, withKpis: tick % kpiEvery === 0 })
+    }, 1000 / fps)
     return
   }
   if (msg.type === 'pause') {
