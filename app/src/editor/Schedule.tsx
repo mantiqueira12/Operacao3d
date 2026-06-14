@@ -123,7 +123,7 @@ export default function ScheduleModal({
               <span className="v">{totalQty}</span>
             </div>
             <div className="sch-total">
-              <span className="k">Área total ocupada</span>
+              <span className="k">Área total (peças)</span>
               <span className="v">{fmt(totalArea)} m²</span>
             </div>
           </div>
