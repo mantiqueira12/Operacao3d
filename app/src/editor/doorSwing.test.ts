@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { doorSwingGeometry } from './doorSwing'
+import { doorSwingGeometry } from './doorSwingGeometry'
 
 /** Distância euclidiana entre dois pontos. */
 function dist(a: { x: number; y: number }, b: { x: number; y: number }): number {

@@ -1,6 +1,6 @@
 import { SCALE } from './SceneLayers'
 import type { Item } from '../domain'
-import { doorSwingGeometry } from './doorSwing'
+import { doorSwingGeometry } from './doorSwingGeometry'
 
 /**
  * Sobreposição SVG do arco de abertura de uma porta.
