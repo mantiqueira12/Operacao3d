@@ -31,6 +31,63 @@ function makeTex(draw: (ctx: CanvasRenderingContext2D, s: number) => void): THRE
   return t
 }
 
+/* ---------- piso texturizado (port de sim-3d.js:makeFloorTex) ----------
+   Gera uma textura de canvas por tipo de acabamento. `repeat` é setado pelo
+   chamador conforme a área do piso (m por azulejo). Cache por tipo. */
+export type FloorKind = 'porcelanato' | 'granilite' | 'cimento'
+const _floorCache: Partial<Record<FloorKind, THREE.Texture>> = {}
+/** metros por "ladrilho" — controla quantas vezes a textura se repete no piso. */
+export const FLOOR_PERIOD: Record<FloorKind, number> = { porcelanato: 0.6, granilite: 0.5, cimento: 1.2 }
+
+export function makeFloorTex(kind: FloorKind): THREE.Texture {
+  const cached = _floorCache[kind]
+  if (cached) return cached
+  const c = document.createElement('canvas')
+  c.width = c.height = 256
+  const ctx = c.getContext('2d')
+  if (ctx) {
+    if (kind === 'porcelanato') {
+      ctx.fillStyle = '#EFE9D8'
+      ctx.fillRect(0, 0, 256, 256)
+      ctx.strokeStyle = '#D6CEB8'
+      ctx.lineWidth = 3
+      ctx.strokeRect(1.5, 1.5, 253, 253)
+      ctx.fillStyle = 'rgba(255,255,255,.25)'
+      for (let i = 0; i < 14; i++) ctx.fillRect(Math.random() * 256, Math.random() * 256, 22, 3)
+    } else if (kind === 'granilite') {
+      ctx.fillStyle = '#DCD5C2'
+      ctx.fillRect(0, 0, 256, 256)
+      const cols = ['#B5AD98', '#8E8775', '#C9C2AE', '#A39B85', '#6F6857']
+      for (let i = 0; i < 420; i++) {
+        ctx.fillStyle = cols[i % cols.length]
+        const r = 1 + Math.random() * 2.4
+        ctx.beginPath()
+        ctx.arc(Math.random() * 256, Math.random() * 256, r, 0, 7)
+        ctx.fill()
+      }
+    } else {
+      ctx.fillStyle = '#B9B5AB'
+      ctx.fillRect(0, 0, 256, 256)
+      for (let i = 0; i < 26; i++) {
+        ctx.fillStyle =
+          'rgba(' + (150 + Math.random() * 40) + ',' + (146 + Math.random() * 40) + ',' + (136 + Math.random() * 40) + ',0.18)'
+        ctx.beginPath()
+        ctx.ellipse(Math.random() * 256, Math.random() * 256, 30 + Math.random() * 60, 20 + Math.random() * 40, Math.random() * 3, 0, 7)
+        ctx.fill()
+      }
+    }
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping
+  tex.anisotropy = 4
+  _floorCache[kind] = tex
+  return tex
+}
+
+/* ---------- acabamento de parede (port de sim-3d.js:WALL_FIN) ---------- */
+export type WallKind = 'panna' | 'branco' | 'oliva'
+export const WALL_FIN: Record<WallKind, number> = { panna: 0xf2ecdd, branco: 0xfaf8f2, oliva: 0xa8ae94 }
+
 function textures(): TexSet {
   if (_tex) return _tex
   const steel = makeTex((x, s) => {

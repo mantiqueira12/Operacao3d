@@ -11,7 +11,23 @@ import Planner from './editor/Planner'
 const SimPanel = lazy(() => import('./sim-ui/SimPanel'))
 const View3D = lazy(() => import('./view3d/View3D'))
 
-const Loading = () => <div style={{ display: 'grid', placeItems: 'center', height: '100vh', color: '#9a9284' }}>Carregando…</div>
+// Fallback de carga sob demanda — usa tokens do design system (var com fallback).
+const Loading = () => (
+  <div
+    style={{
+      display: 'grid',
+      placeItems: 'center',
+      height: '100vh',
+      fontFamily: 'var(--ui, Manrope, system-ui, sans-serif)',
+      fontWeight: 600,
+      letterSpacing: '0.04em',
+      color: 'var(--muted, #9a9284)',
+      background: 'var(--desk, #e6e1d5)',
+    }}
+  >
+    Carregando…
+  </div>
+)
 
 export default function App() {
   const [mode, setMode] = useState<'plan' | 'view3d' | 'sim'>('plan')

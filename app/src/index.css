@@ -1,20 +1,82 @@
+/* =====================================================================
+   index.css — Fundação de design system (Operacao3d)
+   Identidade visual premium portada do protótipo All'Antico Panino.
+   Tokens canônicos + tipografia base. Outros CSS consomem via var(--…).
+   NÃO remover tokens daqui: editor/sim-ui/view3d dependem deles.
+   ===================================================================== */
+
+/* Fontes do protótipo: Bitter (marca serif), Manrope (UI), IBM Plex Mono (números) */
+@import url('https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,600;0,700;1,800&family=Manrope:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
 :root {
-  --rosso: #e2000f;
+  /* --- Marca / vermelho --- */
+  --rosso: #e2000f; /* vermelho All'Antico — só no chrome, nunca no número neutro */
   --rosso-d: #b80714;
+
+  /* --- Superfícies / papel --- */
   --panna: #f7f2e7;
-  --inch: #1a1a1a;
+  --inch: #1a1a1a; /* tinta (texto/chrome escuro) */
   --bianco: #fff;
-  --desk: #e6e1d5;
+  --desk: #e6e1d5; /* fundo de mesa/palco */
   --desk-d: #dad4c5;
   --panel: #fff;
   --rail: #fbfaf6;
+
+  /* --- Linhas / divisórias --- */
   --line: #e7e2d5;
   --line2: #d9d3c4;
+
+  /* --- Texto secundário --- */
   --ink-soft: #6f6857;
   --muted: #9a9284;
-  --green: #1f8a5b;
-  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
-  --ui: 'Manrope', system-ui, sans-serif;
+
+  /* --- Semântica de estado (cor do número segue regra do projeto) --- */
+  --green: #1f8a5b; /* resultado positivo */
+  --amber: #d29922; /* atenção / ocupado */
+  --blue: #2a6fdb; /* informação / frio */
+
+  /* --- Paleta de zonas (swatches: cor da peça → significado) --- */
+  --zone-atendimento: #e2000f; /* Atendimento (FOH) */
+  --zone-cozinha: #1a1a1a; /* Cozinha (BOH) */
+  --zone-estrutura: #2b2b2b; /* Estrutura / painéis */
+  --zone-gerais: #9a9284; /* Gerais */
+  --zone-frio: #2a6fdb; /* Frio / refrigeração */
+  --zone-verde: #1f8a5b; /* Verde / hortifruti */
+
+  /* --- Tinta de cena (madeira/laranja — acento por peça) --- */
+  --tinta-madeira: #8a5a2b; /* batedeira, apoios de madeira */
+  --tinta-laranja: #b5781f; /* estufa / aquecidos */
+
+  /* --- Tipografia --- */
+  --serif: 'Bitter', Georgia, 'Times New Roman', serif; /* marca / títulos de modal */
+  --ui: 'Manrope', system-ui, sans-serif; /* interface */
+  --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace; /* números / cotas */
+
+  /* --- Raios --- */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --r-pill: 20px;
+
+  /* --- Sombras --- */
+  --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --sh-card: 0 4px 12px -6px rgba(226, 0, 15, 0.4); /* hover de catálogo (halo rosso) */
+  --sh-pop: 0 12px 40px -16px rgba(26, 26, 26, 0.4); /* widgets flutuantes/glass */
+  --sh-modal: 0 32px 90px -28px rgba(0, 0, 0, 0.6); /* modais */
+  --sh-toast: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+
+  /* --- Espaçamentos (escala de 4px) --- */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 18px;
+  --sp-6: 24px;
+
+  /* --- Foco (anel vermelho translúcido) --- */
+  --focus-ring: 0 0 0 3px rgba(226, 0, 15, 0.12);
 }
 
 * {
@@ -35,10 +97,22 @@ body {
   background: var(--desk);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'tnum' 1; /* algarismos tabulares p/ números alinharem */
   user-select: none;
 }
 
 button {
   font-family: var(--ui);
   cursor: pointer;
+}
+
+/* Marca: Bitter itálico (letreiro All'Antico). Usado pela topbar das três telas. */
+.brand {
+  font-family: var(--serif);
+  font-weight: 800;
+  font-style: italic;
+  letter-spacing: -0.01em;
+}
+.brand b {
+  color: var(--rosso);
 }

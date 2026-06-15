@@ -106,3 +106,39 @@ export interface Station {
   sp: Vec2 | null
   unreachable?: boolean
 }
+
+/* ----------------------------------------------------------------------------
+   Snapshot enriquecido (ADITIVO) — expõe campos JÁ calculados pelo motor para a
+   vista 2D ao vivo computar cor/estado por agente. NÃO altera a lógica do motor:
+   o `worker-core` apenas lê propriedades públicas do engine e anexa ao frame.
+   ---------------------------------------------------------------------------- */
+
+/** Campos extra por cliente (impaciência da fila / retirada). */
+export interface FrameCustomerExtra {
+  /** Tempo de chegada (min simulados) — base do verde→amarelo→vermelho da fila. */
+  tArr: number
+  /** Tempo em que entrou na retirada (min simulados) ou null. */
+  tSS: number | null
+  /** Número do pedido (rótulo na retirada) ou null. */
+  orderNum: number | null
+  /** Foi atendido (na saída: verde se servido, vermelho se desistiu). */
+  served: boolean
+}
+
+/** Campos extra por operador (anel busy/wait, tag, estação fixa). */
+export interface FrameOperatorExtra {
+  /** 'busy' | 'wait' | 'idle' — define a cor do anel externo. */
+  busyState?: string
+  /** Rótulo curto (ex.: 'P' para padeiro). */
+  tag?: string
+  /** Id da estação fixa (mostra a tag FIXO) ou ''. */
+  fixedEq: string
+}
+
+/** Parâmetros do dia necessários ao cálculo de razões de espera no view. */
+export interface FrameMeta {
+  /** Tolerância da fila (min) — desistência. */
+  tol: number
+  /** Limite da retirada (min). */
+  pickupTimeout: number
+}

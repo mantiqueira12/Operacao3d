@@ -57,20 +57,23 @@ function Floor({ poly }: { poly: Array<[number, number]> }) {
   return (
     <g className="floor-layer">
       <polygon className="floor" points={points} />
-      {/* paredes grossas (aberto na frente) */}
+      {/* paredes grossas (aberto na frente) — espessura/cantos do protótipo */}
       <path
         d={wallD}
         fill="none"
         stroke="#1A1A1A"
-        strokeWidth={11}
-        strokeLinejoin="round"
-        strokeLinecap="round"
+        strokeWidth={15}
+        strokeLinejoin="miter"
+        strokeLinecap="square"
         vectorEffect="non-scaling-stroke"
       />
       {/* portão de enrolar (frente) */}
       <line className="gate-line" x1={0} y1={b.maxY * SCALE} x2={frontW} y2={b.maxY * SCALE} />
       <rect className="gate-post" x={-4} y={b.maxY * SCALE - 4} width={8} height={8} />
       <rect className="gate-post" x={frontW - 4} y={b.maxY * SCALE - 4} width={8} height={8} />
+      <text className="gate-t" x={frontW / 2} y={b.maxY * SCALE - 8} fontSize={9.5}>
+        portão de enrolar · {fmt(frontW / SCALE)} m
+      </text>
     </g>
   )
 }
@@ -118,18 +121,20 @@ function Zones({ scene }: { scene: RestaurantScene }) {
   const fohDepth = scene.room.fohDepth ?? 2.15
   const divY = b.maxY - fohDepth
   const frontCx = (b.minX + b.maxX) / 2 * SCALE
-  const frontY = b.maxY * SCALE
-  const arrow = (dx: number) =>
-    `M${frontCx + dx},${frontY + 36} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
+  // chevrons de entrada: ancorados logo abaixo da frente (protótipo ey=px(5.35) ≈ maxY+0,20 m)
+  const ey = (b.maxY + 0.2) * SCALE
+  // glyph do protótipo (planner.js:231): 3 chevrons preenchidos com dx em metros
+  const arrow = (dxM: number) =>
+    `M${frontCx + dxM * SCALE},${ey - 2} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
   return (
     <g className="zone-layer">
-      <text className="zone-t" x={(b.minX + 2 / 2) * SCALE} y={(divY / 2) * SCALE} fontSize={15} transform={`rotate(-90 ${(b.minX + 1) * SCALE} ${(divY / 2) * SCALE})`}>COZINHA</text>
+      <text className="zone-t" x={(b.minX + 2 / 2) * SCALE} y={(divY / 2) * SCALE} fontSize={15} transform={`rotate(-90 ${(b.minX + 1) * SCALE} ${(divY / 2) * SCALE})`}>01 · COZINHA</text>
       <text className="zone-t" x={(b.minX + b.maxX) / 2 * SCALE} y={(divY + fohDepth / 2) * SCALE} fontSize={14}>02 · PREPARO</text>
-      {[-45, 0, 45].map((dx) => (
+      {[-0.45, 0, 0.45].map((dx) => (
         <path key={dx} className="ent-arr" d={arrow(dx)} />
       ))}
-      <text className="ent-t" x={frontCx} y={frontY + 64} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
-      <text className="ent-sub" x={frontCx} y={frontY + 80} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
+      <text className="ent-t" x={frontCx} y={ey + 34} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
+      <text className="ent-sub" x={frontCx} y={ey + 50} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
     </g>
   )
 }
@@ -166,6 +171,56 @@ function Cotas({ scene }: { scene: RestaurantScene }) {
   )
 }
 
+/**
+ * Painel divisor (porta type==='painel'): retângulo bege + hachura diagonal
+ * a cada 7 px e, quando o comprimento >= 1,10 m, a simbologia de porta de correr
+ * (vão + folha aberta + seta de deslizamento + rótulo). Espelha drawPanel do
+ * protótipo (planner.js:307-335). Coordenadas locais em px (origem no canto da peça).
+ */
+function PanelShape({ x, y, w, h, name }: { x: number; y: number; w: number; h: number; name: string }) {
+  const horiz = w >= h
+  const len = (horiz ? w : h) / SCALE // comprimento em metros
+  const hasDoor = len >= 1.1
+  const d0 = 0.1 * SCALE
+  const d1 = Math.min(0.9, len - 0.2) * SCALE
+  const dw = d1 - d0
+
+  // hachura diagonal: mesmo laço do protótipo (o de 7 em 7 px, em coords locais)
+  const hatch: ReactNode[] = []
+  const step = 7
+  const lim = w + h
+  let key = 0
+  for (let o = step; o < lim; o += step) {
+    const x1 = Math.max(0, o - h), y1 = Math.min(o, h)
+    const x2 = Math.min(o, w), y2 = Math.max(0, o - w)
+    hatch.push(<line key={key++} className="panel-hatch" x1={x + x1} y1={y + y1} x2={x + x2} y2={y + y2} />)
+  }
+
+  return (
+    <>
+      <rect className="panel-rect" x={x} y={y} width={w} height={h} />
+      {hatch}
+      {hasDoor && (horiz ? (
+        <>
+          <rect className="panel-gap" x={x + d0} y={y - 1} width={dw} height={h + 2} />
+          <rect className="panel-leaf" x={x + d1} y={y - h * 0.65 - 3} width={dw} height={h * 0.65} />
+          <line className="panel-arr" x1={x + d1 + dw - 4} y1={y - h * 0.33 - 3} x2={x + d0 + dw * 0.55} y2={y - h * 0.33 - 3} markerEnd="url(#ah)" />
+          <text className="item-dim" x={x + d0 + dw / 2} y={y + h + 11} fontSize={8}>porta de correr {fmt(dw / SCALE)}</text>
+        </>
+      ) : (
+        <>
+          <rect className="panel-gap" x={x - 1} y={y + d0} width={w + 2} height={dw} />
+          <rect className="panel-leaf" x={x - w * 0.65 - 3} y={y + d1} width={w * 0.65} height={dw} />
+          <line className="panel-arr" x1={x - w * 0.33 - 3} y1={y + d1 + dw - 4} x2={x - w * 0.33 - 3} y2={y + d0 + dw * 0.55} markerEnd="url(#ah)" />
+        </>
+      ))}
+      {horiz && (
+        <text className="item-dim" x={x + w / 2} y={y + h / 2} fontSize={8.5} dominantBaseline="middle">{name}</text>
+      )}
+    </>
+  )
+}
+
 function ItemShape({
   item,
   selected,
@@ -184,7 +239,9 @@ function ItemShape({
   const w = item.width * SCALE
   const h = item.depth * SCALE
   const cx = x + w / 2
-  const isPanel = item.type === 'painel' || item.type === 'wall'
+  const isPanel = item.type === 'painel'
+  const isWall = item.type === 'wall'
+  const isBlock = isPanel || isWall
   const lvl = levelOf(item)
   const raised = lvl > 0.001
   const lines = wrapLabel(item.name)
@@ -194,7 +251,9 @@ function ItemShape({
   return (
     <g className={cls} onPointerDown={(e) => onPointerDown(e, item)}>
       {isPanel ? (
-        <rect className="panel-rect" x={x} y={y} width={w} height={h} />
+        <PanelShape x={x} y={y} w={w} h={h} name={item.name} />
+      ) : isWall ? (
+        <rect className="wall-rect" x={x} y={y} width={w} height={h} />
       ) : (
         <>
           <rect className="item-rect" x={x} y={y} width={w} height={h} rx={3} />
@@ -202,21 +261,16 @@ function ItemShape({
         </>
       )}
       {conflict && <rect className="conflict-fill" x={x} y={y} width={w} height={h} rx={3} />}
-      {!isPanel &&
+      {!isBlock &&
         lines.map((ln, i) => (
           <text key={i} className="item-label" x={cx} y={labelY + i * 12} fontSize={Math.min(12, Math.max(9, w / 9))}>
             {ln}
           </text>
         ))}
-      {!isPanel && !small && (
+      {!isBlock && !small && (
         <text className="item-dim" x={cx} y={y + h - 6} fontSize={8.5}>
           {fmt(item.width)} × {fmt(item.depth)}
           {raised ? ` · ▲${fmt(lvl)}` : ''}
-        </text>
-      )}
-      {isPanel && (
-        <text className="item-dim" x={cx} y={y + h / 2 + 3} fontSize={8.5}>
-          {item.name}
         </text>
       )}
       {raised && (
