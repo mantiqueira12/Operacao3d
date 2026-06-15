@@ -4,6 +4,13 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Paridade visual auditada → `docs/BACKLOG-PARIDADE-VISUAL.md`.** Pente-fino do que o port React
+  deixou para trás da camada gráfica do protótipo: **91 itens** (13 de 3D + 78 de
+  2D/Operação/Identidade/Catálogo), cada um com ref `arquivo:linha`, severidade visual e esforço (P/M/G).
+  Achado-chave: o **3D virou caixas lisas** (`Scene3D.itemMesh` faz `BoxGeometry` para tudo; os 18 builders
+  de `props.js` se perderam) e a Operação perdeu **heatmap/trilhas/cores de impaciência**. Estratégia:
+  portar os visuais **POR CIMA** da arquitetura (não reverter motor DES/domínio/testes). Ver "Plano
+  sequenciado" no backlog. (Audit automático parou no limite de sessão; 3D + síntese completados à mão.)
 - **Travar no "L", swing de porta e impressão da prancha.** (A) `clampToPolygon` (`spatial.ts`) prende
   o arraste de peças sólidas ao polígono — não dá mais para soltar no recorte do "L"; porta/extintor
   seguem a bbox (encostam na parede). (B) `doorSwing.ts` + `DoorSwing.tsx` desenham o arco de abertura
@@ -68,6 +75,9 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
+0. **PRIORIDADE — Paridade visual:** executar `docs/BACKLOG-PARIDADE-VISUAL.md` na ordem do "Plano
+   sequenciado" (começar pela **fábrica de props 3D** — maior ganho, risco isolado em `view3d/`). Só
+   camada de apresentação; verificação visual em `npm run dev` com antes/depois.
 1. **Verificação visual** (rodar `npm run dev`): conferir as camadas/recursos novos — colisão,
    fora-da-casca (âmbar), folgas ao selecionar, níveis/empilhamento, Instalações, modal "Lista"
    (CSV), **arraste travando no "L"**, **swing de porta** (+ Inverter abertura) e **impressão**
