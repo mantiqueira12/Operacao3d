@@ -8,6 +8,7 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { levelOf } from '../domain'
 import type { Arch3D, Item, RestaurantScene } from '../domain/types'
+import { buildProp, createMaterials, type MatSet } from './props3d'
 
 const WALL_H = 2.8
 const WALL_T = 0.08
@@ -68,19 +69,38 @@ function archMaterial(arch: Arch3D | null | undefined, color: string): THREE.Mes
   }
 }
 
-function itemMesh(it: Item, conflict: boolean): THREE.Mesh {
+/** Volume de uma peça: usa o builder paramétrico de `props3d` (geladeira, forno,
+    vitrine, balcão…) e cai na caixa genérica por arquétipo só para tipos sem modelo
+    dedicado. Correção do "tudo um blocos". */
+function itemObject(it: Item, conflict: boolean, mats: MatSet): THREE.Object3D {
   const h = Math.max(0.05, it.height)
   const base = levelOf(it) // elevação da base (m): empilhamento / prateleira
-  const geo = new THREE.BoxGeometry(it.width, h, it.depth)
-  const mat = archMaterial(it.arch, it.color)
-  if (conflict) {
-    mat.emissive = new THREE.Color('#E2000F')
-    mat.emissiveIntensity = 0.55
+  const cx = it.x + it.width / 2
+  const cz = it.y + it.depth / 2
+
+  const built = buildProp(it.type, it.width, it.depth, h, mats, { doorFlip: it.doorFlip })
+  let obj: THREE.Object3D
+  if (built) {
+    built.position.set(cx, base, cz) // o grupo se apoia no piso (y: 0..h)
+    obj = built
+  } else {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(it.width, h, it.depth), archMaterial(it.arch, it.color))
+    mesh.position.set(cx, base + h / 2, cz)
+    mesh.castShadow = true
+    obj = mesh
   }
-  const mesh = new THREE.Mesh(geo, mat)
-  mesh.position.set(it.x + it.width / 2, base + h / 2, it.y + it.depth / 2)
-  mesh.castShadow = true
-  return mesh
+
+  if (!conflict) return obj
+  // conflito de colisão: envelope vermelho translúcido (não muta os materiais em cache)
+  const env = new THREE.Mesh(
+    new THREE.BoxGeometry(it.width * 1.03, h * 1.03, it.depth * 1.03),
+    new THREE.MeshBasicMaterial({ color: '#E2000F', transparent: true, opacity: 0.3 }),
+  )
+  env.position.set(cx, base + h / 2, cz)
+  const grp = new THREE.Group()
+  grp.add(obj)
+  grp.add(env)
+  return grp
 }
 
 function disposeGroup(g: THREE.Group) {
@@ -194,9 +214,9 @@ export default function Scene3D({ scene, wallsTransparent, collisions }: { scene
     grid.position.set(cx, 0.005, cy)
     content.add(grid)
     content.add(wallsGroup(scene.room.polygon, wallsTransparent, maxY))
+    const mats = createMaterials()
     scene.items.forEach((it) => {
-      if (it.type === 'porta' || it.type === 'extintor') return
-      content.add(itemMesh(it, collisions?.has(it.id) ?? false))
+      content.add(itemObject(it, collisions?.has(it.id) ?? false, mats))
     })
   }, [scene, wallsTransparent, collisions])
 

@@ -85,7 +85,7 @@ Máximo ganho visual com mínimo risco aos avanços de engenharia. Cada fase é 
 
 ### 3D & Props (geometria/materiais)  ·  13 itens
 
-- [ ] **`3d-props-builders-perdidos`** — Modelos 3D por-equipamento (18 builders) → tudo virou caixa — `CRÍTICO` · esf. G · _simplificado_
+- [x] **`3d-props-builders-perdidos`** ✓ FEITO (`view3d/props3d.ts` + `Scene3D.itemObject`) — Modelos 3D por-equipamento (18 builders) → tudo virou caixa — `CRÍTICO` · esf. G · _simplificado_
   - **Sintoma:** O ESTE é o "tudo um blocos": geladeira, vitrine, forno, balcão, caixa, estufa, batedeira, estoque — todos aparecem como caixas lisas idênticas, sem puxadores, vidro, bandejas, decks, monitor de PDV, prateleiras. A cena 3D perde toda a leitura de "que equipamento é esse".
   - **Protótipo:** props.js:84-296 (window.PROPS: geladeira, bibite, vitrine, batedeira, estufa, forno, balcao, caixa, prep, montagem, pia, estoque, apoio, lixeira, extintor, porta, wall) chamados em sim-3d.js:142-143
   - **React hoje:** app/src/view3d/Scene3D.tsx:71-84 (itemMesh: SEMPRE BoxGeometry + archMaterial; só 5 arquétipos de material)
@@ -95,12 +95,12 @@ Máximo ganho visual com mínimo risco aos avanços de engenharia. Cada fase é 
   - **Protótipo:** sim-3d.js:68-80 (makePerson: pernas/torso/braços/cabeça/cabelo/avental), :198-286 (buildOpAvatars, custAvatar, syncAgents anima por frame, rotação no sentido do movimento, food box ao carregar)
   - **React hoje:** app/src/view3d/Scene3D.tsx (nenhum avatar; a vista 3D é estática, só layout). Operação só existe em 2D (sim-ui/SimView.tsx).
   - **Restaurar:** Criar uma vista 3D da operação que consome os frames do worker (já existem em sim-ui/useSimWorker) e posiciona avatares makePerson num agentGroup, animando posição/rotação por frame e o boneco "carrying". Une o STATE.md "Próximo #3" (animar agentes no 3D). Motor DES intacto; só consumo dos frames no view.
-- [ ] **`3d-texturas-materiais-procedurais`** — Texturas procedurais (aço/madeira/pedra) + biblioteca de materiais Phong — `ALTO` · esf. M · _ausente_
+- [x] **`3d-texturas-materiais-procedurais`** ✓ FEITO (`view3d/props3d.ts`: texturas em cache + `createMaterials()`) — Texturas procedurais (aço/madeira/pedra) + biblioteca de materiais Phong — `ALTO` · esf. M · _ausente_
   - **Sintoma:** Superfícies são cores chapadas: inox não parece inox, madeira não tem veio, pedra não tem granito, vidro de visor não "brilha". Reforça o aspecto de maquete de blocos.
   - **Protótipo:** props.js:10-57 (steelTex/woodTex/stoneTex via CanvasTexture; materiais steel, steelDark, black, wood, stone, rosso, glass, glowGlass, screen, shelf)
   - **React hoje:** app/src/view3d/Scene3D.tsx:56-69 (archMaterial: 5 MeshStandardMaterial de cor chapada, sem mapa/textura)
   - **Restaurar:** Portar as texturas procedurais (canvas) e o cache de materiais de props.js para props3d.ts. Usar MeshStandardMaterial com map+metalness/roughness equivalentes (ou MeshPhong como no protótipo). Materiais em cache (1x), reaproveitados por todos os meshes.
-- [ ] **`3d-painel-divisor-detalhado`** — Painel divisor 3D detalhado (ripas, faixa rossa, logo, porta de correr) — `ALTO` · esf. M · _simplificado_
+- [x] **`3d-painel-divisor-detalhado`** ✓ FEITO (`props3d.ts:buildPanel3D`) — Painel divisor 3D detalhado (ripas, faixa rossa, logo, porta de correr) — `ALTO` · esf. M · _simplificado_
   - **Sintoma:** O painel de fundo FOH/BOH — peça de marca, com o logo All'Antico — vira um bloco bege liso. Perde-se o elemento mais "assinatura" do espaço.
   - **Protótipo:** sim-3d.js:156-196 (buildPanel3D: ripas de madeira em tons alternados, faixa vermelha com textura-logo "All'Antico Panino" em canvas, recuo+folha+trilho da porta de correr)
   - **React hoje:** app/src/view3d/Scene3D.tsx:71-84 (painel cai em itemMesh → box com material "panel"; sem ripas, faixa, logo ou porta)
@@ -110,7 +110,7 @@ Máximo ganho visual com mínimo risco aos avanços de engenharia. Cada fase é 
   - **Protótipo:** sim-3d.js:19-65 (makeFloorTex porcelanato/granilite/cimento; WALL_FIN panna/branco/oliva; applyFinishes/setFinish persistem em loja206_fin_v2; UI #fin3d)
   - **React hoje:** app/src/view3d/Scene3D.tsx:21-32 (floorMesh: MeshStandard cor #efe9db chapada; paredes cor fixa; sem acabamentos)
   - **Restaurar:** Portar makeFloorTex e o seletor de acabamentos para o app (estado React + persistência via StorageAdapter, não localStorage cru). Aplicar map no piso e cor nas paredes. Painel de acabamentos como UI React.
-- [ ] **`3d-porta-extintor-pulados`** — Porta e extintor são pulados no 3D — `ALTO` · esf. M · _ausente_
+- [x] **`3d-porta-extintor-pulados`** ✓ FEITO (removido o early-return em `Scene3D`; builders `porta`/`extintor` em `props3d.ts`) — Porta e extintor são pulados no 3D — `ALTO` · esf. M · _ausente_
   - **Sintoma:** A porta e o extintor simplesmente somem na vista 3D, deixando vãos/ausências estranhas. A porta, que tem folha aberta detalhada no protótipo, não aparece.
   - **Protótipo:** props.js:276-292 (B.extintor: cilindro rosso+gatilho; B.porta: marco+folha aberta com maçaneta)
   - **React hoje:** app/src/view3d/Scene3D.tsx:198 (if (it.type === 'porta' || it.type === 'extintor') return — não renderiza)

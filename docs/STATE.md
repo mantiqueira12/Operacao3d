@@ -4,6 +4,19 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Fábrica de props 3D — fim do "tudo um blocos".** `app/src/view3d/props3d.ts`: port dos 18 builders
+  paramétricos do protótipo (`props.js`) + texturas procedurais (aço/madeira/pedra) + biblioteca de
+  materiais + painel divisor detalhado (`buildPanel3D`: ripas, faixa rossa, logo, porta de correr).
+  `Scene3D.itemObject` agora chama `buildProp(it.type, …)` (cada peça vira modelo: geladeira 5 malhas,
+  vitrine 9, forno 13, bibite 25, painel 20…) e cai na caixa genérica só p/ tipos sem builder. Removido
+  o skip de porta/extintor no 3D; colisão vira envelope translúcido (não muta materiais em cache).
+  Itens do backlog `3d-props-builders-perdidos`, `3d-texturas-materiais-procedurais`,
+  `3d-painel-divisor-detalhado`, `3d-porta-extintor-pulados` = **[x]**. Verificado: typecheck/lint/build/
+  **103 testes** verdes; `buildProp` confirmado em runtime (contagem de malhas por tipo). Falta a
+  conferência visual do render num browser real (preview headless não pinta WebGL contínuo).
+- **Fix (Windows/macOS): colisão de casing `DoorSwing.tsx` × `doorSwing.ts`.** Renomeado o módulo de
+  geometria p/ `doorSwingGeometry.ts` (era irresolvível em FS case-insensitive — quebrava typecheck/build
+  fora do Linux). CI Linux seguia verde; dev local em Windows estava travado.
 - **Paridade visual auditada → `docs/BACKLOG-PARIDADE-VISUAL.md`.** Pente-fino do que o port React
   deixou para trás da camada gráfica do protótipo: **91 itens** (13 de 3D + 78 de
   2D/Operação/Identidade/Catálogo), cada um com ref `arquivo:linha`, severidade visual e esforço (P/M/G).
