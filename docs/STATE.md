@@ -4,6 +4,34 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Rodada 2 de paridade visual — 4 frentes em paralelo, integradas e verdes** (typecheck/103 testes/
+  build + smoke de runtime: 2D/3D/Operação montam sem erro). Commit `5da10a1`.
+  - **view3d** (`Scene3D`/`View3D`/`props3d`): piso texturizado (porcelanato/granilite/cimento) +
+    parede (panna/branco/oliva) com seletor; portão de enrolar 3D; wall-culling dollhouse; presets de
+    câmera (iso/topo/cliente/balcão); fog + grade como toggles. → itens 3d-piso-textura-e-acabamentos,
+    3d-portao-enrolar, 3d-wall-culling-camera, 3d-camera-presets, 3d-iluminacao-fog, 3d-grid-helper-extra.
+  - **operação** (`SimView` + ADITIVO em `sim/types.ts`/`worker-core.ts`: `tArr`,`orderNum`,`busyState`,
+    `unreachable`,`fixedEq`): casca grossa em L + portão; zonas FOH/BOH/galeria; grade 0,5 m; estações
+    como cartão c/ nome real; slots fila/retirada; ponto de serviço; cor de impaciência do cliente;
+    anel/status/tag do operador; trilhas (overlay no cliente). **Motor DES intocado.** → casca-parede-
+    grossa-l, zonas-foh-boh-rotuladas, planta-grade-05m, estacoes-rotulo-nome, estacoes-cartao-branco,
+    estacao-ponto-servico, slots-fila-pickup-marcadores, cliente-cor-por-espera, cliente-anel-stroke-
+    opacidade, operador-anel-busy-wait, operador-status-flutuante, operador-tag-rotulo, trilhas-operadores,
+    toggles-camadas, cliente-numero-pedido, operador-badge-fixo (conferir os 2 últimos no render).
+  - **editor-2d** (`SceneLayers`/`DoorSwing`/`icons`): painel divisor c/ hachura + porta de correr;
+    paredes grossas (15/miter); rótulos (portão, 01·COZINHA); setas de entrada; porta 2D c/ batente +
+    rótulo; glyphs porta/painel. → painel-divisor-hachura-e-porta-correr, paredes-grossas-espessura-e-
+    cantos, rotulo-portao-de-enrolar, setas-entrada-cliente-chevrons, numeracao-zonas-01-cozinha,
+    porta-2d-batente-e-rotulo, glyph-catalogo-porta-e-painel.
+  - **identidade** (`index.css`/`App`): fontes Bitter/Manrope/IBM Plex Mono + tokens de cor/tipo/
+    sombra/raio do protótipo como fundação (sem quebrar tokens existentes).
+- **PENDENTE (pararam no limite de sessão — próxima rodada):** heatmap-circulacao, zoom-pan-autofit,
+  monitor-kds-dock, chips-cenario; chrome do `SimPanel` (relogio-grande-mono, play-estado-pausado,
+  controles-velocidade-botoes); `Planner.tsx` (readout-cursor-vivo, miniscale); 3D com agentes animados
+  (3d-sem-pessoas-animadas, 3d-labels-operadores, 3d-trilhas-operadores — une 3D+simulação); 17 itens de
+  chrome de identidade; dimensão "Catálogo & ferramentas" inteira; e o **pente-fino de completude** (não
+  rodou). Falta também a **conferência visual em browser real** (o preview headless não pinta WebGL/SVG
+  animado contínuo) — `cd app && npm run dev`.
 - **Fábrica de props 3D — fim do "tudo um blocos".** `app/src/view3d/props3d.ts`: port dos 18 builders
   paramétricos do protótipo (`props.js`) + texturas procedurais (aço/madeira/pedra) + biblioteca de
   materiais + painel divisor detalhado (`buildPanel3D`: ripas, faixa rossa, logo, porta de correr).

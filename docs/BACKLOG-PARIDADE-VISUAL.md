@@ -4,6 +4,15 @@
 > protótipo (`prototype/planner/`). Companheiro de `docs/STATE.md` e `docs/AGENTS.md`. Gerado em 2026-06-14.
 > Cada item tem **ID estável**, severidade visual, esforço (P/M/G) e referência `arquivo:linha` no protótipo.
 
+## Progresso
+
+- **Rodada 1** (commit `7d1029c`): fábrica de props 3D — 4 itens 3D (marcados `[x]` abaixo).
+- **Rodada 2** (commit `5da10a1`): ~25 itens de view3d / operação / editor-2d + fundação de tokens.
+  **A lista autoritativa do que entrou e do que falta está em `docs/STATE.md` › "Agora"** (os checkboxes
+  abaixo ainda não foram todos reconciliados). Próxima rodada: heatmap, zoom/pan, KDS, chrome do SimPanel,
+  readout/miniescala do Planner, 3D com agentes animados, catálogo & ferramentas, e o pente-fino de
+  completude (que não chegou a rodar).
+
 ## Contexto (por que existe este backlog)
 
 A reescrita em **React + Vite + TypeScript** avançou a engenharia — TS tipado, 103 testes, motor DES validado
