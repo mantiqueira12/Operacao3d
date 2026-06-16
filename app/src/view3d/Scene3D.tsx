@@ -74,20 +74,56 @@ function polygonCenter(poly: Array<[number, number]>) {
   }
 }
 
-function floorMesh(poly: Array<[number, number]>, floor: FloorKind): THREE.Mesh {
+/** espessura extrudada da laje (m) — port de sim-3d.js:89 (ExtrudeGeometry depth 0.06). */
+const FLOOR_SLAB = 0.06
+
+/** Piso em dupla camada (port de sim-3d.js:85-93): laje extrudada (base) +
+    acabamento texturizado por cima. A base dá espessura à borda do polígono
+    (o piso deixa de "flutuar"); o acabamento recebe a textura/sombra. */
+function floorGroup(poly: Array<[number, number]>, floor: FloorKind): THREE.Group {
+  const g = new THREE.Group()
   const shape = new THREE.Shape()
   poly.forEach(([x, y], i) => (i === 0 ? shape.moveTo(x, y) : shape.lineTo(x, y)))
   shape.closePath()
-  const geo = new THREE.ShapeGeometry(shape)
-  geo.rotateX(-Math.PI / 2) // plano XY → chão XZ (Y vira Z)
+
+  // base: contorno extrudado para baixo (depth no eixo Y após rotação)
+  const slab = new THREE.ExtrudeGeometry(shape, { depth: FLOOR_SLAB, bevelEnabled: false })
+  slab.rotateX(Math.PI / 2) // plano XY (z=0..depth) → chão; a laje fica em y: -depth..0
+  const base = new THREE.Mesh(slab, new THREE.MeshLambertMaterial({ color: 0xede3cb }))
+  base.receiveShadow = true
+  g.add(base)
+
+  // acabamento: superfície fina texturizada apoiada no topo da laje
+  const surf = new THREE.ShapeGeometry(shape)
+  surf.rotateX(-Math.PI / 2)
   const tex = makeFloorTex(floor)
   const repeat = 1 / FLOOR_PERIOD[floor]
   tex.repeat.set(repeat, repeat)
-  const mat = new THREE.MeshLambertMaterial({ map: tex })
-  const mesh = new THREE.Mesh(geo, mat)
-  mesh.position.y = 0.001
-  mesh.receiveShadow = true
-  return mesh
+  const top = new THREE.Mesh(surf, new THREE.MeshLambertMaterial({ map: tex }))
+  top.position.y = 0.002
+  top.receiveShadow = true
+  g.add(top)
+  return g
+}
+
+/** Calçada 3D (port de sim-3d.js:95-98): laje externa à frente da loja onde a
+    fila se forma. Derivada da extensão em X da abertura frontal (linha do maxY),
+    estendida para fora em +Z (a frente aberta é o maior Y do polígono). */
+function sidewalkMesh(poly: Array<[number, number]>, frontMaxY: number): THREE.Mesh | null {
+  const xsFront = poly.filter(([, y]) => Math.abs(y - frontMaxY) < 1e-3).map(([x]) => x)
+  if (xsFront.length < 2) return null
+  const x0 = Math.min(...xsFront)
+  const x1 = Math.max(...xsFront)
+  const span = x1 - x0
+  if (span < 1e-3) return null
+  const WALK = 1.4 // profundidade da calçada (m) à frente do portão
+  const walk = new THREE.Mesh(
+    new THREE.BoxGeometry(span, 0.02, WALK),
+    new THREE.MeshLambertMaterial({ color: 0xd8d2c2 }),
+  )
+  walk.position.set((x0 + x1) / 2, 0.01, frontMaxY + WALK / 2)
+  walk.receiveShadow = true
+  return walk
 }
 
 /** Metadados de culling guardados por parede. */
@@ -224,6 +260,7 @@ function itemObject(it: Item, conflict: boolean, mats: MatSet): THREE.Object3D {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(it.width, h, it.depth), archMaterial(it.arch, it.color))
     mesh.position.set(cx, base + h / 2, cz)
     mesh.castShadow = true
+    mesh.receiveShadow = true
     obj = mesh
   }
 
@@ -423,6 +460,7 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
         const g = makePerson({ shirt: OP_AVATAR_COLORS[i % 4], pants: 0x2b2b2b, apron: true })
         const food = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.16), new THREE.MeshLambertMaterial({ color: 0xc0763a }))
         food.position.set(0.22, 1.05, 0.12)
+        food.castShadow = true
         food.visible = false
         g.add(food)
         agentGroup.add(g)
@@ -630,7 +668,9 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
       t.pts.length = 0
     })
 
-    content.add(floorMesh(scene.room.polygon, finish.floor))
+    content.add(floorGroup(scene.room.polygon, finish.floor))
+    const walk = sidewalkMesh(scene.room.polygon, maxY)
+    if (walk) content.add(walk)
 
     if (showGrid) {
       const grid = new THREE.GridHelper(12, 48, 0xcfc8b8, 0xe2dccd)

@@ -20,6 +20,19 @@ function heightFor(type: string): number {
   return HEIGHTS[type] ?? 0.9
 }
 
+/**
+ * Cor de acento por-tipo (sobrepõe a cor da categoria ao inserir do catálogo).
+ * Portado de DEFAULT_SCENE do protótipo (planner.js:86-87): batedeira e estufa têm
+ * acento marrom/laranja distinto do preto da cozinha. Mantém CATEGORY_COLORS como fallback.
+ */
+const ACCENT_COLORS: Record<string, string> = {
+  batedeira: '#8A5A2B',
+  estufa: '#B5781F',
+}
+function accentFor(type: string, category: ItemCategory): string {
+  return ACCENT_COLORS[type] ?? CATEGORY_COLORS[category]
+}
+
 /** Instalações por tipo (pontos de execução: elétrica/hidráulica/esgoto/gás/exaustão). */
 const UTILS: Record<string, UtilityTag[]> = {
   forno: ['gas', 'eletrica', 'exaustao'],
@@ -83,7 +96,7 @@ export const CATALOG: Record<ItemCategory, CatalogEntry[]> = Object.fromEntries(
       ...e,
       category: cat,
       height: heightFor(e.type),
-      color: CATEGORY_COLORS[cat],
+      color: accentFor(e.type, cat),
       utils: utilsForType(e.type),
     })),
   ]),
@@ -94,8 +107,33 @@ const INDEX: Map<string, CatalogEntry> = new Map(
   Object.values(CATALOG).flat().map((e) => [e.type, e]),
 )
 
+/**
+ * Registro de modelos personalizados ("Meus modelos"), criados pelo usuário.
+ * Aditivo e separado do CATALOG base: a UI registra/limpa os custom aqui para que
+ * `getCatalogEntry`/`createItem` resolvam o tipo custom (renderização 2D/3D cai no
+ * fallback genérico por arquétipo). A persistência fica na camada de UI (StorageAdapter),
+ * mantendo o domínio puro. Portado de regCustom/CUSTOM do protótipo (planner.js:57-69).
+ */
+const CUSTOM_INDEX: Map<string, CatalogEntry> = new Map()
+
+/** Registra (ou atualiza) um modelo custom no índice de lookup. */
+export function registerCustomEntry(entry: CatalogEntry): void {
+  CUSTOM_INDEX.set(entry.type, entry)
+}
+
+/** Remove um modelo custom do índice. */
+export function unregisterCustomEntry(type: string): void {
+  CUSTOM_INDEX.delete(type)
+}
+
+/** Substitui o conjunto inteiro de modelos custom (usado ao recarregar do storage). */
+export function setCustomEntries(entries: CatalogEntry[]): void {
+  CUSTOM_INDEX.clear()
+  for (const e of entries) CUSTOM_INDEX.set(e.type, e)
+}
+
 export function getCatalogEntry(type: string): CatalogEntry | undefined {
-  return INDEX.get(type)
+  return INDEX.get(type) ?? CUSTOM_INDEX.get(type)
 }
 
 /** Instalações demandadas por um tipo (vazio se não mapeado). */

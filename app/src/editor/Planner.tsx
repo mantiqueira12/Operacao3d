@@ -7,7 +7,8 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import { CATALOG, UTILITY_META, levelOf, stackTopBelow, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
+import { CATALOG, UTILITY_META, levelOf, stackTopBelow, type CatalogEntry, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
+import { registerCustomEntry, unregisterCustomEntry } from '../domain/catalog'
 import { MIN_SIZE, clampPosition } from './geometry'
 import { SCALE, SceneLayers, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
@@ -15,6 +16,8 @@ import { useScene } from './useScene'
 import ScheduleModal from './Schedule'
 import PrintExtras from './PrintExtras'
 import PrintPlan from './PrintPlan'
+import EquipmentModal from './EquipmentModal'
+import { colorToCategory, loadCustomModels, saveCustomModels } from './customModels'
 import './planner.css'
 
 const CAT_ORDER: ItemCategory[] = ['atendimento', 'cozinha', 'gerais', 'estrutura']
@@ -30,13 +33,26 @@ const LEVEL_PRESETS: Array<{ label: string; z: number }> = [
 ]
 const UTIL_ORDER: UtilityTag[] = ['eletrica', 'hidraulica', 'esgoto', 'gas', 'exaustao']
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
+const WALL_TH = 0.12 // espessura da parede desenhada (m)
 
 type View = { zoom: number; panX: number; panY: number }
+type Tool = 'select' | 'measure' | 'wall' | 'divisor'
+type Pt = { x: number; y: number }
 type Drag =
   | { kind: 'move'; id: string; off: { x: number; y: number } }
   | { kind: 'resize'; id: string; handle: Handle; item: Item }
   | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
+  | { kind: 'draft'; tool: 'wall' | 'divisor'; a: Pt; b: Pt }
   | null
+
+/** Retângulo ortogonal da parede/divisor desenhado de A→B (wallRect do protótipo). */
+function draftRect(a: Pt, b: Pt) {
+  const dx = b.x - a.x, dy = b.y - a.y
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { x: Math.min(a.x, b.x), y: a.y - WALL_TH / 2, width: Math.abs(dx), depth: WALL_TH }
+  }
+  return { x: a.x - WALL_TH / 2, y: Math.min(a.y, b.y), width: WALL_TH, depth: Math.abs(dy) }
+}
 
 export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => void; onOpen3D?: () => void }) {
   const ed = useScene()
@@ -47,16 +63,76 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const drag = useRef<Drag>(null)
 
   const [view, setView] = useState<View>({ zoom: 1, panX: 0, panY: 0 })
-  const [tool, setTool] = useState<'select' | 'measure'>('select')
+  const [tool, setTool] = useState<Tool>('select')
   const [snapOn, setSnapOn] = useState(true)
   const [layers, setLayers] = useState({ cotas: true, items: true, zones: true, fohboh: true, grid: true, utils: true })
-  const [measure, setMeasure] = useState<{ a: { x: number; y: number } | null; b: { x: number; y: number } | null }>({ a: null, b: null })
+  const [measure, setMeasure] = useState<{ a: Pt | null; b: Pt | null }>({ a: null, b: null })
+  const [draft, setDraft] = useState<{ tool: 'wall' | 'divisor'; a: Pt; b: Pt } | null>(null)
   const [showSchedule, setShowSchedule] = useState(false)
+  const [showCreate, setShowCreate] = useState(false)
+  const [models, setModels] = useState<CatalogEntry[]>([])
   // Readout vivo: x/y do cursor em metros (sem drag) e info da peça em arraste
-  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
+  const [cursor, setCursor] = useState<Pt | null>(null)
   const [dragInfo, setDragInfo] = useState<{ name: string; w: number; h: number } | null>(null)
 
+  // Geometria pendente a aplicar na próxima peça criada por arraste (wall/divisor).
+  const pendingGeom = useRef<{ x: number; y: number; width: number; depth: number } | null>(null)
+
   const scene = ed.scene
+
+  /* ---------- histórico (undo/redo) — sobre o replaceScene do store ---------- */
+  // Implementado na camada de UI: snapshots de RestaurantScene (cap 80), restaurados
+  // via ed.replaceScene. Espelha hist/hi/HMAX do protótipo (planner.js:112-130).
+  const history = useRef<string[]>([])
+  const hIndex = useRef(-1)
+  const histLock = useRef(false)
+  const [, setHistVer] = useState(0) // força re-render p/ habilitar/desabilitar botões
+
+  useEffect(() => {
+    if (!scene) return
+    if (histLock.current) { histLock.current = false; return }
+    const snap = JSON.stringify(scene)
+    if (history.current[hIndex.current] === snap) return
+    history.current = history.current.slice(0, hIndex.current + 1)
+    history.current.push(snap)
+    if (history.current.length > 80) history.current.shift()
+    hIndex.current = history.current.length - 1
+    setHistVer((v) => v + 1)
+  }, [scene])
+
+  const restore = useCallback((snap: string) => {
+    try {
+      const s = JSON.parse(snap) as RestaurantScene
+      histLock.current = true
+      ed.replaceScene(s)
+      setHistVer((v) => v + 1)
+    } catch { /* snapshot inválido */ }
+  }, [ed])
+
+  const canUndo = hIndex.current > 0
+  const canRedo = hIndex.current < history.current.length - 1
+  const undo = useCallback(() => {
+    if (hIndex.current > 0) { hIndex.current -= 1; restore(history.current[hIndex.current]) }
+  }, [restore])
+  const redo = useCallback(() => {
+    if (hIndex.current < history.current.length - 1) { hIndex.current += 1; restore(history.current[hIndex.current]) }
+  }, [restore])
+
+  // Carrega "Meus modelos" e os registra no catálogo.
+  useEffect(() => {
+    let alive = true
+    void loadCustomModels().then((list) => { if (alive) setModels(list) })
+    return () => { alive = false }
+  }, [])
+
+  // Aplica a geometria pendente assim que a peça criada por arraste é selecionada.
+  useEffect(() => {
+    const g = pendingGeom.current
+    if (!g || !ed.selectedId) return
+    pendingGeom.current = null
+    ed.patchItem(ed.selectedId, g)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ed.selectedId])
 
   const fit = useCallback(() => {
     const wrap = wrapRef.current
@@ -88,6 +164,13 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
     return () => ro.disconnect()
   }, [fit])
 
+  // beforeprint: reenquadra a prancha para a folha (paridade com planner.js:961).
+  useEffect(() => {
+    const onBefore = () => fit()
+    window.addEventListener('beforeprint', onBefore)
+    return () => window.removeEventListener('beforeprint', onBefore)
+  }, [fit])
+
   function toWorld(clientX: number, clientY: number) {
     const g = worldRef.current
     if (!g) return { x: 0, y: 0 }
@@ -102,6 +185,44 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
 
   const grid = scene?.snap ?? 0.05
   const snapV = useCallback((v: number) => (snapOn ? Math.round(v / grid) * grid : v), [snapOn, grid])
+
+  /* ---------- modelos custom ---------- */
+  const persistModels = useCallback((next: CatalogEntry[]) => {
+    setModels(next)
+    void saveCustomModels(next)
+  }, [])
+
+  const createModel = useCallback((entry: CatalogEntry) => {
+    registerCustomEntry(entry)
+    persistModels([...models, entry])
+    setShowCreate(false)
+    ed.addItem(entry.type)
+  }, [models, persistModels, ed])
+
+  const deleteModel = useCallback((type: string) => {
+    const m = models.find((x) => x.type === type)
+    // confirmação em ação destrutiva (remoção de modelo não entra no histórico da cena)
+    if (m && !window.confirm(`Remover o modelo "${m.name}" de Meus modelos?`)) return
+    unregisterCustomEntry(type)
+    persistModels(models.filter((x) => x.type !== type))
+  }, [models, persistModels])
+
+  const saveSelectedAsModel = useCallback(() => {
+    const s = ed.selected
+    if (!s) return
+    const entry: CatalogEntry = {
+      type: 'cst' + Date.now().toString(36) + Math.floor(Math.random() * 1000),
+      name: (s.name || 'Modelo').trim(),
+      category: colorToCategory(s.color),
+      width: s.width,
+      depth: s.depth,
+      height: s.height,
+      color: s.color,
+      arch: s.arch ?? undefined,
+    }
+    registerCustomEntry(entry)
+    persistModels([...models, entry])
+  }, [ed.selected, models, persistModels])
 
   /* ---------- interações ---------- */
   function onItemDown(e: ReactPointerEvent, item: Item) {
@@ -130,6 +251,14 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       setMeasure((cur) => (!cur.a || cur.b ? { a: m, b: null } : { a: cur.a, b: m }))
       return
     }
+    if (tool === 'wall' || tool === 'divisor') {
+      const m = toWorld(e.clientX, e.clientY)
+      const a = { x: snapV(m.x), y: snapV(m.y) }
+      drag.current = { kind: 'draft', tool, a, b: a }
+      setDraft({ tool, a, b: a })
+      svgRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
     ed.select(null)
     drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, px: view.panX, py: view.panY }
     svgRef.current?.setPointerCapture(e.pointerId)
@@ -143,10 +272,21 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       if (m.x >= -0.2 && m.x <= 2.8 && m.y >= -0.2 && m.y <= 5.35) {
         setCursor({ x: Math.max(0, m.x), y: Math.max(0, m.y) })
       }
+      // preview ao vivo da régua (ferramenta Medir): A fixo, B segue o cursor
+      if (tool === 'measure' && measure.a && !measure.b) {
+        setMeasure((cur) => ({ a: cur.a, b: m }))
+      }
       return
     }
     if (d.kind === 'pan') {
       setView((v) => ({ ...v, panX: d.px + (e.clientX - d.sx), panY: d.py + (e.clientY - d.sy) }))
+      return
+    }
+    if (d.kind === 'draft') {
+      const m = toWorld(e.clientX, e.clientY)
+      const b = { x: snapV(m.x), y: snapV(m.y) }
+      d.b = b
+      setDraft({ tool: d.tool, a: d.a, b })
       return
     }
     const m = toWorld(e.clientX, e.clientY)
@@ -175,9 +315,20 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   }
 
   function onUp(e: ReactPointerEvent) {
+    const d = drag.current
     // libera a captura com guarda: o estado do drag deve sempre zerar
-    if (drag.current) {
+    if (d) {
       try { svgRef.current?.releasePointerCapture(e.pointerId) } catch { /* sem captura ativa */ }
+    }
+    if (d && d.kind === 'draft') {
+      const r = draftRect(d.a, d.b)
+      const len = Math.max(r.width, r.depth)
+      setDraft(null)
+      if (len >= 0.2) {
+        // cria a peça e aplica a geometria desenhada (via pendingGeom no efeito de seleção)
+        pendingGeom.current = { x: r.x, y: r.y, width: r.width, depth: r.depth }
+        ed.addItem(d.tool === 'wall' ? 'wall' : 'painel')
+      }
     }
     drag.current = null
     setDragInfo(null)
@@ -194,6 +345,34 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       return { zoom: z, panX: cx - wx * z, panY: cy - wy * z }
     })
   }
+
+  // Troca de ferramenta: limpa estados transitórios da ferramenta anterior.
+  const switchTool = useCallback((t: Tool) => {
+    setTool(t)
+    setMeasure({ a: null, b: null })
+    setDraft(null)
+  }, [])
+
+  // Atalhos: Ctrl+Z desfazer / Ctrl+Shift+Z ou Ctrl+Y refazer.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+      } else if (mod && e.key.toLowerCase() === 'y') {
+        e.preventDefault()
+        redo()
+      } else if (e.key === 'Escape') {
+        switchTool('select')
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [undo, redo, switchTool])
 
   function exportJSON() {
     if (!scene) return
@@ -230,16 +409,12 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const pct = area > 0 ? Math.round((occupied / area) * 100) : 0
   const tb = scene.titleBlock
 
-  // Miniescala: cada barra = `scaleStep` m em px reais (= SCALE*zoom*step).
-  // Escolhe um passo "redondo" (0,5/1/2/5 m) p/ a barra ficar ~44–88 px em qualquer zoom; o rótulo segue o passo.
   const pxPerM = SCALE * view.zoom
   const niceSteps = [0.25, 0.5, 1, 2, 5, 10]
   const scaleStep = niceSteps.find((s) => s * pxPerM >= 42) ?? niceSteps[niceSteps.length - 1]
   const barPx = scaleStep * pxPerM
-  // Rótulo da régua: 0 — 1·passo — 2·passo (em metros, com vírgula)
   const scaleLabel = `0 — ${fmt(scaleStep)} — ${fmt(scaleStep * 2)} m`
 
-  // Texto do readout (sem arraste): x/y do cursor ao vivo; recai na peça selecionada ou 0,00
   const roX = cursor ? fmt(cursor.x) : sel ? fmt(sel.x) : '0,00'
   const roY = cursor ? fmt(cursor.y) : sel ? fmt(sel.y) : '0,00'
 
@@ -254,6 +429,15 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
 
   const toggleLayer = (k: keyof typeof layers) => setLayers((l) => ({ ...l, [k]: !l[k] }))
 
+  // classe de cursor do canvas conforme ferramenta/estado
+  const sceneCls =
+    tool === 'measure' || tool === 'wall' || tool === 'divisor' ? 'tool-measure'
+      : drag.current?.kind === 'pan' ? 'panning' : ''
+
+  // draft ao vivo da parede/divisor (rect-fantasma + cota viva)
+  const draftR = draft ? draftRect(draft.a, draft.b) : null
+  const draftLen = draftR ? Math.max(draftR.width, draftR.depth) : 0
+
   return (
     <div id="app" className={appCls}>
       {/* TOPBAR */}
@@ -262,10 +446,14 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         <div className="topdoc">{tb?.unit ?? 'Projeto'} · Estúdio de planta <span className="verbadge">v3</span></div>
         <div className="topspacer" />
         <div className="toolgroup">
-          <button className={`tbtn${tool === 'select' ? ' active' : ''}`} onClick={() => setTool('select')}><Icon name="select" />Selecionar</button>
-          <button className={`tbtn${tool === 'measure' ? ' active' : ''}`} onClick={() => setTool('measure')}><Icon name="measure" />Medir</button>
-          <button className="tbtn" onClick={() => ed.addItem('wall')}><Icon name="wall" />Parede</button>
-          <button className="tbtn" onClick={() => ed.addItem('painel')}><Icon name="divisor" />Divisor FOH/BOH</button>
+          <button className={`tbtn${tool === 'select' ? ' active' : ''}`} onClick={() => switchTool('select')}><Icon name="select" />Selecionar</button>
+          <button className={`tbtn${tool === 'measure' ? ' active' : ''}`} onClick={() => switchTool('measure')}><Icon name="measure" />Medir</button>
+          <button className={`tbtn${tool === 'wall' ? ' active' : ''}`} onClick={() => switchTool('wall')}><Icon name="wall" />Parede</button>
+          <button className={`tbtn${tool === 'divisor' ? ' active' : ''}`} onClick={() => switchTool('divisor')}><Icon name="divisor" />Divisor FOH/BOH</button>
+        </div>
+        <div className="toolgroup">
+          <button className="tbtn" onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)"><Icon name="undo" />Desfazer</button>
+          <button className="tbtn" onClick={redo} disabled={!canRedo} title="Refazer (Ctrl+Shift+Z)"><Icon name="redo" />Refazer</button>
         </div>
         {(onOpen3D || onOpenSim) && (
           <div className="toolgroup">
@@ -291,7 +479,29 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       {/* CATÁLOGO */}
       <aside id="left" className="rail">
         <div className="sec">
-          <h3>Catálogo <button className="mini-add" title="Em breve">+ Criar</button></h3>
+          <h3>Catálogo <button className="mini-add" onClick={() => setShowCreate(true)} title="Criar equipamento sob medida">+ Criar</button></h3>
+          {models.length > 0 && (
+            <div>
+              <div className="catcat">Meus modelos</div>
+              <div className="cat-grid">
+                {models.map((entry) => (
+                  <button key={entry.type} className="catitem" onClick={() => ed.addItem(entry.type)}>
+                    <span
+                      className="del"
+                      role="button"
+                      tabIndex={0}
+                      title="Remover modelo"
+                      onClick={(e) => { e.stopPropagation(); deleteModel(entry.type) }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); deleteModel(entry.type) } }}
+                    >×</span>
+                    <span className="gl"><CatalogGlyph entry={entry} /></span>
+                    <span className="nm">{entry.name}</span>
+                    <span className="dm">{fmt(entry.width)}×{fmt(entry.depth)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {CAT_ORDER.map((cat) => (
             <div key={cat}>
               <div className="catcat">{CAT_LABEL[cat]}</div>
@@ -314,7 +524,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         <svg
           id="scene"
           ref={svgRef}
-          className={tool === 'measure' ? 'tool-measure' : drag.current?.kind === 'pan' ? 'panning' : ''}
+          className={sceneCls}
           onPointerDown={onBgDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
@@ -332,12 +542,39 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
               onHandleDown={onHandleDown}
               onRotate={onRotate}
             />
-            {measure.a && measure.b && (
-              <g className="measure-layer">
-                <line className="measure-l" x1={measure.a.x * SCALE} y1={measure.a.y * SCALE} x2={measure.b.x * SCALE} y2={measure.b.y * SCALE} />
-                <text className="measure-t" x={(measure.a.x + measure.b.x) / 2 * SCALE} y={(measure.a.y + measure.b.y) / 2 * SCALE - 6} fontSize={12}>
-                  {fmt(Math.hypot(measure.b.x - measure.a.x, measure.b.y - measure.a.y))} m
+            {/* draft da parede / divisor por arraste (rect-fantasma + cota viva) */}
+            {draftR && draftLen > 0 && (
+              <g className="wall-draft">
+                <rect
+                  className="wall-draft-rect"
+                  x={draftR.x * SCALE}
+                  y={draftR.y * SCALE}
+                  width={draftR.width * SCALE}
+                  height={draftR.depth * SCALE}
+                />
+                <text
+                  className="measure-t"
+                  x={(draftR.x + draftR.width / 2) * SCALE}
+                  y={(draftR.y + draftR.depth / 2) * SCALE - 6}
+                  fontSize={12}
+                >
+                  {fmt(draftLen)} m
                 </text>
+              </g>
+            )}
+            {/* ferramenta Medir: pontos vermelhos + linha + etiqueta (preview ao vivo) */}
+            {measure.a && (
+              <g className="measure-layer">
+                <circle className="measure-dot" cx={measure.a.x * SCALE} cy={measure.a.y * SCALE} r={3} />
+                {measure.b && (
+                  <>
+                    <line className="measure-l" x1={measure.a.x * SCALE} y1={measure.a.y * SCALE} x2={measure.b.x * SCALE} y2={measure.b.y * SCALE} />
+                    <circle className="measure-dot" cx={measure.b.x * SCALE} cy={measure.b.y * SCALE} r={3} />
+                    <text className="measure-t" x={(measure.a.x + measure.b.x) / 2 * SCALE} y={(measure.a.y + measure.b.y) / 2 * SCALE - 6} fontSize={12}>
+                      {fmt(Math.hypot(measure.b.x - measure.a.x, measure.b.y - measure.a.y))} m
+                    </text>
+                  </>
+                )}
               </g>
             )}
           </g>
@@ -353,7 +590,12 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
             </>
           )}
         </div>
-        <div className="hintbar">Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan</div>
+        <div className="hintbar">
+          {tool === 'measure' ? 'Clique dois pontos para medir a distância · Esc volta a selecionar'
+            : tool === 'wall' ? 'Arraste para desenhar a parede · o comprimento aparece ao vivo'
+              : tool === 'divisor' ? 'Arraste para desenhar o divisor FOH/BOH'
+                : 'Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan'}
+        </div>
         <div className="miniscale">
           <div className="sb"><i className="f" style={{ width: barPx }} /><i style={{ width: barPx }} /></div>
           <div>{scaleLabel}</div>
@@ -428,6 +670,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
                 <button className="pbtn" onClick={() => ed.rotateItem(sel.id)}><Icon name="rotate" />Girar 90°</button>
                 <button className="pbtn" onClick={() => ed.duplicateItem(sel.id)}><Icon name="dup" />Duplicar</button>
               </div>
+              <button className="pbtn save" onClick={saveSelectedAsModel}><Icon name="save" />Salvar como modelo</button>
               {sel.type === 'porta' && (
                 <button className="pbtn" onClick={() => ed.patchItem(sel.id, { doorFlip: !sel.doorFlip })}><Icon name="rotate" />Inverter abertura</button>
               )}
@@ -513,6 +756,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         </div>
       </aside>
       {showSchedule && <ScheduleModal scene={scene} onClose={() => setShowSchedule(false)} />}
+      {showCreate && <EquipmentModal onClose={() => setShowCreate(false)} onCreate={createModel} />}
       <PrintPlan scene={scene} />
       <PrintExtras scene={scene} />
     </div>

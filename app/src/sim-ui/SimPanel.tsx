@@ -3,7 +3,7 @@
    KPIs em tempo real, chrome premium (relógio mono, velocidade segmentada, chips de cenário,
    toggles de camada) e o Monitor KDS — dock escuro inferior sobre a planta. */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { loja206Scene, type RestaurantScene } from '../domain'
 import { baseConfig } from '../sim/defaults'
 import { sceneToSimItems } from '../sim/adapter'
@@ -114,6 +114,41 @@ export default function SimPanel({ onClose }: { onClose: () => void }) {
   const ritmo = k?.throughputPerHour ?? 0
   const esperaMed = k?.avgWaitMin ?? 0
 
+  // ---- banner de condição crítica sobre a planta (op-banner-emoji-condicoes)
+  // Deriva a mensagem do estoque/espera de pão (campos já expostos nos KPIs do motor).
+  const breadStockNow = sim.frame?.breadStock ?? k?.bread.stock ?? 0
+  const waitingBread = k?.bread.waitingBread ?? 0
+  const banner = useMemo<string | null>(() => {
+    if (!playing && !sim.frame) return null
+    if (breadStockNow <= 0 && waitingBread > 0)
+      return `⚠ PÃO ESGOTADO — ${waitingBread} pedido${waitingBread > 1 ? 's' : ''} parado${waitingBread > 1 ? 's' : ''} aguardando fornada`
+    if (breadStockNow <= 0) return '⚠ Estoque de pães zerado — fornada em produção'
+    return null
+  }, [playing, sim.frame, breadStockNow, waitingBread])
+
+  // ---- toast de sincronização da planta (sync-flash-feedback-planta)
+  const [toast, setToast] = useState<{ msg: string; tone: 'ok' | 'info' } | null>(null)
+  const toastTimer = useRef<number | null>(null)
+  const flash = useCallback((msg: string, tone: 'ok' | 'info' = 'ok') => {
+    setToast({ msg, tone })
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 2600)
+  }, [])
+  // dispara ao carregar/atualizar a planta (cena trocou ⇒ rotas recalculadas).
+  const firstSyncRef = useRef(true)
+  useEffect(() => {
+    if (!scene) return
+    if (firstSyncRef.current) {
+      firstSyncRef.current = false
+      flash('Planta carregada — rotas calculadas', 'info')
+    } else {
+      flash('Planta sincronizada — rotas recalculadas')
+    }
+    return () => {
+      if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    }
+  }, [scene, flash])
+
   return (
     <div id="simapp">
       <header id="sim-top">
@@ -165,6 +200,14 @@ export default function SimPanel({ onClose }: { onClose: () => void }) {
       <main id="sim-stage" className={kdsCollapsed ? 'has-dock collapsed' : 'has-dock'}>
         <div className="sim-stage-canvas">
           <SimView scene={sim.scene} frame={sim.frame} layers={layers} trails={trails} />
+          {/* banner de condição crítica (op-banner-emoji-condicoes) */}
+          {banner && (
+            <div className="op-banner" role="alert">
+              {banner}
+            </div>
+          )}
+          {/* toast de sincronização da planta (sync-flash-feedback-planta) */}
+          {toast && <div className={`sim-toast ${toast.tone}`}>{toast.msg}</div>}
           <div className="sim-legend">
             <span><i style={{ background: '#2A6FDB' }} /> fila</span>
             <span><i style={{ background: '#E2000F' }} /> no caixa</span>
@@ -189,7 +232,7 @@ export default function SimPanel({ onClose }: { onClose: () => void }) {
               <Met v={`${ritmo}/h`} l="ritmo" />
               <Met v={`${esperaMed}m`} l="espera" warn={esperaMed > 8} />
               <Met v={k?.balked ?? 0} l="desist." warn={(k?.balked ?? 0) > 0} />
-              <Met v={sim.frame?.breadStock ?? k?.bread.stock ?? 0} l="pães" />
+              <Met v={breadStockNow} l="pães" warn={breadStockNow <= 0} />
             </div>
             <button
               className="km-collapse"

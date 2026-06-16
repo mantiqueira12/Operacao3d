@@ -15,6 +15,8 @@ const PATHS: Record<string, string> = {
   dup: 'M9 9h11v11H9z M5 15V5a2 2 0 0 1 2-2h10',
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
+  undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
+  redo: 'M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8',
 }
 
 export function Icon({ name }: { name: keyof typeof PATHS }) {
