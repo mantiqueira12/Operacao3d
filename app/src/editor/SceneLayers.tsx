@@ -3,6 +3,9 @@ import { UTILITY_META, clearances, isSolid, levelOf, utilsFor, type Item, type R
 import DoorSwing from './DoorSwing'
 
 export const SCALE = 100 // px por metro
+/** Espessura da parede em planta (m). Desenhada como POCHÉ por fora do polígono
+    (face interna = limite da sala), paridade com o 3D (WALL_T 0.12). */
+const ROOM_WALL_T = 0.12
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
 const HANDLES: Array<[Handle, number, number, string]> = [
@@ -51,21 +54,47 @@ function Floor({ poly }: { poly: Array<[number, number]> }) {
   }
   const wallVerts: Array<[number, number]> = []
   for (let k = 1; k <= n; k++) wallVerts.push(poly[(frontEdge + k) % n])
-  const wallD =
-    'M' + wallVerts.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' L')
+  // Parede como POCHÉ por FORA do polígono: deslocamos o contorno (sem a frente) para
+  // fora em t/2 e traçamos com espessura t (métrica — escala com o zoom). Assim a face
+  // INTERNA da parede coincide com o limite da sala e as peças encostadas nas paredes
+  // não ficam "por baixo" do traço grosso (corrige a parede grossa sobrepondo itens).
+  const ref = { x: poly.reduce((s, p) => s + p[0], 0) / n, y: poly.reduce((s, p) => s + p[1], 0) / n }
+  const d = ROOM_WALL_T / 2
+  const edgeN = (a: [number, number], c: [number, number]): [number, number] => {
+    let nx = c[1] - a[1], ny = -(c[0] - a[0])
+    const l = Math.hypot(nx, ny) || 1
+    nx /= l; ny /= l
+    const mx = (a[0] + c[0]) / 2, my = (a[1] + c[1]) / 2
+    if (nx * (mx - ref.x) + ny * (my - ref.y) < 0) { nx = -nx; ny = -ny } // aponta p/ fora
+    return [nx, ny]
+  }
+  const m = wallVerts.length
+  const off = wallVerts.map((p, i): [number, number] => {
+    if (i === 0) { const nr = edgeN(wallVerts[0], wallVerts[1]); return [p[0] + nr[0] * d, p[1] + nr[1] * d] }
+    if (i === m - 1) { const nr = edgeN(wallVerts[m - 2], wallVerts[m - 1]); return [p[0] + nr[0] * d, p[1] + nr[1] * d] }
+    const n1 = edgeN(wallVerts[i - 1], wallVerts[i]), n2 = edgeN(wallVerts[i], wallVerts[i + 1])
+    let mx = n1[0] + n2[0], my = n1[1] + n2[1]
+    const ml = Math.hypot(mx, my) || 1
+    mx /= ml; my /= ml
+    const cos = Math.max(0.35, mx * n1[0] + my * n1[1]) // miter clampado p/ não disparar
+    const dist = d / cos
+    return [p[0] + mx * dist, p[1] + my * dist]
+  })
+  const wallD = 'M' + off.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' L')
 
   return (
     <g className="floor-layer">
       <polygon className="floor" points={points} />
-      {/* paredes grossas (aberto na frente) — espessura/cantos do protótipo */}
+      {/* parede em poché: espessura real (0,12 m), POR FORA do polígono */}
       <path
+        className="wall-poche"
         d={wallD}
         fill="none"
-        stroke="#1A1A1A"
-        strokeWidth={15}
+        stroke="#2b2b2b"
+        strokeWidth={ROOM_WALL_T * SCALE}
         strokeLinejoin="miter"
-        strokeLinecap="square"
-        vectorEffect="non-scaling-stroke"
+        strokeLinecap="butt"
+        strokeMiterlimit={6}
       />
       {/* portão de enrolar (frente) */}
       <line className="gate-line" x1={0} y1={b.maxY * SCALE} x2={frontW} y2={b.maxY * SCALE} />

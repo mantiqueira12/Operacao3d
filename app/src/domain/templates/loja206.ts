@@ -25,9 +25,9 @@ const ROOM: Room = {
 const ITEMS: Array<[string, Partial<Parameters<typeof createItem>[2]>]> = [
   ['caixa', { name: 'Caixa · PDV', x: 0.0, y: 4.6, width: 0.77, depth: 0.55, height: 1.05, color: '#E2000F' }],
   ['vitrine', { name: 'Vitrine refrigerada', x: 0.8, y: 4.4, width: 1.7, depth: 0.72, height: 1.2, color: '#E2000F' }],
-  ['montagem', { name: 'Bancada de montagem', x: 2.0, y: 3.0, width: 0.6, depth: 1.25, height: 0.9, color: '#1A1A1A' }],
+  ['montagem', { name: 'Bancada de montagem', x: 2.0, y: 3.08, width: 0.6, depth: 1.25, height: 0.9, color: '#1A1A1A' }],
   ['estoque', { name: 'Estoque', x: 0.08, y: 0.1, width: 1.0, depth: 0.4, height: 1.8, color: '#1A1A1A' }],
-  ['forno', { name: 'Forno focaccia', x: 1.05, y: 0.1, width: 0.88, depth: 0.7, height: 1.6, color: '#1A1A1A' }],
+  ['forno', { name: 'Forno focaccia', x: 1.12, y: 0.1, width: 0.88, depth: 0.7, height: 1.6, color: '#1A1A1A' }],
   ['batedeira', { name: 'Batedeira de massa', x: 1.4, y: 1.0, width: 0.55, depth: 0.55, height: 1.3, color: '#8A5A2B' }],
   ['estufa', { name: 'Estufa de fermentação', x: 1.32, y: 1.7, width: 0.62, depth: 0.75, height: 1.75, color: '#B5781F' }],
   ['prep', { name: 'Bancada de prep', x: 0.08, y: 0.7, width: 0.58, depth: 1.35, height: 0.9, color: '#1A1A1A' }],
