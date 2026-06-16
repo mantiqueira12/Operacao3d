@@ -58,6 +58,56 @@ export const UTILITY_META: Record<UtilityTag, { short: string; label: string; co
   exaustao: { short: 'X', label: 'Exaustão', color: '#7A7A7A' },
 }
 
+/* ---------- folgas operacionais (zonas de trabalho/segurança) ---------- */
+
+/**
+ * Tipo de zona de folga que uma peça projeta no piso (consumido por `workZones`
+ * em domain/spatial). Aditivo ao catálogo — não altera o modelo de `Item`.
+ *   work → faixa de operação à frente do equipamento (atendente/cozinheiro em pé).
+ *   hot  → afastamento de calor/segurança em volta (forno, gás, char-broiler).
+ *   door → vão de abertura de porta/tampa à frente (geladeira, estufa, bibite).
+ */
+export type ClearanceKind = 'work' | 'hot' | 'door'
+
+/** Metadados de folga por tipo: a natureza da zona e sua profundidade (m). */
+export interface ClearanceMeta {
+  kind: ClearanceKind
+  /** profundidade da zona, em metros */
+  depth: number
+}
+
+/** Profundidades de referência (m): sanitária SP / NBR 9050 e boas práticas de cozinha. */
+const WORK_DEPTH = 0.9 // faixa de operação confortável à frente da bancada
+const HOT_DEPTH = 0.4 // afastamento de calor/combustível em volta do forno
+const DOOR_DEPTH = 0.6 // profundidade de abertura de porta de geladeira/estufa
+
+/**
+ * Folga operacional por tipo. Quem não estiver mapeado não projeta zona
+ * (`clearanceFor` devolve `null`) — marcadores e estruturas (porta, extintor,
+ * lixeira, apoio, estoque, wall, painel) não têm faixa de trabalho dedicada.
+ */
+const CLEARANCE: Record<string, ClearanceMeta> = {
+  // calor / gás / segurança — afastamento em volta
+  forno: { kind: 'hot', depth: HOT_DEPTH },
+  // abertura de porta/tampa — vão à frente
+  geladeira: { kind: 'door', depth: DOOR_DEPTH },
+  bibite: { kind: 'door', depth: DOOR_DEPTH },
+  estufa: { kind: 'door', depth: DOOR_DEPTH },
+  vitrine: { kind: 'door', depth: DOOR_DEPTH },
+  // faixa de operação à frente — atendente / cozinheiro em pé
+  caixa: { kind: 'work', depth: WORK_DEPTH },
+  prep: { kind: 'work', depth: WORK_DEPTH },
+  montagem: { kind: 'work', depth: WORK_DEPTH },
+  pia: { kind: 'work', depth: WORK_DEPTH },
+  balcao: { kind: 'work', depth: WORK_DEPTH },
+  batedeira: { kind: 'work', depth: WORK_DEPTH },
+}
+
+/** Folga operacional de um tipo (ou `null` se o tipo não projeta zona). */
+export function clearanceFor(type: string): ClearanceMeta | null {
+  return CLEARANCE[type] ?? null
+}
+
 /** Dados crus do catálogo, por categoria (portado de CATALOG do protótipo). */
 const RAW: Record<ItemCategory, Array<{ type: string; name: string; width: number; depth: number; arch?: Arch3D }>> = {
   atendimento: [

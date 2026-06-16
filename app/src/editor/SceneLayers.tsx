@@ -1,6 +1,20 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { UTILITY_META, clearances, isSolid, levelOf, utilsFor, type Item, type RestaurantScene } from '../domain'
+import { TURN_CIRCLE, corridorAnalysis, dimsToNeighbors, workZones } from '../domain/spatial'
 import DoorSwing from './DoorSwing'
+
+/**
+ * Linha-guia de alinhamento (em METROS) emitida pela INTERAÇÃO durante o arraste.
+ * Contrato compartilhado: RENDER define+exporta; Planner importa daqui.
+ */
+export interface AlignGuide {
+  orient: 'v' | 'h'
+  /** posição da linha no eixo perpendicular (x para 'v', y para 'h'), em metros */
+  pos: number
+  /** extensão da linha no eixo paralelo, em metros */
+  from: number
+  to: number
+}
 
 export const SCALE = 100 // px por metro
 /** Espessura da parede em planta (m). Desenhada como POCHÉ por fora do polígono
@@ -392,6 +406,149 @@ function Clearances({ item, items, poly }: { item: Item; items: Item[]; poly: Ar
   )
 }
 
+/* ---------- camadas de análise (contrato DOMÍNIO) ---------- */
+
+/**
+ * (#1) Circulação na planta inteira: segmentos de corridorAnalysis(scene),
+ * cor por nível (ok verde / warn laranja / bad vermelho) + rótulo da largura.
+ * Camada ATRÁS das peças. Segmentos vêm em metros.
+ */
+function Circulation({ scene }: { scene: RestaurantScene }) {
+  const segs = corridorAnalysis(scene)
+  return (
+    <g className="circ-layer">
+      {segs.map((s, i) => {
+        const x1 = s.x1 * SCALE
+        const y1 = s.y1 * SCALE
+        const x2 = s.x2 * SCALE
+        const y2 = s.y2 * SCALE
+        const mx = (x1 + x2) / 2
+        const my = (y1 + y2) / 2
+        const vert = Math.abs(x2 - x1) < Math.abs(y2 - y1)
+        return (
+          <g key={i} className={`circ ${s.level}`}>
+            <line className="circ-l" x1={x1} y1={y1} x2={x2} y2={y2} />
+            <text
+              className="circ-t"
+              x={mx + (vert ? 8 : 0)}
+              y={my - (vert ? 0 : 4)}
+              fontSize={9}
+              textAnchor={vert ? 'start' : 'middle'}
+            >
+              {fmt(s.gap)}
+            </text>
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+/**
+ * (#2) Zonas de trabalho/segurança por peça: retângulos translúcidos de
+ * workZones(item) — work (azul-esverdeado), hot (vermelho), door (azul).
+ * Clipadas ao polígono da sala (rclip).
+ */
+function WorkZones({ items }: { items: Item[] }) {
+  return (
+    <g className="wz-layer" clipPath="url(#rclip)">
+      {items.flatMap((it) =>
+        workZones(it).map((z, i) => (
+          <rect
+            key={`${it.id}-${i}`}
+            className={`wz wz-${z.kind}`}
+            x={z.x * SCALE}
+            y={z.y * SCALE}
+            width={z.w * SCALE}
+            height={z.h * SCALE}
+          />
+        )),
+      )}
+    </g>
+  )
+}
+
+/**
+ * (#4) Cotas peça↔vizinho (dimsToNeighbors) com seleção: linha + setas (marker ah)
+ * + valor; e o giro NBR 9050: círculo Ø TURN_CIRCLE tracejado se couber à frente
+ * da peça (lado +y). `front` = +y. Severidade dá a cor da cota.
+ */
+function NeighborDims({
+  item,
+  items,
+  poly,
+}: {
+  item: Item
+  items: Item[]
+  poly: Array<[number, number]>
+}) {
+  const dims = dimsToNeighbors(item, items, poly)
+  const b = bbox(poly)
+  // Giro NBR 9050: tenta à frente da peça (+y); se não couber, recua para o FOH.
+  const r = TURN_CIRCLE / 2
+  const cxTurn = item.x + item.width / 2
+  const frontY = item.y + item.depth
+  const fitsFront = frontY + TURN_CIRCLE <= b.maxY + 1e-6
+  const cyTurn = fitsFront ? frontY + r : b.maxY - r
+  const turnFits = cyTurn - r >= b.minY - 1e-6 && cyTurn + r <= b.maxY + 1e-6
+  return (
+    <g className="ndim-layer">
+      {dims.map((d, i) => {
+        const x1 = d.x1 * SCALE
+        const y1 = d.y1 * SCALE
+        const x2 = d.x2 * SCALE
+        const y2 = d.y2 * SCALE
+        const vert = Math.abs(x2 - x1) < Math.abs(y2 - y1)
+        const mx = (x1 + x2) / 2
+        const my = (y1 + y2) / 2
+        return (
+          <g key={i} className={`ndim ${d.level}`}>
+            <line className="ndim-l" x1={x1} y1={y1} x2={x2} y2={y2} markerStart="url(#ah)" markerEnd="url(#ah)" />
+            <text
+              className="ndim-t"
+              x={mx + (vert ? 8 : 0)}
+              y={my - (vert ? 0 : 5)}
+              fontSize={9.5}
+              textAnchor={vert ? 'start' : 'middle'}
+            >
+              {fmt(d.value)}
+            </text>
+          </g>
+        )
+      })}
+      {turnFits && (
+        <g className="turn-circle">
+          <circle cx={cxTurn * SCALE} cy={cyTurn * SCALE} r={r * SCALE} />
+          <text className="turn-t" x={cxTurn * SCALE} y={cyTurn * SCALE + 3} fontSize={9} textAnchor="middle">
+            giro Ø {fmt(TURN_CIRCLE)}
+          </text>
+        </g>
+      )}
+    </g>
+  )
+}
+
+/**
+ * (#3) Guias de alinhamento durante o arraste: linhas tracejadas rosso
+ * (non-scaling-stroke). Posições/extensões em metros.
+ */
+function Guides({ guides }: { guides: AlignGuide[] }) {
+  return (
+    <g className="guide-layer">
+      {guides.map((gd, i) => {
+        const p = gd.pos * SCALE
+        const a = gd.from * SCALE
+        const z = gd.to * SCALE
+        return gd.orient === 'v' ? (
+          <line key={i} className="align-guide" x1={p} y1={a} x2={p} y2={z} />
+        ) : (
+          <line key={i} className="align-guide" x1={a} y1={p} x2={z} y2={p} />
+        )
+      })}
+    </g>
+  )
+}
+
 /** Marcadores de instalação (elétrica/hidráulica/esgoto/gás/exaustão) por peça. */
 function UtilMarks({ item }: { item: Item }) {
   const u = utilsFor(item.type)
@@ -426,6 +583,9 @@ export function SceneLayers({
   onItemPointerDown,
   onHandleDown,
   onRotate,
+  showCirculation = false,
+  showWorkZones = false,
+  guides,
 }: {
   scene: RestaurantScene
   selectedId: string | null
@@ -435,6 +595,12 @@ export function SceneLayers({
   onItemPointerDown: (e: ReactPointerEvent, it: Item) => void
   onHandleDown: (e: ReactPointerEvent, it: Item, h: Handle) => void
   onRotate: (e: ReactPointerEvent, it: Item) => void
+  /** desenha corridorAnalysis(scene) atrás das peças (padrão: desligado) */
+  showCirculation?: boolean
+  /** desenha workZones de cada peça (faixas translúcidas) (padrão: desligado) */
+  showWorkZones?: boolean
+  /** linhas-guia de alinhamento durante o arraste */
+  guides?: AlignGuide[]
 }) {
   const poly = scene.room.polygon
   const points = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
@@ -459,6 +625,8 @@ export function SceneLayers({
       <Grid poly={poly} clipId="rclip" />
       <FohBoh scene={scene} />
       <Zones scene={scene} />
+      {showCirculation && <Circulation scene={scene} />}
+      {showWorkZones && <WorkZones items={scene.items} />}
       <g className="door-layer">
         {ordered
           .filter((it) => it.type === 'porta')
@@ -485,7 +653,9 @@ export function SceneLayers({
       </g>
       <Cotas scene={scene} />
       {sel && isSolid(sel) && <Clearances item={sel} items={scene.items} poly={poly} />}
+      {sel && isSolid(sel) && <NeighborDims item={sel} items={scene.items} poly={poly} />}
       {sel && <Overlay item={sel} zoom={zoom} onHandleDown={onHandleDown} onRotate={onRotate} />}
+      {guides && guides.length > 0 && <Guides guides={guides} />}
     </>
   )
 }

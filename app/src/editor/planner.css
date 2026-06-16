@@ -205,6 +205,41 @@
 .clr.warn .clr-t { fill: #C97B00; }
 .clr.bad .clr-t { fill: var(--rosso); }
 
+/* ---------- camada #1: circulação na planta inteira ---------- */
+.circ-l { fill: none; stroke-width: 1.4; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.circ.ok .circ-l { stroke: var(--circ-ok, #1F8A5B); }
+.circ.warn .circ-l { stroke: var(--circ-warn, #C97B00); }
+.circ.bad .circ-l { stroke: var(--rosso, #e2000f); }
+.circ-t { font-family: var(--mono, 'IBM Plex Mono', monospace); font-weight: 600; paint-order: stroke; stroke: var(--panna, #f6f1e7); stroke-width: 3; stroke-linejoin: round; }
+.circ.ok .circ-t { fill: var(--circ-ok, #1F8A5B); }
+.circ.warn .circ-t { fill: var(--circ-warn, #C97B00); }
+.circ.bad .circ-t { fill: var(--rosso, #e2000f); }
+
+/* ---------- camada #2: zonas de trabalho / segurança ---------- */
+.wz { pointer-events: none; vector-effect: non-scaling-stroke; }
+.wz-work { fill: rgba(31, 138, 91, 0.08); stroke: rgba(31, 138, 91, 0.45); stroke-width: 0.8; stroke-dasharray: 3 3; }
+.wz-hot { fill: rgba(226, 0, 15, 0.10); stroke: rgba(226, 0, 15, 0.5); stroke-width: 0.8; stroke-dasharray: 3 3; }
+.wz-door { fill: rgba(42, 111, 219, 0.08); stroke: rgba(42, 111, 219, 0.5); stroke-width: 0.8; stroke-dasharray: 3 3; }
+
+/* ---------- camada #4: cotas peça↔vizinho + giro NBR 9050 ---------- */
+.ndim-l { fill: none; stroke-width: 1.1; vector-effect: non-scaling-stroke; }
+.ndim.ok .ndim-l { stroke: var(--circ-ok, #1F8A5B); }
+.ndim.warn .ndim-l { stroke: var(--circ-warn, #C97B00); }
+.ndim.bad .ndim-l { stroke: var(--rosso, #e2000f); }
+.ndim-t { font-family: var(--mono, 'IBM Plex Mono', monospace); font-weight: 700; paint-order: stroke; stroke: var(--panna, #f6f1e7); stroke-width: 3.5; stroke-linejoin: round; }
+.ndim.ok .ndim-t { fill: var(--circ-ok, #1F8A5B); }
+.ndim.warn .ndim-t { fill: var(--circ-warn, #C97B00); }
+.ndim.bad .ndim-t { fill: var(--rosso, #e2000f); }
+.turn-circle circle { fill: rgba(42, 111, 219, 0.06); stroke: var(--turn, #2A6FDB); stroke-width: 1.2; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; }
+.turn-t { font-family: var(--mono, 'IBM Plex Mono', monospace); font-weight: 600; fill: var(--turn, #2A6FDB); paint-order: stroke; stroke: var(--panna, #f6f1e7); stroke-width: 3; stroke-linejoin: round; }
+
+/* ---------- camada #3: guias de alinhamento (arraste) ---------- */
+.align-guide { stroke: var(--rosso, #e2000f); stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; opacity: 0.85; }
+
+/* toggles das camadas de análise (aplicados no #app) */
+#app.hide-circ .circ-layer { display: none; }
+#app.hide-workzones .wz-layer { display: none; }
+
 /* ---------- colisão / conflito de volume ---------- */
 .item.conflict .item-rect, .item.conflict .panel-rect { stroke: var(--rosso); stroke-width: 2.5; }
 .conflict-fill { fill: url(#conflictHatch); pointer-events: none; }
