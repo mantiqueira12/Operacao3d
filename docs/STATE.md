@@ -4,6 +4,26 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Rodada 4 — catálogo & ferramentas + polish do pente-fino — integrada e verde** (typecheck/103
+  testes/build + smoke de runtime: planner/modal/3D montam sem erro). Commit `656cb15`.
+  - **Editor — a dimensão "Catálogo & ferramentas" (única intocada):** modal **Criar equipamento**
+    (`editor/EquipmentModal.tsx`) + **Meus modelos** (`editor/customModels.ts`, StorageAdapter em
+    namespace dedicado `operacao3d-models`); **Parede/Divisor por ARRASTE** (draft + cota viva);
+    **ferramenta Medir** completa; **undo/redo** (Ctrl+Z/Y, pilha de 80 na UI — `useScene` intocado);
+    cores de acento por peça (`catalog.ts` aditivo); cursores por ferramenta; carimbo editável; barra de
+    ocupação animada; grade pontilhada; `@media print`; confirm em ações destrutivas; modal blur/fechar-fora.
+  - **Operação 2D:** banner de alerta (pão esgotado), toast de sync da planta, métricas por limiar em
+    vermelho, transição do re-layout do KDS, switches animados.
+  - **3D:** piso em dupla camada (laje + acabamento) + calçada 3D; sombras PCFSoft afinadas; porta de
+    correr/folha; orientação dos avatares.
+  - **Identidade global:** favicon + título da aba, user-select:none (inputs livres), responsividade,
+    scrollbar custom, focus-ring vermelho, fontes confirmadas.
+- **O que REALMENTE falta agora** (não são mais "regressões visuais", são FEATURES não portadas do
+  protótipo — exigem telas novas, não só CSS/SVG): abas do painel direito (Análise/Cardápio/Vendas),
+  visualização de **fluxo de produção do cardápio**, **viabilidade da padaria** (cartões + pipeline),
+  UI de **Monte Carlo** com progresso, "seguir pedido" (clicar ticket do KDS → foca operador no 2D).
+  Polish menor restante: atalhos de teclado completos do editor (hoje só Ctrl+Z/Y/Esc); conferência 1:1
+  dos marcadores de cota da casca. **E a validação visual do dono em browser real** (`cd app && npm run dev`).
 - **Rodada 3 de paridade visual — integrada e verde** (typecheck/103 testes/build + smoke de runtime).
   Commit `9cba058`.
   - **OPERAÇÃO 3D COM AGENTES ANIMADOS** (une 3D + simulação DES — era o "Próximo #3"): `makePerson`
