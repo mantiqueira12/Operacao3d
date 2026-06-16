@@ -1,8 +1,8 @@
-/* Painel de Operação — reusa os tokens de index.css. */
+/* Painel de Operação — reusa os tokens de index.css (com fallback). */
 
 #simapp {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 312px;
   grid-template-rows: 56px 1fr;
   grid-template-areas: 'top top' 'stage right';
   height: 100vh;
@@ -11,13 +11,13 @@
 #sim-stage { grid-area: stage; }
 #sim-right { grid-area: right; }
 
-/* topbar */
+/* ---------- topbar (chrome escuro premium) ---------- */
 #sim-top {
   display: flex;
   align-items: center;
   gap: 14px;
   padding: 0 16px;
-  background: var(--inch);
+  background: var(--inch, #1A1A1A);
   color: #fff;
   border-bottom: 1px solid #000;
 }
@@ -27,67 +27,148 @@
   font-size: 11.5px; font-weight: 600; padding: 7px 11px; border-radius: 6px;
 }
 #sim-top .tbtn:hover { background: #3a382f; color: #fff; }
-#sim-top .tbtn.play { background: var(--rosso); border-color: var(--rosso); color: #fff; min-width: 110px; justify-content: center; }
-#sim-top .tbtn.play:hover { background: var(--rosso-d); }
-.sim-title { font-size: 12px; letter-spacing: 0.04em; color: #cfcabd; }
-.sim-title b { color: #fff; }
-.sim-clock { font-family: var(--mono); font-size: 18px; font-weight: 700; color: #fff; min-width: 64px; }
-.topspacer { flex: 1; }
-#sim-top .toolgroup { display: flex; align-items: center; gap: 6px; background: #2a2820; border: 1px solid #3a382f; border-radius: 8px; padding: 3px; }
-.sim-lbl { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #b9b3a6; padding-left: 6px; }
-#sim-top select { background: #1a1a1a; color: #fff; border: 1px solid #3a382f; border-radius: 6px; padding: 5px 6px; font-family: var(--mono); font-size: 12px; }
+/* play com estado: rosso quando rodando, escuro quando pausado (play-estado-pausado) */
+#sim-top .tbtn.play { min-width: 116px; justify-content: center; }
+#sim-top .tbtn.play.on { background: var(--rosso, #E2000F); border-color: var(--rosso, #E2000F); color: #fff; }
+#sim-top .tbtn.play.on:hover { background: var(--rosso-d, #B80714); }
+#sim-top .tbtn.play.paused { background: var(--rosso, #E2000F); border-color: var(--rosso, #E2000F); color: #fff; }
+#sim-top .tbtn.play.paused:hover { background: var(--rosso-d, #B80714); }
 
-/* palco */
+.sim-title { font-size: 12px; letter-spacing: 0.04em; color: #cfcabd; white-space: nowrap; }
+.sim-title b { color: #fff; }
+/* relógio grande mono (relogio-grande-mono) */
+.sim-clock {
+  font-family: var(--mono, 'IBM Plex Mono', ui-monospace, Menlo, monospace);
+  font-size: 24px; font-weight: 700; color: #fff; min-width: 76px; letter-spacing: 0.04em;
+}
+.sim-phase {
+  font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #b9b19a;
+  font-weight: 700; padding: 3px 8px; border: 1px solid #3a382f; border-radius: 5px; background: #211f18;
+}
+.topspacer { flex: 1; }
+
+#sim-top .toolgroup { display: flex; align-items: center; gap: 4px; background: #2a2820; border: 1px solid #3a382f; border-radius: 8px; padding: 3px; }
+.sim-lbl { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #b9b3a6; padding: 0 4px; }
+
+/* velocidade segmentada (controles-velocidade-botoes) */
+.spdgroup .spd {
+  padding: 6px 9px; background: transparent; border: 1px solid transparent; color: #b9b3a6;
+  border-radius: 6px; font-size: 11px; font-weight: 700;
+  font-family: var(--mono, 'IBM Plex Mono', ui-monospace, Menlo, monospace);
+}
+.spdgroup .spd:hover { color: #fff; background: #3a382f; }
+.spdgroup .spd.on { background: var(--rosso, #E2000F); border-color: var(--rosso, #E2000F); color: #fff; }
+
+/* ---------- palco (canvas + dock KDS empilhados) ---------- */
 #sim-stage {
   position: relative;
-  background: radial-gradient(circle at 50% 30%, #f1ece1, var(--desk));
+  display: grid;
+  grid-template-rows: 1fr 228px;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
-.sim-svg { width: 100%; height: 100%; }
-.sim-view-empty { color: var(--muted); font-size: 13px; }
-
-.sim-sidewalk { fill: #ece6d8; }
-.sim-shell { fill: #fff; stroke: var(--inch); stroke-width: 0.05; }
-.sim-gate { stroke: var(--rosso); stroke-width: 0.05; stroke-dasharray: 0.18 0.12; }
-.sim-station { stroke: rgba(0, 0, 0, 0.35); stroke-width: 0.015; fill-opacity: 0.5; }
-.sim-station-lbl { fill: #2b2b2b; opacity: 0.55; text-anchor: middle; dominant-baseline: middle; font-family: var(--ui); font-weight: 700; pointer-events: none; }
-.sim-slot-queue { fill: #2A6FDB; opacity: 0.18; }
-.sim-slot-pickup { fill: #1F8A5B; opacity: 0.2; }
-.sim-cust { stroke: rgba(0, 0, 0, 0.25); stroke-width: 0.015; }
-.sim-op { stroke: #fff; stroke-width: 0.03; }
-.sim-op-lbl { fill: #fff; text-anchor: middle; dominant-baseline: middle; font-family: var(--mono); font-weight: 700; pointer-events: none; }
+#sim-stage.collapsed { grid-template-rows: 1fr 42px; }
+.sim-stage-canvas {
+  position: relative;
+  background: radial-gradient(circle at 50% 30%, #f1ece1, var(--desk, #E6E1D5));
+  overflow: hidden;
+  min-height: 0;
+}
+.sim-svg { width: 100%; height: 100%; display: block; }
+.sim-view-empty { color: var(--muted, #9A9284); font-size: 13px; padding: 24px; }
 
 .sim-legend {
   position: absolute; left: 14px; bottom: 12px;
   display: flex; gap: 14px; flex-wrap: wrap;
-  background: rgba(255, 255, 255, 0.86); border: 1px solid var(--line2); border-radius: 8px;
-  padding: 7px 12px; font-size: 11px; color: var(--ink-soft); font-weight: 600;
+  background: rgba(255, 255, 255, 0.86); border: 1px solid var(--line2, #D9D3C4); border-radius: 8px;
+  padding: 7px 12px; font-size: 11px; color: var(--ink-soft, #6F6857); font-weight: 600; z-index: 2;
 }
 .sim-legend span { display: flex; align-items: center; gap: 5px; }
 .sim-legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
 
-/* rail direita */
-#sim-right { background: var(--rail); border-left: 1px solid var(--line2); overflow-y: auto; }
-#sim-right .sec { border-bottom: 1px solid var(--line); }
-#sim-right h3 { margin: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft); padding: 14px 16px 8px; }
+/* textos SVG da vista 2D (ported de operacao.css) */
+.s2-zone { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-weight: 600; fill: var(--muted, #9A9284); letter-spacing: 0.18em; }
+.s2-dim { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); fill: var(--muted, #9A9284); }
+.s2-lab { font-family: var(--ui, 'Manrope', system-ui, sans-serif); font-weight: 700; fill: var(--inch, #1A1A1A); text-anchor: middle; }
+.s2-agent { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-weight: 600; text-anchor: middle; fill: #fff; }
+.s2-status {
+  font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-weight: 600; text-anchor: middle;
+  fill: var(--inch, #1A1A1A); paint-order: stroke; stroke: rgba(255, 255, 255, 0.85); stroke-width: 3px;
+}
+
+/* ===== Monitor KDS — dock escuro inferior (monitor-kds-dock) ===== */
+.kds-dock {
+  background: #15140F; border-top: 2px solid #2E2B20; overflow: hidden;
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.3);
+  display: flex; flex-direction: column; color: #EDE7D7; min-height: 0;
+}
+.kds-dockhead { display: flex; align-items: center; gap: 14px; padding: 7px 14px; border-bottom: 1px solid #2E2B20; flex: 0 0 auto; overflow: hidden; }
+.kds-dock.collapsed .kds-dockhead { border-bottom: none; }
+.kd-title { font-size: 10px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #C9C1AC; white-space: nowrap; }
+.kt-clock { display: flex; align-items: baseline; gap: 8px; }
+.kt-clock span { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 20px; font-weight: 600; color: #fff; }
+.kt-clock em { font-style: normal; font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: #B9B19A; }
+.kt-metrics { display: flex; gap: 7px; flex: 1; overflow: hidden; }
+.km-met { background: #211F18; border: 1px solid #322F25; border-radius: 8px; padding: 5px 11px; text-align: center; min-width: 0; }
+.km-met .v { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 15px; font-weight: 600; color: #fff; line-height: 1.1; white-space: nowrap; }
+.km-met .v.warn { color: var(--rosso, #E2000F); }
+.km-met .l { font-size: 8px; letter-spacing: 0.1em; text-transform: uppercase; color: #9A9382; margin-top: 2px; white-space: nowrap; }
+.km-collapse { background: none; border: 1px solid #3A3629; color: #A89F88; border-radius: 6px; width: 26px; height: 24px; font-size: 12px; flex: 0 0 auto; cursor: pointer; }
+.km-collapse:hover { color: #fff; border-color: #5A5340; }
+
+.kds-cols { flex: 1; display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 1px; background: #2E2B20; min-height: 0; }
+.kds-foh, .kds-boh, .kds-alerts { background: #1C1B14; display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.kds-h { display: flex; align-items: center; justify-content: space-between; padding: 7px 12px; border-bottom: 1px solid #2E2B20; flex: 0 0 auto; gap: 8px; }
+.kds-h span:first-child { font-size: 9px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: #C9C1AC; white-space: nowrap; }
+.kds-h span:last-child { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 9.5px; color: #8E8773; white-space: nowrap; }
+
+.km-body { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; min-height: 0; }
+.km-stat { font-size: 12px; color: #D8D1BD; }
+.km-stat.sub { font-size: 10.5px; color: #9A9382; }
+.km-stat b { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 16px; color: #fff; }
+.km-stat b.pos { color: #58C08A; }
+.km-stat b.neg { color: var(--rosso, #E2000F); }
+.km-boh-stock { font-size: 12px; color: #E7E0CC; display: flex; align-items: center; gap: 8px; }
+.km-boh-stock b { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 18px; color: #fff; }
+.km-boh-bar { flex: 1; height: 6px; background: #34301F; border-radius: 4px; overflow: hidden; }
+.km-boh-bar i { display: block; height: 100%; background: #C79A3E; }
+.km-boh-row { font-size: 11px; color: #C9C1AC; }
+.km-warn { color: #F2A23C; font-size: 10.5px; font-weight: 600; }
+
+/* ---------- rail direita ---------- */
+#sim-right { background: var(--rail, #FBFAF6); border-left: 1px solid var(--line2, #D9D3C4); overflow-y: auto; }
+#sim-right .sec { border-bottom: 1px solid var(--line, #E7E2D5); }
+#sim-right h3 { margin: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.22em; text-transform: uppercase; color: var(--ink-soft, #6F6857); padding: 14px 16px 8px; }
+
+/* chips de cenário (chips-cenario) */
+.sim-chips { display: flex; gap: 5px; flex-wrap: wrap; padding: 0 16px 14px; }
+.sim-chips .chip { background: #fff; border: 1px solid var(--line2, #D9D3C4); border-radius: 14px; padding: 6px 11px; font-size: 10.5px; font-weight: 700; color: var(--inch, #1A1A1A); transition: 0.12s; cursor: pointer; }
+.sim-chips .chip:hover { border-color: var(--rosso, #E2000F); }
+.sim-chips .chip.on { background: var(--inch, #1A1A1A); color: #fff; border-color: var(--inch, #1A1A1A); }
+
+/* toggles de camada (toggles-camadas) — switch estilo protótipo */
+.sim-toggles { display: flex; flex-direction: column; padding: 0 16px 12px; }
+.sim-sw { display: flex; align-items: center; justify-content: space-between; padding: 7px 0; cursor: pointer; background: none; border: none; width: 100%; text-align: left; }
+.sim-sw span:first-child { font-size: 12px; font-weight: 600; color: var(--ink-soft, #6F6857); }
+.sim-toggle { width: 34px; height: 19px; border-radius: 20px; background: #d6cfbe; position: relative; transition: 0.15s; flex: 0 0 auto; }
+.sim-toggle::after { content: ''; position: absolute; top: 2px; left: 2px; width: 15px; height: 15px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); transition: 0.15s; }
+.sim-sw.on .sim-toggle { background: var(--rosso, #E2000F); }
+.sim-sw.on .sim-toggle::after { left: 17px; }
+.sim-sw.on span:first-child { color: var(--inch, #1A1A1A); }
 
 .sim-params { display: flex; flex-direction: column; gap: 9px; padding: 0 16px 4px; }
-.sim-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft); }
-.sim-field select, .sim-field input { width: 92px; padding: 6px 8px; border: 1px solid var(--line2); border-radius: 6px; font-family: var(--mono); font-size: 12px; background: #fff; color: var(--inch); }
-.sim-note { font-size: 10.5px; color: var(--muted); padding: 2px 16px 12px; margin: 0; }
+.sim-field { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; font-weight: 600; color: var(--ink-soft, #6F6857); }
+.sim-field select, .sim-field input { width: 92px; padding: 6px 8px; border: 1px solid var(--line2, #D9D3C4); border-radius: 6px; font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 12px; background: #fff; color: var(--inch, #1A1A1A); }
+.sim-note { font-size: 10.5px; color: var(--muted, #9A9284); padding: 2px 16px 12px; margin: 0; }
 
 .sim-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; padding: 4px 16px 14px; }
 .sim-stat { display: flex; flex-direction: column; gap: 1px; }
-.sim-stat .k { font-size: 10px; color: var(--muted); font-weight: 600; }
-.sim-stat .v { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--inch); }
-.sim-stat .v.green { color: var(--green); }
-.sim-stat .v.red { color: var(--rosso); }
+.sim-stat .k { font-size: 10px; color: var(--muted, #9A9284); font-weight: 600; }
+.sim-stat .v { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); font-size: 15px; font-weight: 700; color: var(--inch, #1A1A1A); }
+.sim-stat .v.green { color: var(--green, #1F8A5B); }
+.sim-stat .v.red { color: var(--rosso, #E2000F); }
 
 .sim-util { padding: 2px 16px 14px; display: flex; flex-direction: column; gap: 7px; }
-.sim-util-row { display: grid; grid-template-columns: 64px 1fr 38px; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--ink-soft); }
-.sim-bar { height: 7px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.sim-util-row { display: grid; grid-template-columns: 64px 1fr 38px; align-items: center; gap: 8px; font-size: 11px; font-weight: 600; color: var(--ink-soft, #6F6857); }
+.sim-bar { height: 7px; background: var(--line, #E7E2D5); border-radius: 4px; overflow: hidden; }
 .sim-bar i { display: block; height: 100%; border-radius: 4px; transition: width 0.2s; }
-.sim-util-v { font-family: var(--mono); text-align: right; }
+.sim-util-v { font-family: var(--mono, 'IBM Plex Mono', ui-monospace, monospace); text-align: right; }

@@ -5,6 +5,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { collisionSet, loja206Scene, topOf, type RestaurantScene } from '../domain'
 import { createStorage } from '../storage'
+import { baseConfig } from '../sim/defaults'
+import { sceneToSimItems } from '../sim/adapter'
+import { useSimWorker } from '../sim-ui/useSimWorker'
+import type { SimConfig } from '../sim/types'
 import Scene3D, { type CamPreset, type Finish3D, type Scene3DHandle } from './Scene3D'
 import type { FloorKind, WallKind } from './props3d'
 import './view3d.css'
@@ -59,10 +63,23 @@ function loadPrefs(): Prefs {
   return DEFAULT_PREFS
 }
 
+const OP_SPEED = 120 // velocidade da operação 3D (× tempo real)
+
+/** Minutos simulados → relógio HH:MM. */
+const opClock = (min: number) => {
+  const h = Math.floor(min / 60)
+  const m = Math.floor(min % 60)
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export default function View3D({ onClose }: { onClose: () => void }) {
   const [scene, setScene] = useState<RestaurantScene | null>(null)
   const [prefs, setPrefs] = useState<Prefs>(() => loadPrefs())
   const sceneRef = useRef<Scene3DHandle | null>(null)
+  // modo "Operação 3D": liga a simulação (avatares animados) sobre o layout
+  const [opMode, setOpMode] = useState(false)
+  const [showLabels, setShowLabels] = useState(true)
+  const [showTrails, setShowTrails] = useState(true)
 
   // persiste preferências de visualização (acabamentos/camadas)
   useEffect(() => {
@@ -112,6 +129,23 @@ export default function View3D({ onClose }: { onClose: () => void }) {
     [scene],
   )
 
+  // --- Operação 3D: mesma simulação (Web Worker) da tela 2D, frames p/ avatares ---
+  // só alimenta itens ao worker quando o modo operação está ligado (evita custo à toa)
+  const simItems = useMemo(
+    () => (opMode && scene ? sceneToSimItems(scene) : null),
+    [opMode, scene],
+  )
+  const simConfig = useMemo<SimConfig>(() => baseConfig(), [])
+  const sim = useSimWorker(simItems, simConfig)
+  const playing = sim.status === 'playing'
+
+  // ao entrar no modo operação, começa a tocar; ao sair, pausa
+  useEffect(() => {
+    if (opMode) sim.start(OP_SPEED)
+    else sim.pause()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [opMode])
+
   const info = useMemo(() => {
     if (!scene) return null
     const pieces = scene.items.filter((i) => i.type !== 'porta' && i.type !== 'extintor' && i.type !== 'wall' && i.type !== 'painel')
@@ -142,6 +176,13 @@ export default function View3D({ onClose }: { onClose: () => void }) {
         )}
         <div className="toolgroup">
           <button
+            className={`tbtn${opMode ? ' active' : ''}`}
+            onClick={() => setOpMode((v) => !v)}
+            title="Ver a operação em 3D — clientes e operadores andando no layout"
+          >
+            {opMode ? '❚❚ Operação 3D' : '▸ Operação 3D'}
+          </button>
+          <button
             className={`tbtn${prefs.transparent ? ' active' : ''}`}
             onClick={() => setPrefs((p) => ({ ...p, transparent: !p.transparent }))}
             title="Paredes translúcidas (alternativa ao dollhouse)"
@@ -162,6 +203,9 @@ export default function View3D({ onClose }: { onClose: () => void }) {
             fog={prefs.fog}
             finish={prefs.finish}
             collisions={collisions}
+            frame={opMode ? sim.frame : null}
+            showLabels={showLabels}
+            showTrails={showTrails}
           />
         ) : (
           <div className="v3d-empty">Carregando cena…</div>
@@ -175,6 +219,38 @@ export default function View3D({ onClose }: { onClose: () => void }) {
             </button>
           ))}
         </div>
+
+        {/* barra da operação 3D (avatares animados) */}
+        {opMode && (
+          <div className="v3d-op">
+            <span className="v3d-op-clock">{opClock(sim.frame ? sim.frame.simTime : 10 * 60)}</span>
+            <button
+              className="v3d-seg-btn"
+              onClick={() => (playing ? sim.pause() : sim.start(OP_SPEED))}
+              title="Reproduzir / pausar a operação"
+            >
+              {playing ? '❚❚' : '▸'}
+            </button>
+            <button className="v3d-seg-btn" onClick={() => sim.reset()} title="Reiniciar o dia">
+              ⟲
+            </button>
+            <span className="v3d-op-sep" />
+            <button
+              className={`v3d-seg-btn${showLabels ? ' active' : ''}`}
+              onClick={() => setShowLabels((v) => !v)}
+              title="Rótulos dos operadores (tag/status)"
+            >
+              Rótulos
+            </button>
+            <button
+              className={`v3d-seg-btn${showTrails ? ' active' : ''}`}
+              onClick={() => setShowTrails((v) => !v)}
+              title="Trilhas (rastros) dos operadores"
+            >
+              Trilhas
+            </button>
+          </div>
+        )}
 
         {/* painel de acabamentos + camadas */}
         <div className="v3d-fin">

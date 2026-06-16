@@ -32,8 +32,52 @@
 .v3d-info span.warn { color: #ff9a9a; font-weight: 700; }
 
 #v3d-stage { position: relative; overflow: hidden; background: #e9e4d8; }
+.scene3d-wrap { position: relative; width: 100%; height: 100%; }
 .scene3d-host { width: 100%; height: 100%; }
 .scene3d-host canvas { display: block; }
+
+/* overlay HTML dos rótulos de operador (projetados sobre o canvas) */
+.scene3d-labels {
+  position: absolute; inset: 0; overflow: hidden; pointer-events: none;
+}
+.s3-lbl {
+  position: absolute; transform: translate(-50%, -100%);
+  white-space: nowrap; pointer-events: none;
+  font-family: var(--ui, Manrope, system-ui, sans-serif);
+  font-size: 10.5px; font-weight: 700; letter-spacing: 0.01em;
+  padding: 2px 7px; border-radius: 7px;
+  background: rgba(28, 26, 20, 0.86); color: #f2ecdd;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+}
+/* anel/borda por estado (port das classes busy/wait de sim-3d.js) */
+.s3-lbl.s3-op.busy { background: var(--rosso, #e2000f); border-color: #ff6b74; color: #fff; }
+.s3-lbl.s3-op.wait { background: #b8860b; border-color: #f0c64a; color: #fff; }
+
+/* barra de controle da operação 3D (avatares animados) */
+.v3d-op {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(28, 26, 20, 0.9); border: 1px solid #3a382f; border-radius: 10px;
+  padding: 5px 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+.v3d-op-clock {
+  font-family: var(--mono, 'IBM Plex Mono', monospace); font-size: 13px; font-weight: 700;
+  color: #f2ecdd; padding: 0 6px 0 2px; letter-spacing: 0.02em;
+}
+.v3d-op-sep { width: 1px; height: 18px; background: #3a382f; margin: 0 2px; }
+
+/* botões de segmento/chip reusados pela vista 3D (presets, acabamentos, operação).
+   Estilo enxuto com tokens + fallback; sem ele, os botões herdariam o default do browser. */
+.v3d-seg-btn,
+.v3d-chip {
+  background: #2a2820; border: 1px solid #3a382f; color: #d9d4c7;
+  font-family: var(--ui, Manrope, system-ui, sans-serif);
+  font-size: 11px; font-weight: 600; padding: 5px 10px; border-radius: 6px; cursor: pointer;
+}
+.v3d-seg-btn:hover,
+.v3d-chip:hover { background: #3a382f; color: #fff; }
+.v3d-seg-btn.active { background: var(--rosso, #e2000f); border-color: var(--rosso, #e2000f); color: #fff; }
 .v3d-empty { display: flex; align-items: center; justify-content: center; height: 100%; color: var(--muted); font-size: 13px; }
 .v3d-hint {
   position: absolute; left: 14px; bottom: 12px;

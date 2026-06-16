@@ -500,3 +500,62 @@ export function buildProp(
   })
   return g
 }
+
+/* ---------- pessoa (avatar articulado, port de sim-3d.js:makePerson) ----------
+   Boneco simples: pernas/torso/braços/cabeça/cabelo (+ avental vermelho p/ operador).
+   O material da camisa fica em `userData.shirtMat` para recolorir clientes por estado
+   sem recriar a malha. Centrado em X/Z, pés no piso (y: 0..~1.66). */
+export interface PersonOpts {
+  shirt: number
+  pants: number
+  hair?: number
+  apron?: boolean
+}
+
+export interface PersonGroup extends THREE.Group {
+  userData: { shirtMat: THREE.MeshLambertMaterial }
+}
+
+function lambert(color: number): THREE.MeshLambertMaterial {
+  return new THREE.MeshLambertMaterial({ color })
+}
+
+export function makePerson(o: PersonOpts): PersonGroup {
+  const g = new THREE.Group() as PersonGroup
+  const add = (mesh: THREE.Mesh, x: number, y: number, z: number) => {
+    mesh.position.set(x, y, z)
+    mesh.castShadow = true
+    g.add(mesh)
+    return mesh
+  }
+  const skin = lambert(0xd9b38c)
+  const shirt = lambert(o.shirt)
+  const pants = lambert(o.pants)
+  // pernas
+  ;[-0.07, 0.07].forEach((x) => add(new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.06, 0.82, 8), pants), x, 0.41, 0))
+  // torso
+  add(new THREE.Mesh(new THREE.CylinderGeometry(0.125, 0.15, 0.58, 10), shirt), 0, 1.11, 0)
+  // braços
+  ;[-0.185, 0.185].forEach((x) => {
+    const a = add(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.52, 6), shirt), x, 1.1, 0)
+    a.rotation.z = x < 0 ? 0.12 : -0.12
+  })
+  // cabeça + cabelo
+  add(new THREE.Mesh(new THREE.SphereGeometry(0.105, 12, 10), skin), 0, 1.53, 0)
+  add(new THREE.Mesh(new THREE.SphereGeometry(0.108, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), lambert(o.hair ?? 0x3a2e24)), 0, 1.555, 0)
+  // avental vermelho (operador)
+  if (o.apron) add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.46, 0.02), lambert(0xe2000f)), 0, 1.0, 0.155)
+  g.userData = { shirtMat: shirt }
+  return g
+}
+
+/* Cores das camisas dos operadores (port de sim-3d.js:OP_COLORS). */
+export const OP_AVATAR_COLORS = [0x2a6fdb, 0x1f8a5b, 0x8e44ad, 0x0e8a8a] as const
+/* Cor da camisa do cliente por estado (port de sim-3d.js:CUST_COL). */
+export const CUST_STATE_COLORS: Record<string, number> = {
+  waiting: 0xc0392b,
+  at_pdv: 0x1f8a5b,
+  waiting_pickup: 0x2a6fdb,
+  entering: 0x6e7b8b,
+  leaving: 0x9a9284,
+}

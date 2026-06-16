@@ -5,13 +5,21 @@
 
    Convenção de unidades: o mundo é desenhado em PIXELS (1 px = 0,01 m, SCALE=100), idêntico
    ao protótipo — assim as constantes de espessura/fonte/marcadores batem 1:1. O viewBox é
-   calculado em px e um <g> raiz não escala; strokes usam non-scaling-stroke onde precisa. */
+   calculado em px e um <g> raiz não escala; strokes usam non-scaling-stroke onde precisa.
 
-import { useMemo, useRef } from 'react'
+   Overlays derivados no CLIENTE (sem tocar no motor DES):
+   - heatmap: grid de ocupação acumulado dos frames, rampa laranja→vermelho (toggle).
+   - zoom/pan/autofit: transform de view no <g> mundo (arraste = pan, roda = zoom no cursor). */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { EnrichedFrame, EnrichedFrameOperator, EnrichedScene } from '../sim/worker-core'
 
 const SCALE = 100
 const px = (m: number) => m * SCALE
+
+/** Heatmap: célula de 0,10 m e deslocamento vertical (espelha sim-core: OUT.y1+0.2 / y+0.2). */
+const HEAT_CELL = 0.1
+const HEAT_YOFF = 0.2
 
 /** Tokens com fallback (o agente de tokens roda em paralelo). */
 const C = {
@@ -27,10 +35,18 @@ const C = {
 export interface LayerToggles {
   trails: boolean
   labels: boolean
+  heatmap: boolean
 }
 
 /** Histórico de posições por operador, acumulado no cliente para as trilhas. */
 export type OpTrails = Map<number, Array<{ x: number; y: number }>>
+
+/** Estado de zoom/pan da vista (transform do <g> mundo). */
+interface ViewState {
+  zoom: number
+  panX: number
+  panY: number
+}
 
 /** Cor do cliente por estado/impaciência (cálculo no view, dados do snapshot). */
 function custColor(c: EnrichedFrame['customers'][number], simTime: number, tol: number, pickupTimeout: number): { fill: string; opacity: number } {
@@ -72,10 +88,17 @@ function wrapLabel(str: string): string[] {
   return lines
 }
 
+/* Dimensões do grid de heatmap a partir da calçada (OUT). Espelha sim-core:384-386. */
+function heatDims(out: { x0: number; x1: number; y1: number }) {
+  const hw = Math.max(1, Math.ceil((out.x1 - out.x0) / HEAT_CELL))
+  const hh = Math.max(1, Math.ceil((out.y1 + HEAT_YOFF) / HEAT_CELL))
+  return { hw, hh }
+}
+
 export default function SimView({
   scene,
   frame,
-  layers = { trails: true, labels: true },
+  layers = { trails: true, labels: true, heatmap: false },
   trails,
 }: {
   scene: EnrichedScene | null
@@ -100,6 +123,117 @@ export default function SimView({
   const idRef = useRef(0)
   idRef.current = 0
 
+  /* ---- heatmap: grid de ocupação acumulado dos frames (overlay derivado no cliente) ----
+     A cada frame somamos a ocupação no grid (ref) e recomputamos as células pintadas para
+     o estado, que só renderizam quando a camada está ligada. Reinicia ao trocar de cena. */
+  type HeatCell = { x: number; y: number; fill: string }
+  const heatRef = useRef<Float32Array | null>(null)
+  const [heatCellsState, setHeatCellsState] = useState<HeatCell[]>([])
+  useEffect(() => {
+    heatRef.current = null
+    setHeatCellsState([])
+  }, [scene])
+  useEffect(() => {
+    if (!scene || !frame) return
+    const out = scene.room.out
+    const { hw, hh } = heatDims(out)
+    if (!heatRef.current || heatRef.current.length !== hw * hh) heatRef.current = new Float32Array(hw * hh)
+    const heat = heatRef.current
+    const add = (x: number, y: number, v: number) => {
+      const gx = Math.floor((x - out.x0) / HEAT_CELL)
+      const gy = Math.floor((y + HEAT_YOFF) / HEAT_CELL)
+      if (gx >= 0 && gx < hw && gy >= 0 && gy < hh) heat[gx + gy * hw] += v
+    }
+    frame.customers.forEach((c) => add(c.x, c.y, 1))
+    frame.operators.forEach((o) => add(o.x, o.y, 1.4))
+    // normaliza e pinta (rampa laranja→vermelho), espelhando renderHeat do protótipo
+    let max = 0
+    for (let i = 0; i < heat.length; i++) if (heat[i] > max) max = heat[i]
+    if (max <= 0) {
+      setHeatCellsState([])
+      return
+    }
+    const cells: HeatCell[] = []
+    for (let gy = 0; gy < hh; gy++) {
+      for (let gx = 0; gx < hw; gx++) {
+        const v = heat[gx + gy * hw]
+        if (v < max * 0.04) continue
+        const t = Math.min(1, v / max)
+        const fill = t < 0.5 ? `rgba(242,162,60,${(0.1 + t * 0.5).toFixed(3)})` : `rgba(226,0,15,${(0.12 + t * 0.45).toFixed(3)})`
+        cells.push({ x: out.x0 + gx * HEAT_CELL, y: gy * HEAT_CELL - HEAT_YOFF, fill })
+      }
+    }
+    setHeatCellsState(cells)
+  }, [frame, scene])
+  const heatCells = layers.heatmap && heatCellsState.length ? heatCellsState : null
+
+  /* ---- zoom / pan / autofit (transform de view no <g> mundo) ---- */
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [view, setView] = useState<ViewState | null>(null)
+  const dragRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
+  // enquanto o usuário não arrasta/zooma, o auto-fit pode reagir a resize/cena
+  const userMovedRef = useRef(false)
+
+  // fit do conteúdo no bounding box (espelha fit() do protótipo)
+  const fit = useRef<() => void>(() => {})
+  fit.current = () => {
+    if (!scene || !svgRef.current) return
+    const out = scene.room.out
+    const minX = out.x0 - 0.2
+    const minY = -0.3
+    const cw = px(out.x1 + 0.2 - minX)
+    const ch = px(out.y1 + 0.2 - minY)
+    const r = svgRef.current.getBoundingClientRect()
+    if (r.width < 10 || r.height < 10) return
+    const z = Math.min(r.width / cw, r.height / ch) * 0.96
+    setView({
+      zoom: z,
+      panX: (r.width - cw * z) / 2 - px(minX) * z,
+      panY: (r.height - ch * z) / 2 - px(minY) * z,
+    })
+  }
+
+  // auto-fit ao trocar de cena e ao redimensionar (enquanto não houver pan/zoom manual)
+  useEffect(() => {
+    if (!scene) return
+    userMovedRef.current = false
+    fit.current()
+    const el = svgRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      if (!userMovedRef.current) fit.current()
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [scene])
+
+  const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
+    if (!view) return
+    dragRef.current = { x: e.clientX, y: e.clientY, panX: view.panX, panY: view.panY }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
+    const d = dragRef.current
+    if (!d) return
+    userMovedRef.current = true
+    setView((v) => (v ? { ...v, panX: d.panX + (e.clientX - d.x), panY: d.panY + (e.clientY - d.y) } : v))
+  }
+  const onPointerUp = () => {
+    dragRef.current = null
+  }
+  const onWheel = (e: React.WheelEvent<SVGSVGElement>) => {
+    if (!view || !svgRef.current) return
+    userMovedRef.current = true
+    const r = svgRef.current.getBoundingClientRect()
+    const cx = e.clientX - r.left
+    const cy = e.clientY - r.top
+    const f = e.deltaY < 0 ? 1.1 : 1 / 1.1
+    const nz = Math.max(0.25, Math.min(4, view.zoom * f))
+    const wx = (cx - view.panX) / view.zoom
+    const wy = (cy - view.panY) / view.zoom
+    setView({ zoom: nz, panX: cx - wx * nz, panY: cy - wy * nz })
+  }
+
   if (!scene) return <div className="sim-view-empty">Inicializando cenário…</div>
 
   const simTime = frame?.simTime ?? scene.room.gate * 0 + 600
@@ -110,89 +244,122 @@ export default function SimView({
   const qSlots = scene.queueSlots
   const lastQ = qSlots[Math.min(q - 1, qSlots.length - 1)]
 
+  // O <g> mundo aplica o transform de view (pan/zoom em px de tela) por cima do conteúdo.
+  const worldTransform = view
+    ? `translate(${view.panX},${view.panY}) scale(${view.zoom})`
+    : undefined
+  // com view (px de tela) não há viewBox: o transform cuida de escala + enquadre.
+  const useScreenSpace = !!view
+
   return (
-    <svg className="sim-svg" viewBox={vb} preserveAspectRatio="xMidYMid meet">
-      {staticLayer}
+    <svg
+      ref={svgRef}
+      className="sim-svg"
+      viewBox={useScreenSpace ? undefined : vb}
+      preserveAspectRatio={useScreenSpace ? undefined : 'xMidYMid meet'}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      onWheel={onWheel}
+      style={useScreenSpace ? { touchAction: 'none', cursor: dragRef.current ? 'grabbing' : 'grab' } : undefined}
+    >
+      {/* <g> mundo: o transform de view embute escala + pan (que já compensa o minX/minY,
+          igual ao applyView/fit do protótipo). Sem view (1º paint), o viewBox cuida do enquadre. */}
+      <g transform={worldTransform}>
+        <g>
+          {staticLayer}
 
-      {/* zona da fila destacada quando longa (verde/amarelo/vermelho) */}
-      {q > 0 && lastQ && (
-        <rect
-          x={px(OUT.x0 + 0.1)}
-          y={px(GATE + 0.18)}
-          width={px(OUT.x1 - OUT.x0 - 0.2)}
-          height={px(Math.max(0.55, lastQ.y - GATE + 0.3))}
-          rx={6}
-          fill={q > 10 ? 'rgba(226,0,15,0.10)' : q > 5 ? 'rgba(210,153,34,0.10)' : 'rgba(31,138,91,0.07)'}
-        />
-      )}
+          {/* heatmap de circulação (overlay derivado, abaixo dos agentes) */}
+          {heatCells && (
+            <g className="s2-heat">
+              {heatCells.map((c, i) => (
+                <rect key={`h${i}`} x={px(c.x)} y={px(c.y)} width={px(HEAT_CELL)} height={px(HEAT_CELL)} fill={c.fill} />
+              ))}
+            </g>
+          )}
 
-      {/* trilhas dos operadores (overlay derivado no cliente) */}
-      {layers.trails &&
-        trails &&
-        frame?.operators.map((o) => {
-          const t = trails.get(o.idx)
-          if (!t || t.length < 2) return null
-          const d = 'M' + t.map((p) => `${px(p.x)},${px(p.y)}`).join(' L')
-          return (
-            <path
-              key={`tr${o.idx}`}
-              d={d}
-              fill="none"
-              stroke={o.color}
-              strokeWidth={1.6}
-              opacity={0.4}
-              strokeLinejoin="round"
-              vectorEffect="non-scaling-stroke"
+          {/* zona da fila destacada quando longa (verde/amarelo/vermelho) */}
+          {q > 0 && lastQ && (
+            <rect
+              x={px(OUT.x0 + 0.1)}
+              y={px(GATE + 0.18)}
+              width={px(OUT.x1 - OUT.x0 - 0.2)}
+              height={px(Math.max(0.55, lastQ.y - GATE + 0.3))}
+              rx={6}
+              fill={q > 10 ? 'rgba(226,0,15,0.10)' : q > 5 ? 'rgba(210,153,34,0.10)' : 'rgba(31,138,91,0.07)'}
             />
-          )
-        })}
+          )}
 
-      {/* clientes */}
-      {frame?.customers.map((c) => {
-        const { fill, opacity } = custColor(c, simTime, tol, pickupTimeout)
-        return (
-          <g key={`c${c.id}`} transform={`translate(${px(c.x)},${px(c.y)})`}>
-            <circle r={12} fill={fill} opacity={opacity} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
-            {c.orderNum != null && c.state === 'waiting_pickup' && (
-              <text y={3.4} className="s2-agent" fontSize={9}>
-                #{c.orderNum}
-              </text>
-            )}
-          </g>
-        )
-      })}
+          {/* trilhas dos operadores (overlay derivado no cliente) */}
+          {layers.trails &&
+            trails &&
+            frame?.operators.map((op) => {
+              const t = trails.get(op.idx)
+              if (!t || t.length < 2) return null
+              const d = 'M' + t.map((p) => `${px(p.x)},${px(p.y)}`).join(' L')
+              return (
+                <path
+                  key={`tr${op.idx}`}
+                  d={d}
+                  fill="none"
+                  stroke={op.color}
+                  strokeWidth={1.6}
+                  opacity={0.4}
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              )
+            })}
 
-      {/* operadores */}
-      {frame?.operators.map((o, i) => {
-        const ring = opRing(o)
-        const tag = o.tag || 'O' + (i + 1)
-        return (
-          <g key={`o${o.idx}`} transform={`translate(${px(o.x)},${px(o.y)})`}>
-            <circle r={15} fill={o.color} stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <circle r={19} fill="none" stroke={ring} strokeWidth={2} opacity={0.85} vectorEffect="non-scaling-stroke" />
-            <text y={4} className="s2-agent" fontSize={11} fill="#fff">
-              {tag}
-            </text>
-            {/* balão de carga (carrying) */}
-            {o.carrying && (
-              <rect x={10} y={-22} width={13} height={9} rx={2} fill="#C0763A" stroke="#7c4a1d" strokeWidth={1} vectorEffect="non-scaling-stroke" />
-            )}
-            {/* tag FIXO quando preso a uma estação */}
-            {o.fixedEq && (
-              <g>
-                <rect x={-24} y={-30} width={18} height={11} rx={2} fill="#D2691E" />
-                <text x={-15} y={-21.5} className="s2-agent" fontSize={7.5} fill="#fff">
-                  FIXO
+          {/* clientes */}
+          {frame?.customers.map((c) => {
+            const { fill, opacity } = custColor(c, simTime, tol, pickupTimeout)
+            return (
+              <g key={`c${c.id}`} transform={`translate(${px(c.x)},${px(c.y)})`}>
+                <circle r={12} fill={fill} opacity={opacity} stroke="#fff" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+                {c.orderNum != null && c.state === 'waiting_pickup' && (
+                  <text y={3.4} className="s2-agent" fontSize={9}>
+                    #{c.orderNum}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+
+          {/* operadores */}
+          {frame?.operators.map((op, i) => {
+            const ring = opRing(op)
+            const tag = op.tag || 'O' + (i + 1)
+            return (
+              <g key={`o${op.idx}`} transform={`translate(${px(op.x)},${px(op.y)})`}>
+                <circle r={15} fill={op.color} stroke="#fff" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                <circle r={19} fill="none" stroke={ring} strokeWidth={2} opacity={0.85} vectorEffect="non-scaling-stroke" />
+                <text y={4} className="s2-agent" fontSize={11} fill="#fff">
+                  {tag}
+                </text>
+                {/* balão de carga (carrying) */}
+                {op.carrying && (
+                  <rect x={10} y={-22} width={13} height={9} rx={2} fill="#C0763A" stroke="#7c4a1d" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+                )}
+                {/* tag FIXO quando preso a uma estação */}
+                {op.fixedEq && (
+                  <g>
+                    <rect x={-24} y={-30} width={18} height={11} rx={2} fill="#D2691E" />
+                    <text x={-15} y={-21.5} className="s2-agent" fontSize={7.5} fill="#fff">
+                      FIXO
+                    </text>
+                  </g>
+                )}
+                {/* status flutuante (texto acima do disco, com halo branco) */}
+                <text y={-22} className="s2-status" fontSize={9.5}>
+                  {'O' + (i + 1) + ' · ' + op.statusText}
                 </text>
               </g>
-            )}
-            {/* status flutuante (texto acima do disco, com halo branco) */}
-            <text y={-22} className="s2-status" fontSize={9.5}>
-              {'O' + (i + 1) + ' · ' + o.statusText}
-            </text>
-          </g>
-        )
-      })}
+            )
+          })}
+        </g>
+      </g>
     </svg>
   )
 }

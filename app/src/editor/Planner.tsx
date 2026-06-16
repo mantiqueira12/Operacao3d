@@ -52,6 +52,9 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const [layers, setLayers] = useState({ cotas: true, items: true, zones: true, fohboh: true, grid: true, utils: true })
   const [measure, setMeasure] = useState<{ a: { x: number; y: number } | null; b: { x: number; y: number } | null }>({ a: null, b: null })
   const [showSchedule, setShowSchedule] = useState(false)
+  // Readout vivo: x/y do cursor em metros (sem drag) e info da peça em arraste
+  const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null)
+  const [dragInfo, setDragInfo] = useState<{ name: string; w: number; h: number } | null>(null)
 
   const scene = ed.scene
 
@@ -134,14 +137,24 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
 
   function onMove(e: ReactPointerEvent) {
     const d = drag.current
-    if (!d) return
+    if (!d) {
+      // Sem drag: rastreia x/y do cursor em metros (faixa útil da casca)
+      const m = toWorld(e.clientX, e.clientY)
+      if (m.x >= -0.2 && m.x <= 2.8 && m.y >= -0.2 && m.y <= 5.35) {
+        setCursor({ x: Math.max(0, m.x), y: Math.max(0, m.y) })
+      }
+      return
+    }
     if (d.kind === 'pan') {
       setView((v) => ({ ...v, panX: d.px + (e.clientX - d.sx), panY: d.py + (e.clientY - d.sy) }))
       return
     }
     const m = toWorld(e.clientX, e.clientY)
     if (d.kind === 'move') {
-      ed.moveItem(d.id, snapV(m.x - d.off.x), snapV(m.y - d.off.y))
+      const x = snapV(m.x - d.off.x), y = snapV(m.y - d.off.y)
+      ed.moveItem(d.id, x, y)
+      const it = scene!.items.find((i) => i.id === d.id)
+      if (it) setDragInfo({ name: it.name, w: it.width, h: it.depth })
       return
     }
     // resize
@@ -158,11 +171,16 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
     const b = { minX: Math.min(...scene!.room.polygon.map((p) => p[0])), minY: Math.min(...scene!.room.polygon.map((p) => p[1])), maxX: Math.max(...scene!.room.polygon.map((p) => p[0])), maxY: Math.max(...scene!.room.polygon.map((p) => p[1])) }
     const c = clampPosition(x, y, width, depth, b)
     ed.patchItem(d.id, { x: c.x, y: c.y, width, depth })
+    setDragInfo({ name: it.name, w: width, h: depth })
   }
 
   function onUp(e: ReactPointerEvent) {
-    if (drag.current) svgRef.current?.releasePointerCapture(e.pointerId)
+    // libera a captura com guarda: o estado do drag deve sempre zerar
+    if (drag.current) {
+      try { svgRef.current?.releasePointerCapture(e.pointerId) } catch { /* sem captura ativa */ }
+    }
     drag.current = null
+    setDragInfo(null)
   }
 
   function onWheel(e: ReactWheelEvent) {
@@ -211,6 +229,19 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const free = Math.max(0, area - occupied)
   const pct = area > 0 ? Math.round((occupied / area) * 100) : 0
   const tb = scene.titleBlock
+
+  // Miniescala: cada barra = `scaleStep` m em px reais (= SCALE*zoom*step).
+  // Escolhe um passo "redondo" (0,5/1/2/5 m) p/ a barra ficar ~44–88 px em qualquer zoom; o rótulo segue o passo.
+  const pxPerM = SCALE * view.zoom
+  const niceSteps = [0.25, 0.5, 1, 2, 5, 10]
+  const scaleStep = niceSteps.find((s) => s * pxPerM >= 42) ?? niceSteps[niceSteps.length - 1]
+  const barPx = scaleStep * pxPerM
+  // Rótulo da régua: 0 — 1·passo — 2·passo (em metros, com vírgula)
+  const scaleLabel = `0 — ${fmt(scaleStep)} — ${fmt(scaleStep * 2)} m`
+
+  // Texto do readout (sem arraste): x/y do cursor ao vivo; recai na peça selecionada ou 0,00
+  const roX = cursor ? fmt(cursor.x) : sel ? fmt(sel.x) : '0,00'
+  const roY = cursor ? fmt(cursor.y) : sel ? fmt(sel.y) : '0,00'
 
   const appCls = [
     !layers.cotas && 'hide-cotas',
@@ -287,6 +318,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           onPointerDown={onBgDown}
           onPointerMove={onMove}
           onPointerUp={onUp}
+          onPointerLeave={() => { if (!drag.current) setCursor(null) }}
           onWheel={onWheel}
         >
           <g ref={worldRef} transform={`translate(${view.panX},${view.panY}) scale(${view.zoom})`}>
@@ -310,15 +342,21 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
             )}
           </g>
         </svg>
-        <div className="readout">
-          <span>x <b>{sel ? fmt(sel.x) : '0,00'}</b></span>
-          <span>y <b>{sel ? fmt(sel.y) : '0,00'}</b></span>
-          <span><b>{fmt(area)} m²</b> · escala 1:50</span>
+        <div className={`readout${dragInfo ? ' live' : ''}`}>
+          {dragInfo ? (
+            <span className="ro-info"><b>{dragInfo.name}</b> · {fmt(dragInfo.w)}×{fmt(dragInfo.h)} m</span>
+          ) : (
+            <>
+              <span>x <b>{roX}</b></span>
+              <span>y <b>{roY}</b></span>
+              <span className="ro-area"><b>{fmt(area)} m²</b> · escala 1:50</span>
+            </>
+          )}
         </div>
         <div className="hintbar">Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan</div>
         <div className="miniscale">
-          <div className="sb"><i className="f" style={{ width: SCALE * view.zoom }} /><i style={{ width: SCALE * view.zoom }} /></div>
-          <div>0 — 1 — 2 m</div>
+          <div className="sb"><i className="f" style={{ width: barPx }} /><i style={{ width: barPx }} /></div>
+          <div>{scaleLabel}</div>
         </div>
       </main>
 
