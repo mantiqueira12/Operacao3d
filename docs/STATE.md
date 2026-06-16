@@ -4,6 +4,22 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Planta 2D nível arquiteto + correção da "parede grossa".** Commits `5871449`, `8c9e04d`, `1ce957f`.
+  - **Bug relatado (parede grossa com objeto "por cima"):** a parede da sala era um stroke de 15px
+    non-scaling CENTRADO no contorno interno → metade entrava na sala e cobria peças encostadas. Virou
+    **poché de espessura real (0,12 m) POR FORA do polígono** (face interna = limite da sala). Também
+    corrigidas **2 sobreposições reais do template** Loja 206 (forno×estoque, montagem×painel) → cena
+    padrão valida "✓ Sem sobreposições".
+  - **5 recursos de arquiteto (via contrato de API, 3 agentes):** (1) camada de **circulação** colorida
+    por largura; (2) **zonas de trabalho/segurança** translúcidas (work 0,90 / hot do forno 0,40 / porta
+    0,60); (3) **snap inteligente + guias de alinhamento** ao mover/redimensionar; (4) **cotas peça↔vizinho/
+    parede** + **giro NBR 9050 Ø1,50 m** ao selecionar; (5) **painel de Conformidade** (CVS 5/2013 +
+    NBR 9050 + NR-13/NBR 14518) com normas citadas e itens clicáveis. + botão **"Restaurar cena padrão"**.
+  - Lógica pura e testada em `domain/spatial.ts` (corridorAnalysis, workZones, dimsToNeighbors,
+    complianceChecks; thresholds `CIRC_*`/`TURN_CIRCLE`/`CORRIDOR_FLOOR` exportados p/ calibração).
+    **125 testes** (+22), build verde, smoke de runtime OK. Achados reais p/ Loja 206: ~10 passagens
+    estreitas <0,60 m, forno sem afastamento, giro FOH Ø1,30<1,50.
+  - Calibração: vãos <0,20 m = adjacência (não viram alarme falso de corredor); textos em pt-BR (vírgula).
 - **Rodada 4 — catálogo & ferramentas + polish do pente-fino — integrada e verde** (typecheck/103
   testes/build + smoke de runtime: planner/modal/3D montam sem erro). Commit `656cb15`.
   - **Editor — a dimensão "Catálogo & ferramentas" (única intocada):** modal **Criar equipamento**
