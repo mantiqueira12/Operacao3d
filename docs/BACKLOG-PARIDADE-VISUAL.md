@@ -611,3 +611,187 @@ Máximo ganho visual com mínimo risco aos avanços de engenharia. Cada fase é 
 _Origem: `prototype/planner/` (referência visual, byte-idêntico à pasta local do dono) vs `app/src/` (port React).
 78 itens do pente-fino automatizado (2D/Operação/Identidade/Catálogo) + 13 itens 3D de análise manual. O 3D, a
 verificação adversarial e a síntese automática não rodaram por limite de sessão — completados à mão._
+---
+
+## Pente-fino — itens adicionais (rodada 3, commit 9cba058)
+
+O crítico de completude (que não havia rodado nas rodadas anteriores) varreu o protótipo inteiro contra os 91 itens e encontrou **41** regressões/detalhes visuais ainda não catalogados — micro-interações, estados hover/cursor, ferramenta Medir, marcadores de cota, impressão, carregamento de fontes, modais, interações do KDS e visualizações de cardápio/padaria. Mesmo formato (checkbox + ID).
+
+### 2D Planner (fidelidade visual)  ·  10 itens (pente-fino)
+
+- [ ] **`ferramenta-medir-completa`** — Ferramenta Medir: pontos vermelhos + linha + etiqueta de distância com preview ao vivo — `ALTO` · esf. M · _ausente_
+  - **Sintoma:** A ferramenta de Medir distância (régua livre) não existe no editor React: não dá para clicar dois pontos e ver a linha vermelha com a medida, nem o preview enquanto move o mouse. Recurso central de 'estúdio de planta' some.
+  - **Protótipo:** planner.js:679-700 (measureClick/previewMeasure/drawMeasure: circle r3 fill rosso nos extremos, line .measure-l, text .measure-t 'd m', preview no pointermove) ; index.html:25-27 botão Medir ; planner.css:152-153 (.measure-l/.measure-t)
+  - **Restaurar:** Portar o tool 'measure' (botão na toolbar + cursor crosshair) com clique A→B, círculos vermelhos nos extremos, linha .measure-l e texto .measure-t com a distância (e preview no move). Camada SVG no editor; sem tocar no domínio.
+- [ ] **`cotas-casca-marcadores-seta`** — Cotas da casca: linhas de cota com marcadores de seta (marker #ah) e linhas de chamada — `ALTO` · esf. M · _ausente_
+  - **Sintoma:** As cotas fixas da casca (2,00 / 5,15 / 3,00 / 0,60 / 2,15 / 2,60) podem aparecer sem as setas nas pontas nem as linhas de chamada (witness lines) do protótipo, descaracterizando a leitura de planta técnica cotada.
+  - **Protótipo:** planner.js:247-264 drawCotas + 238-246 (defs marker 'ah' seta; dimWit linhas de chamada .cota-w; dimLine com marker-start/end; dimTxt com halo panna) ; planner.css:148-150
+  - **Restaurar:** Garantir que as linhas de cota da casca usem o marker de seta 'ah' nas duas pontas, as linhas de chamada finas (.cota-w) e os textos com halo panna (.cota-t). Verificar paridade 1:1 com drawCotas; se ausente no React, portar. SVG defs + classes.
+- [ ] **`canvas-fundo-grade-pontilhada-editor`** — Editor 2D: fundo do canvas com grade pontilhada dupla (blueprint) — `MÉDIO` · esf. P · _regredido_
+  - **Sintoma:** O fundo da área de desenho do editor não tem a malha pontilhada de prancheta (linhas a cada 24px), que dava o ar de 'blueprint técnico'. Fica um fundo chapado, menos profissional.
+  - **Protótipo:** planner.css:113-116 (#canvasWrap background: dois linear-gradient de pontos 24px/24px sobre var(--desk))
+  - **Restaurar:** Aplicar ao container do canvas do editor o background com os dois linear-gradients de 1px a cada 24px sobre var(--desk). CSS puro. (Distinto do item de backlog sim-stage-gradiente-vs-grade, que trata só do palco da Operação.)
+- [ ] **`cursores-por-ferramenta-2d`** — Cursores por ferramenta/estado no canvas 2D (crosshair, grab, grabbing) — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** O cursor não muda conforme a ferramenta/ação: medir e parede não viram cruz, e arrastar a planta (pan) não vira mãozinha fechada. O usuário não recebe o feedback de modo, tornando a interação confusa.
+  - **Protótipo:** planner.css:117-121 (#scene cursor default; .tool-measure/.tool-wall crosshair; .panning grabbing; .spacehold grab) ; operacao.css:109-110 (#sim2d cursor grab; :active grabbing)
+  - **Restaurar:** Aplicar classes de cursor ao SVG conforme tool/estado (crosshair p/ medir/parede; grab/grabbing no pan da operação e do editor). CSS + toggle de classe no componente.
+- [ ] **`handle-rotacao-haste-circulo`** — Alça de rotação: haste tracejada + círculo vermelho acima da peça — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** A peça selecionada não tem a haste com o botão circular vermelho de girar acima dela — o affordance clássico de rotação de CAD some, e não há indicação visual de que dá para girar arrastando.
+  - **Protótipo:** planner.js:367-369 (linha .selbox do topo da peça até ry=Y-22/zoom + circle class 'handle rot' fill rosso) ; planner.css:142-143 (.handle.rot fill rosso; .selbox dash 4 3)
+  - **Restaurar:** No overlay de seleção, emitir a linha tracejada (.selbox) do meio-topo da peça até um ponto acima e um <circle class='handle rot'> vermelho ali. Geometria já derivável da bbox da peça selecionada. SVG + CSS.
+- [ ] **`carimbo-contenteditable-editor`** — Carimbo (titleblock) editável inline com persistência e foco realçado — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** O bloco de Carimbo (Projeto/Unidade/Endereço/Resp./Data-Rev) editável diretamente no campo, com realce de foco e que salva o que foi digitado, não existe na rail do editor React. Perde-se o carimbo de prancha clássico, parte do acabamento de documento técnico.
+  - **Protótipo:** index.html:156-164 (.tb/.tbrow contenteditable data-tb) + planner.css:105-110 (.tbrow .v:focus halo rosso) + planner.js:807-817 (persiste em loja206_tb_v2)
+  - **Restaurar:** Portar a seção Carimbo (.tb/.tbrow) com campos editáveis (inputs ou contenteditable), o :focus com halo rosso e a persistência via StorageAdapter. Os dados de titleBlock já existem na cena. UI + CSS.
+- [ ] **`print-stylesheet-editor`** — Folha de impressão (@media print) que esconde chrome e imprime só a prancha — `MÉDIO` · esf. M · _regredido_
+  - **Sintoma:** Ao imprimir/gerar PDF, a tela sai com as rails, topbar e overlays no lugar — não há o modo limpo que esconde o chrome e ocupa a folha só com a planta cotada. O backlog cita 'impressão da prancha' como avanço de engenharia, mas a folha de estilo de print do protótipo (regras @media print) não está no catálogo.
+  - **Protótipo:** planner.css:164-169 (@media print: oculta topbar/left/right/readout/hintbar/miniscale; #app block; #scene 96vh) + planner.js:961 beforeprint→fit + botão Imprimir index.html:60
+  - **Restaurar:** Portar o bloco @media print (esconder topbar/rails/readout/hintbar/miniscale; #scene ocupa a folha) e o handler beforeprint→fit. Conferir paridade com o que o port já faz. CSS + handler.
+- [ ] **`handles-resize-cursores-direcionais`** — Alças de redimensionamento com cursores direcionais (nwse/nesw/ns/ew) e alça de girar (grab) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Ao passar o mouse pelas 8 alças de seleção da peça, o cursor não indica a direção do resize (setas diagonais/horizontais/verticais), e a alça de girar não mostra a mãozinha. Perde-se a leitura de qual borda se está prestes a arrastar.
+  - **Protótipo:** planner.js:363,369 + cursorFor() planner.js:371-373 (cada handle recebe cursor nwse-resize/nesw-resize/ns-resize/ew-resize; alça rot cursor grab)
+  - **Restaurar:** Aplicar o cursor direcional a cada handle conforme o mapa de cursorFor() e cursor:grab na alça de rotação. Atributo/estilo por handle no componente de overlay de seleção.
+- [ ] **`clearances-marcadores-extremidade`** — Cotas de folga: traços de extremidade (tick marks) nas linhas de circulação — `BAIXO` · esf. P · _simplificado_
+  - **Sintoma:** As cotas de folga/circulação aparecem como linhas simples sem os pequenos traços perpendiculares nas pontas, ficando menos legíveis como medida arquitetônica. Peças encostadas (gap<3cm) também deveriam suprimir a cota.
+  - **Protótipo:** planner.js:395-405 (função cl: além da linha .clr, desenha traços perpendiculares nas duas pontas e gap<0.03 = sem cota)
+  - **Restaurar:** Na renderização das folgas, emitir os ticks de extremidade (linhas perpendiculares curtas nas duas pontas) e suprimir cota quando gap<0.03. Complementa o item de backlog clr-text-clearance (que só trata de cor/halo do texto).
+- [ ] **`ocupacao-bar-fill-animado-editor`** — Editor: barra de ocupação animada no Resumo (fill vermelho com transition width) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** O painel Resumo do editor não tem a barra de ocupação que se enche (com transição suave de largura) conforme as peças preenchem a loja. O percentual de ocupação fica só como número, sem a leitura visual rápida.
+  - **Protótipo:** index.html:149-152 + planner.css:101-102 (.bar > i background rosso, width 0, transition width .2s) ; updateStats() planner.js:662
+  - **Restaurar:** Adicionar a barra .bar com fill .bar>i (background var(--rosso), transition width .2s) alimentada pelo % de ocupação que o editor já calcula. JSX + CSS.
+
+### 3D & Props (geometria/materiais)  ·  3 itens (pente-fino)
+
+- [ ] **`porta-de-correr-folha-3d-recuo`** — Painel 3D: vão recuado escuro + folha de madeira deslocada + trilho da porta de correr — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Mesmo restaurando o painel ripado 3D com banda e logo, falta o conjunto da porta de correr em volume: o vão recuado escuro, a folha de madeira deslizada para o lado e o trilho preto no topo. O painel-assinatura fica sem a passagem FOH/BOH legível em 3D.
+  - **Protótipo:** sim-3d.js:184-193 (buildPanel3D: rec escuro 0x4a4438 do vão recuado, leaf 0x8A6A44 deslizada (slide 0.30), track 0x1A1A1A acima)
+  - **Restaurar:** Incluir no builder do painel 3D o recuo (rec), a folha (leaf, deslocada por slide) e o track quando L>=1.10, como em buildPanel3D. Complementa o item de backlog 3d-painel-divisor-detalhado / painel-divisor-ripado-logo-3d (que enfatizam ripas+banda+logo, não o detalhamento do vão/folha/trilho).
+- [ ] **`sombras-3d-pcf-soft-config`** — Sombras 3D: shadowMap PCFSoft + frustum/bias do sol configurados (castShadow em todos os meshes) — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** A cena 3D não projeta sombras suaves: os equipamentos não 'assentam' no piso, tirando profundidade e a sensação de maquete realista. É distinto do item de iluminação/fog do backlog, que trata cor/neblina e não o sistema de sombras.
+  - **Protótipo:** sim-3d.js:361-373 (shadowMap.enabled, type PCFSoftShadowMap, sun.castShadow, shadow.mapSize 1024, camera frustum -6..6/-6..8, bias -0.0004) ; meshes com castShadow/receiveShadow buildFurniture:144
+  - **Restaurar:** Habilitar renderer.shadowMap (PCFSoft), castShadow no sol com o frustum/bias do protótipo, e cast/receiveShadow nos meshes de props e casca. Complementa 3d-iluminacao-fog. Parâmetros de Three.js.
+- [ ] **`piso-3d-dupla-camada-bevel-calcada`** — Piso 3D extrudado em dupla camada (base + acabamento) e calçada 3D com box — `BAIXO` · esf. M · _ausente_
+  - **Sintoma:** O piso 3D é um plano fino e único, sem a espessura extrudada do contorno em L da loja nem a laje de calçada externa, deixando a base da cena 'flutuante' e sem o degrau de calçada onde os clientes esperam.
+  - **Protótipo:** sim-3d.js:85-98 (ExtrudeGeometry do polígono ROOM com depth 0.06 + floorMesh acabamento por cima + walk BoxGeometry da calçada #D8D2C2 receiveShadow)
+  - **Restaurar:** Construir o piso por ExtrudeGeometry do polígono da sala (depth ~0.06) com a malha de acabamento por cima, e a box de calçada externa com sombra. Complementa o item 3d-piso-textura-e-acabamentos (que foca na textura, não na geometria extrudada/calçada).
+
+### Catálogo & ferramentas do editor  ·  5 itens (pente-fino)
+
+- [ ] **`catitem-hover-lift-glow`** — Catálogo: hover dos cards (lift -1px + glow vermelho + borda rossa) — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Os cards do catálogo não reagem ao mouse: não sobem, não ganham a borda/sombra vermelha. O catálogo parece estático e sem affordance de clique, perdendo a sensação premium de microinteração que o protótipo tinha.
+  - **Protótipo:** planner.css:54-60 (.catitem transition .12s; .catitem:hover border-color rosso + box-shadow 0 4px 12px -6px rgba(226,0,15,.4) + transform translateY(-1px))
+  - **Restaurar:** Portar a transição .12s + estados :hover do .catitem (translateY(-1px), border-color var(--rosso), box-shadow vermelho difuso) para o CSS do catálogo React. Puro CSS, sem dados.
+- [ ] **`wall-draft-arraste-cota-viva`** — Draft visual da parede ao arrastar (retângulo semitransparente + cota 'len m' viva) — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Mesmo que a ferramenta Parede por arraste seja implementada, falta o feedback visual durante o gesto: o retângulo-fantasma cinza e a etiqueta de comprimento em vermelho que acompanham o arraste em tempo real.
+  - **Protótipo:** planner.js:461-468 drawWallDraft (rect fill rgba(43,43,43,.55) stroke #2B2B2B + <text class='measure-t'> com fmt(len)+' m')
+  - **Restaurar:** No modo wall, durante o pointermove desenhar o rect de draft (fill rgba 43,43,43,.55, stroke #2B2B2B non-scaling) e o <text class='measure-t'> com o comprimento ao vivo. Complemento visual do item ferramenta-parede-arraste (que descreve a lógica, não o draft renderizado).
+- [ ] **`segb-swatch-active-modal`** — Modal criar equipamento: segmented de arquétipo e swatches com estado ativo + preview SVG ao vivo — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** No modal de criação, os botões de arquétipo (Bloco/Bancada/Geladeira…) e os swatches de cor não destacam o selecionado, e o preview SVG não se atualiza ao vivo conforme dimensões/cor/arquétipo mudam. O usuário cria às cegas. Os itens de modal citam a estrutura, mas não o estado .active nem o preview reativo.
+  - **Protótipo:** planner.css:217-223 (.segb/.segb:hover/.segb.active inch; .swatches.big rotulada) + planner.js:854-868 (setArch/setMColor marcam .active; drawPreview re-renderiza SVG do equipamento ao mudar L/P/A/cor/arquétipo)
+  - **Restaurar:** No CreateEquipmentModal, refletir seleção com .segb.active/.swatch.active e reemitir o preview SVG (rect proporcional + barra de cor + cota) a cada mudança, como drawPreview. Faz par com modal-criar-equipamento.
+- [ ] **`catitem-del-hover-reveal`** — Catálogo: botão de excluir modelo aparece só no hover do card — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Em 'Meus modelos', o X de remover não fica escondido até o hover nem vira vermelho ao passar o mouse — o controle de exclusão é sempre visível/poluído ou inexistente, sem o reveal elegante do protótipo.
+  - **Protótipo:** planner.css:184-188 (.catitem .del display:none; .catitem:hover .del display:block; .del:hover background rosso/color #fff)
+  - **Restaurar:** Portar a regra de reveal-on-hover do .del (oculto por padrão, aparece no hover do card, vira rosso no próprio hover). CSS puro. Complementa o item de backlog custom-models-meus-modelos (que cobre a lógica, não este micro-comportamento).
+- [ ] **`confirm-dialogs-acoes-destrutivas`** — Confirmações em ações destrutivas/pesadas (restaurar cena, Monte Carlo) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Ações que apagam o trabalho (restaurar cena padrão) ou demoram (Monte Carlo 5×) disparam sem nenhuma confirmação, arriscando perda de layout ou travadas inesperadas. O protótipo pede confirmação antes.
+  - **Protótipo:** planner.js:721 (confirm 'Restaurar a cena padrão?…') ; sim-ui.js:1078 (confirm 'Rodar 5 simulações…')
+  - **Restaurar:** Adicionar diálogo de confirmação (modal React) antes de restaurar a cena padrão e antes de rodar o Monte Carlo. UX de segurança.
+
+### Identidade visual / Design system  ·  9 itens (pente-fino)
+
+- [ ] **`fonts-tres-familias-carregadas`** — Carregamento das 3 famílias de fonte (Bitter itálico, Manrope, IBM Plex Mono) — `ALTO` · esf. P · _ausente_
+  - **Sintoma:** Se as três famílias (Bitter para marca/títulos, Manrope para UI, IBM Plex Mono para números/cotas) não estiverem carregadas, todo o sistema cai em fontes do sistema e a identidade premium some — números deixam de ser monoespaçados, a marca perde o itálico serifado. É pré-requisito de vários itens de tipografia do backlog, mas o carregamento em si não está catalogado.
+  - **Protótipo:** index.html:7-9 e operacao.html:7-9 (link Google Fonts Bitter ital + Manrope + IBM Plex Mono) ; document.fonts.ready re-render planner.js:962
+  - **Restaurar:** Garantir o carregamento das 3 famílias (via @fontsource ou link) e, idealmente, re-render/refit após document.fonts.ready (como o protótipo faz para reflowar rótulos). É a base dos tokens de identidade.
+- [ ] **`topbar-tbtn-hover-active`** — Topbar: estados hover/active dos botões de ferramenta (.tbtn) — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** Os botões da barra de topo não escurecem no hover nem destacam em vermelho quando ativos, e não estão agrupados nas pílulas escuras (.toolgroup). A barra perde a leitura de qual ferramenta/vista está selecionada.
+  - **Protótipo:** planner.css/operacao.css:35-40 (.tbtn:hover background #3a382f color #fff; .tbtn.active background var(--rosso) color #fff; .toolgroup fundo #2a2820 borda #3a382f radius 8 padding 3)
+  - **Restaurar:** Portar .toolgroup (cápsula #2a2820 borda #3a382f radius 8) e os estados .tbtn:hover (#3a382f) e .tbtn.active (rosso). Aplicar à barra do editor e da operação. CSS de chrome.
+- [ ] **`pbtn-runbtn-hover-invertido`** — Botões .pbtn/.runbtn: hover invertido (fundo escuro, texto branco) + variante danger — `MÉDIO` · esf. P · _simplificado_
+  - **Sintoma:** Os botões de propriedades/ações não invertem para fundo escuro no hover, e o botão 'Excluir' não tem o estado danger (borda rosa → fundo vermelho no hover). Feedback de interação fraco e perda da semântica de ação destrutiva.
+  - **Protótipo:** planner.css:76-80 (.pbtn:hover background inch color #fff; .pbtn.danger color rosso borda #f0c9cc; .pbtn.danger:hover fundo rosso) ; operacao.css:63-66 (.runbtn:hover invertido; .runbtn.primary:hover rosso-d)
+  - **Restaurar:** Portar transition .12s + :hover invertido de .pbtn/.runbtn e a variante .pbtn.danger (e .danger:hover) para os botões React equivalentes. CSS.
+- [ ] **`input-focus-ring-rosso`** — Inputs/campos: foco com borda vermelha + halo (box-shadow rgba rosso) — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Os campos numéricos/textos não mostram o anel de foco vermelho do protótipo — usam o outline padrão do navegador. Perde-se o feedback de marca ao editar dimensões/parâmetros e a consistência visual.
+  - **Protótipo:** planner.css:69 e operacao.css:85 (.field input:focus outline:none border-color rosso box-shadow 0 0 0 3px rgba(226,0,15,.12)); tbrow .v:focus halo rgba rosso (planner.css:110)
+  - **Restaurar:** Portar a regra :focus (border-color var(--rosso) + box-shadow halo 3px rgba(226,0,15,.12)) para todos os inputs/selects e para o carimbo contenteditable. CSS puro.
+- [ ] **`modal-back-blur-click-fora`** — Modais: fundo escurecido com blur + fechar ao clicar fora + sombra pronunciada — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** Os modais (criar equipamento, relatório, comparar, MC) podem não ter o backdrop escurecido com blur, a sombra profunda do card, nem o fechar-ao-clicar-fora e fechar-no-Esc. Sem isso o modal não 'descola' do fundo e a UX de overlay fica pobre.
+  - **Protótipo:** planner.css:206-209 e operacao.css:315-318 (.modal-back rgba(26,26,26,.45) backdrop-filter blur(3px); .modal-card sombra 0 30-32px 80-90px; clique no back fecha — planner.js:892 / sim-ui.js:980)
+  - **Restaurar:** Padronizar um componente de modal com .modal-back (blur + escurecimento), .modal-card (radius + sombra forte), e os handlers de clique-fora/Esc. Reaproveitar para todos os modais. Chrome compartilhado citado de passagem nos itens de modal, mas o backdrop-blur/click-fora não é detalhado.
+- [ ] **`scrollbar-customizada-rail`** — Scrollbar customizada das rails (webkit, thumb bege arredondado) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** As barras de rolagem das rails laterais usam o estilo nativo do SO (cinza grosso) em vez da scrollbar fina bege arredondada do protótipo, quebrando o acabamento premium das colunas.
+  - **Protótipo:** planner.css/operacao.css:45-47 (.rail::-webkit-scrollbar width 9px; ::-webkit-scrollbar-thumb background #d3ccbb radius 6 border 2px solid var(--rail))
+  - **Restaurar:** Portar as regras ::-webkit-scrollbar / ::-webkit-scrollbar-thumb das rails para o CSS do app. CSS puro.
+- [ ] **`favicon-titulos-aba`** — Títulos de aba do navegador e favicon da marca — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** O título da aba do navegador não reflete a tela atual ('Estúdio de planta' vs 'Operação') com a marca All'Antico Panino · LOJA 206, e não há favicon de marca. Detalhe de acabamento/branding que aparece em toda janela aberta.
+  - **Protótipo:** index.html:6 (<title>All'Antico Panino · LOJA 206 — Estúdio de planta</title>) ; operacao.html:6 (— Operação) ; sem favicon explícito no protótipo (default)
+  - **Restaurar:** Definir document.title por rota (Estúdio de planta / Operação, prefixado pela marca) e adicionar um favicon (idealmente o 'A' vermelho da marca). Chrome de janela; trivial.
+- [ ] **`responsividade-breakpoints`** — Responsividade: breakpoints que estreitam rails e escondem subtítulo — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Em telas estreitas a operação não adapta a largura das rails nem esconde o subtítulo 'Loja 206 · Operação' da topbar, fazendo o conteúdo central espremer ou estourar. Em notebook menor a planta vira um bloco minúsculo.
+  - **Protótipo:** operacao.css:416-421 (@media max-width:1100px grid-template-columns 220px/1fr/270px; @media max-width:1280px .topdoc display:none)
+  - **Restaurar:** Portar os @media (1100px estreita as colunas do grid; 1280px oculta .topdoc) para o layout do app. CSS puro.
+- [ ] **`user-select-none-app`** — Comportamento de não-seleção de texto na UI (user-select:none global) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Ao arrastar peças/operar a planta, o navegador seleciona texto da UI (rótulos, labels) acidentalmente, deixando trechos azuis destacados e atrapalhando o drag. O protótipo bloqueia seleção na app inteira (menos nos campos editáveis).
+  - **Protótipo:** planner.css:15 e operacao.css:17 (body user-select:none; catitem user-select:none)
+  - **Restaurar:** Aplicar user-select:none ao shell da app (preservando inputs/contenteditable). CSS puro de polish de interação.
+
+### Tela de Operação / Simulação  ·  14 itens (pente-fino)
+
+- [ ] **`toggle-switch-animado-camadas`** — Toggles de camada como switch deslizante animado (pino que desliza, fundo vira vermelho) — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Os controles de camada (Trilhas/Heatmap/Rótulos, e no editor Cotas/Mobiliário/Zonas/Grade/Snap) não têm o switch físico deslizante com animação — o pino que escorrega e a pista que fica vermelha quando ligado. Sem isso o painel de camadas parece uma lista de checkboxes crus.
+  - **Protótipo:** planner.css:90-92 e operacao.css:101-105 (.toggle pista 34-36px com ::after pino branco; .sw.on .toggle background rosso + ::after left desliza; transition .15s)
+  - **Restaurar:** Portar o componente .sw/.toggle/.toggle::after com a transição de deslizamento e o estado .on (fundo rosso, pino à direita). CSS puro; alimenta os booleanos de camada. (O backlog cita toggles-camadas e a seção 'Camadas' mas não o estilo/animação do switch em si.)
+- [ ] **`galeria-calcada-piso-textura-2d`** — Operação 2D: calçada/galeria, piso creme e rótulo 'GALERIA · CLIENTES' — `MÉDIO` · esf. P · _ausente_
+  - **Sintoma:** Na planta de operação não há a faixa de calçada da galeria (onde a fila se forma) com sua cor própria, a linha de borda e o rótulo 'GALERIA · CLIENTES', nem o piso creme da loja. A área externa do cliente some, prejudicando a leitura de fila/entrada.
+  - **Protótipo:** sim-2d.js:94-103 (rect calçada #E9E3D3 + linha #D9D3C4 + texto s2-zone 'GALERIA · CLIENTES' + piso #FDFBF4 da loja)
+  - **Restaurar:** No SVG estático do SimView, emitir o rect da calçada (#E9E3D3) com a linha de meio-fio e o <text> s2-zone 'GALERIA · CLIENTES', e o path do piso (#FDFBF4). Geometria de SIM.OUT/GATE já disponível. JSX/CSS. (Distinto dos itens planta-grade-05m e zonas-foh-boh, que não cobrem a calçada externa.)
+- [ ] **`follow-order-clique-ticket`** — Seguir pedido: clicar um ticket do KDS leva à vista 2D e foca o operador — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** Os cartões de ticket do monitor não são clicáveis para 'seguir o pedido' — não há o hover de lift, o cursor pointer, nem a ação que pula para o mapa 2D e destaca o atendente daquele pedido. A ponte visual entre o KDS e a planta some.
+  - **Protótipo:** sim-ui.js:376-378,412-419 followOrder (clique no .km-tk → switchView('2d') + SIM2D.focusOp + toast 'Seguindo pedido #N') ; operacao.css:176 (.km-tk cursor pointer + hover lift)
+  - **Restaurar:** Tornar cada ticket clicável (cursor pointer + hover translateY) disparando troca para 2D, foco/centralização no operador (SIM2D.focusOp equivalente) e um toast. Depende dos itens de KDS tickets já no backlog; este é a interação 'seguir' que eles não citam.
+- [ ] **`kds-dock-colapsavel-relayout`** — KDS dock: colapsar/expandir (botão ▾/▴) que re-layouta a planta — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** O monitor KDS não pode ser recolhido para uma faixa fina (só o cabeçalho), e a planta não reajusta sua altura quando o dock aparece/some. Sem isso o dock ou tapa a cena ou ocupa espaço fixo, sem o comportamento elástico do protótipo.
+  - **Protótipo:** operacao.css:155-156 (#wrapKds.collapsed height 42px, esconde .kds-cols) + sim-ui.js:147-151 (km-collapse alterna e chama relayoutPlant) ; has-dock encolhe #sim2d/#wrap3d (operacao.css:151-152)
+  - **Restaurar:** Adicionar o botão de colapsar (▾/▴) que alterna #wrapKds.collapsed (altura 42px) e a classe has-dock que encolhe a área da planta, com refit após. Complementa monitor-kds-dock (que descreve o dock, não o colapso/relayout).
+- [ ] **`menu-flow-chips-fluxo-producao`** — Cardápio: visualização de fluxo de produção (chips coloridos por etapa + setas ▶ + marca ⚠ de estação ausente) — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** No Cardápio não há a tira visual do fluxo (chips coloridos 'montagem 2m ▶ forno 5m …') que mostra a sequência de preparo e pinta de vermelho com ⚠ as estações que faltam na planta. O elo visual entre cardápio e layout some.
+  - **Protótipo:** sim-ui.js:549-554 (.flow-vis com .flow-chip por etapa, cor por tipo, ▶ entre etapas, fundo vermelho + ⚠ quando a estação não existe na planta) ; operacao.css:302-304
+  - **Restaurar:** Renderizar, por item do cardápio, a .flow-vis com .flow-chip (cor por TYPE_COLORS, ⚠ se ausente) separados por setas. Faz parte da aba Cardápio citada em abas-painel-direito, mas este fluxo-chip específico não está descrito.
+- [ ] **`viab-cards-win-active-veredito`** — Padaria: cartões de viabilidade com estado vencedor (borda verde) / ativo (outline) e veredito colorido — `MÉDIO` · esf. M · _ausente_
+  - **Sintoma:** Os cartões comparativos da padaria (Própria × Híbrido × Terceirizado) não destacam o vencedor com a borda verde nem o modo ativo com outline, e o veredito não muda de cor (verde/vermelho) conforme compensa ou não. A decisão estratégica perde a sinalização visual.
+  - **Protótipo:** operacao.css:380-391,217 (.viab-card.win borda verde+shadow; .viab-card.active outline inch; .viab-verdict/.viab-verdict.bad tarja verde/vermelha) + renderViability sim-ui.js:917-959
+  - **Restaurar:** Portar .viab-card.win/.active e .viab-verdict(.bad) e ligá-los ao melhor custo/modo ativo. Faz parte do bloco subpaineis-cardapio-padaria-viabilidade, mas estes estados de cor por veredito não estão detalhados.
+- [ ] **`avatar-orientacao-rotacao-movimento`** — Avatares 3D: rotação no sentido do movimento (operadores) e de frente p/ balcão (clientes) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Mesmo com avatares animados, eles não giram para a direção em que caminham (operadores) nem ficam de frente para o balcão (clientes), parecendo escorregar de lado. Perde-se o realismo de circulação. Sub-comportamento não citado no item 3d-sem-pessoas-animadas (que cobre presença, não orientação).
+  - **Protótipo:** sim-3d.js:269-272 (op gira para atan2(dx,dy) quando anda) e :278 (cliente rotation.y vira para o balcão) ; 2D rotação implícita no movimento
+  - **Restaurar:** Ao posicionar cada avatar por frame, setar rotation.y pelo vetor de deslocamento (operadores) e pela direção ao balcão/gate (clientes), como em syncAgents. Lógica de view sobre os frames.
+- [ ] **`pipeline-barras-progresso-vivas`** — Padaria: barras de progresso vivas no pipeline (batedeira/estufa/forno) por fração de tempo — `BAIXO` · esf. M · _ausente_
+  - **Sintoma:** As células do pipeline da padaria não mostram a barrinha âmbar que avança conforme cada etapa (batendo/fermentando/assando) progride — fica só texto de status. Perde-se a sensação de 'fábrica trabalhando em tempo real'. O item monitor-kds-pipeline-boh cita o pipeline mas não a barra de progresso por fração.
+  - **Protótipo:** sim-ui.js:827-840 (cell com .pbar/i width=prog; mixProg=bt/mixTime, proofProg/bakeProg por batch) + operacao.css:366-367 (.pipe-st .pbar i background #D29922)
+  - **Restaurar:** No pipeline, calcular a fração de progresso de cada etapa (tempo decorrido/tempo total) e renderizar a .pbar com fill âmbar. Dados de fase/tempo já no engine.
+- [ ] **`op-banner-emoji-condicoes`** — Banner de alerta: condições específicas (pão esgotado / bebidas vazias) com ícone ⚠ e texto descritivo — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Além do estilo pulsante (já citado no backlog), falta a lógica/conteúdo do banner: a mensagem específica com ⚠ e o número de pedidos parados, aparecendo/sumindo conforme a condição crítica. Sem o texto, o banner é só uma faixa vazia.
+  - **Protótipo:** sim-ui.js:305-316 updateOpBanner (msg '⚠ PÃO ESGOTADO — N pedidos parados…' / '⚠ Geladeira de bebidas vazia'; cria/oculta dinamicamente)
+  - **Restaurar:** Derivar a mensagem do banner de breadKPIs().waitingBread e do estoque de bebidas, com o texto descritivo e ⚠, criando/ocultando o elemento. Complementa banner-alerta-canvas/op-banner-alerta-pulsante (que tratam do estilo, não do conteúdo condicional).
+- [ ] **`kpi-cor-semantica-margem`** — KPI de margem: cor dinâmica (verde positivo / vermelho negativo) aplicada ao valor — `BAIXO` · esf. P · _simplificado_
+  - **Sintoma:** O valor de Margem (e similares) não troca de cor conforme positivo/negativo seguindo a semântica do projeto (vermelho só p/ negativo, verde p/ positivo). Os números financeiros ficam neutros, sem o sinal visual de saúde do resultado.
+  - **Protótipo:** sim-ui.js:285-287 (mEl.classList.toggle red/green por margin<0) ; operacao.css:254-255 (.mv.red rosso / .mv.green verde)
+  - **Restaurar:** Aplicar .mv.red/.mv.green ao valor de margem (e onde fizer sentido) conforme o sinal, respeitando a regra de cor dos números do projeto. CSS + lógica simples no painel. (Os itens mc-cards-metrica/mgrid citam .mv.red/.green mas não a aplicação dinâmica por sinal.)
+- [ ] **`metricas-cor-por-limiar-km-met`** — Métricas do KDS: cor por limiar (fila>8, espera>8, desistências>0 viram vermelho) — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** As métricas rápidas do topo do monitor não ficam vermelhas quando passam do limiar crítico (fila grande, espera alta, houve desistência), perdendo o alerta de relance no cockpit.
+  - **Protótipo:** sim-ui.js:350-356 (met() colore o valor de vermelho quando qLen>8 / espera>8 / balked>0)
+  - **Restaurar:** No cabeçalho de métricas do KDS, colorir cada valor de vermelho ao cruzar o limiar (como met()). Lógica de cor no view. Complementa monitor-kds-dock.
+- [ ] **`monte-carlo-progresso-toast`** — Monte Carlo: feedback de progresso ao vivo ('rodando 1/5…') durante a execução — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Durante o Monte Carlo (que leva segundos) não há indicação de progresso — o usuário não sabe se travou. Faltam os toasts 'rodando N/5…' e 'concluído'. O item modais-relatorio-comparar-mc cobre o resultado, não o feedback de andamento.
+  - **Protótipo:** sim-ui.js:1084,1093 (flash 'Monte Carlo: rodando N/5…' a cada réplica; toast final 'concluído')
+  - **Restaurar:** Emitir toasts/estado de progresso por réplica enquanto o MC roda e um toast de conclusão. UI de feedback sobre o engine de réplicas existente.
+- [ ] **`sync-flash-feedback-planta`** — Toast de sincronização da planta ('Planta sincronizada — rotas recalculadas') — `BAIXO` · esf. P · _ausente_
+  - **Sintoma:** Quando a operação re-lê a planta editada (auto ou via botão Atualizar), não há o aviso verde confirmando 'Planta sincronizada / rotas recalculadas' ou 'já está em dia'. O usuário não percebe que a cena foi atualizada.
+  - **Protótipo:** sim-ui.js:201-219 (syncNow → flash verde; storage/focus/visibility/intervalo disparam; btn-sync com mensagens distintas)
+  - **Restaurar:** Emitir toast (verde) ao re-sincronizar a cena, com mensagens distintas para auto vs. já-em-dia. UI de feedback sobre o fluxo de sync existente.
+- [ ] **`flow-arrow-cardapio-vendas-rail-row`** — Linhas .flow-row de análise (fluxo/vendas/gargalo) com hover/realce e linha de receita destacada — `BAIXO` · esf. M · _ausente_
+  - **Sintoma:** As listas de Análise (distâncias de fluxo, vendas por item, gargalos) não usam as linhas-cartão .flow-row com o valor mono à direita, nem destacam a Receita líquida em verde e os Reembolsos em vermelho. A aba Análise fica como texto cru. O item abas-painel-direito cita a aba, não estas linhas.
+  - **Protótipo:** operacao.css:288-291 (.flow-row card com nm/dd mono) + sim-ui.js:492-512 (linhas de fluxo, vendas com linha 'Receita líquida' verde destacada e Reembolsos em vermelho)
+  - **Restaurar:** Portar .flow-row e popular fluxo/vendas/gargalos, com a linha de receita em verde e reembolsos em vermelho (regra de cor do projeto). Dados já no engine.

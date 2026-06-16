@@ -4,6 +4,26 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Rodada 3 de paridade visual — integrada e verde** (typecheck/103 testes/build + smoke de runtime).
+  Commit `9cba058`.
+  - **OPERAÇÃO 3D COM AGENTES ANIMADOS** (une 3D + simulação DES — era o "Próximo #3"): `makePerson`
+    (boneco articulado + avental vermelho) em `props3d`; `Scene3D` ganha camada de avatares atualizada
+    por frame (operadores/clientes, food box, cor por estado), rótulos HTML (FIXO/tag/status) e trilhas;
+    `View3D` ganha modo "▸ Operação 3D" (play/pause/reset, toggles Rótulos/Trilhas) via `useSimWorker`.
+    `App.tsx` intocado. → 3d-sem-pessoas-animadas, 3d-labels-operadores, 3d-trilhas-operadores.
+  - **operação 2D**: heatmap de circulação (overlay derivado no cliente), zoom/pan + auto-fit, dock KDS
+    escuro, relógio grande mono, play com estado, velocidade segmentada, chips de cenário, toggles de
+    camada. → heatmap-circulacao, zoom-pan-autofit, monitor-kds-dock, relogio-grande-mono,
+    play-estado-pausado, controles-velocidade-botoes, chips-cenario, toggles-camadas.
+  - **planner**: readout vivo (cursor + peça) e miniescala corrigida + chrome premium. →
+    readout-cursor-vivo-e-info-peca, miniscale-barra-escala-fixa.
+  - **PENTE-FINO rodou** (não tinha rodado): +41 itens novos no backlog (micro-interações, hover/cursor,
+    ferramenta Medir, marcadores de cota, impressão, fontes, modais, interações do KDS, cardápio/padaria).
+    Ver `docs/BACKLOG-PARIDADE-VISUAL.md` › "Pente-fino — itens adicionais".
+- **PENDENTE (próxima rodada):** os 41 itens do pente-fino + a dimensão **Catálogo & ferramentas** original
+  (criar equipamento custom / Meus modelos, Parede/Divisor por arraste, acabamentos do editor 2D, undo/redo);
+  alguns itens de chrome de identidade ainda em planner/sim-panel. Falta a **conferência visual em browser
+  real** das 3 rodadas (`cd app && npm run dev`).
 - **Rodada 2 de paridade visual — 4 frentes em paralelo, integradas e verdes** (typecheck/103 testes/
   build + smoke de runtime: 2D/3D/Operação montam sem erro). Commit `5da10a1`.
   - **view3d** (`Scene3D`/`View3D`/`props3d`): piso texturizado (porcelanato/granilite/cimento) +
