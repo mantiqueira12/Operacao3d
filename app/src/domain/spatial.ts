@@ -390,8 +390,16 @@ export const CIRC_IDEAL = 0.9
 export const CIRC_MIN = 0.8
 /** Crítico: abaixo disso é `bad`. */
 export const CIRC_CRIT = 0.6
+/** Piso de corredor: abaixo disso (< 0,20 m) o vão é ADJACÊNCIA — equipamentos
+    essencialmente lado a lado —, não um corredor de circulação; fica fora da análise
+    e do checklist para não soar alarme falso com a folga incidental entre peças
+    vizinhas. De 0,20 m até CIRC_MIN é passagem estreita (sinalizada). */
+export const CORRIDOR_FLOOR = 0.2
 /** Diâmetro do giro acessível (cadeira de rodas), NBR 9050. */
 export const TURN_CIRCLE = 1.5
+
+/** Formata metros em pt-BR (vírgula decimal) para os textos do checklist. */
+const fmtM = (v: number) => v.toFixed(2).replace('.', ',')
 
 /** Classifica uma folga de circulação pelos limiares CIRC_*. */
 export function classifyCirc(gap: number): Severity {
@@ -437,6 +445,7 @@ export function corridorAnalysis(scene: RestaurantScene): CorridorSeg[] {
   const best = new Map<string, CorridorSeg>()
   for (const it of solids) {
     for (const c of clearances(it, items, poly)) {
+      if (c.gap < CORRIDOR_FLOOR) continue // adjacência entre peças, não corredor
       const seg: CorridorSeg = {
         x1: c.from.x,
         y1: c.from.y,
@@ -601,7 +610,7 @@ export function complianceChecks(scene: RestaurantScene): ComplianceIssue[] {
       id: 'circ-critica',
       severity: 'error',
       title: 'Corredor de circulação crítico',
-      detail: `Há ${bad.length} vão(s) abaixo de ${CIRC_CRIT.toFixed(2)} m. A circulação interna de cozinha deve permitir passagem segura (CVS 5/2013); o mínimo de projeto adotado é ${CIRC_MIN.toFixed(2)} m.`,
+      detail: `Há ${bad.length} vão(s) abaixo de ${fmtM(CIRC_CRIT)} m. A circulação interna de cozinha deve permitir passagem segura (CVS 5/2013); o mínimo de projeto adotado é ${fmtM(CIRC_MIN)} m.`,
       itemIds: [],
     })
   } else if (warn.length) {
@@ -609,7 +618,7 @@ export function complianceChecks(scene: RestaurantScene): ComplianceIssue[] {
       id: 'circ-apertada',
       severity: 'warn',
       title: 'Corredor de circulação apertado',
-      detail: `Há ${warn.length} vão(s) entre ${CIRC_CRIT.toFixed(2)} e ${CIRC_MIN.toFixed(2)} m. Recomenda-se ${CIRC_IDEAL.toFixed(2)} m para circulação confortável (CVS 5/2013).`,
+      detail: `Há ${warn.length} vão(s) entre ${fmtM(CIRC_CRIT)} e ${fmtM(CIRC_MIN)} m. Recomenda-se ${fmtM(CIRC_IDEAL)} m para circulação confortável (CVS 5/2013).`,
       itemIds: [],
     })
   }
@@ -622,7 +631,7 @@ export function complianceChecks(scene: RestaurantScene): ComplianceIssue[] {
         id: 'giro-foh',
         severity: 'warn',
         title: 'Falta área de giro Ø1,50 m no atendimento',
-        detail: `O maior círculo livre no FOH é Ø${turn.toFixed(2)} m; a NBR 9050 exige Ø${TURN_CIRCLE.toFixed(2)} m para manobra de cadeira de rodas (giro de 360°).`,
+        detail: `O maior círculo livre no FOH é Ø${fmtM(turn)} m; a NBR 9050 exige Ø${fmtM(TURN_CIRCLE)} m para manobra de cadeira de rodas (giro de 360°).`,
         itemIds: [],
       })
     }
@@ -673,7 +682,7 @@ export function complianceChecks(scene: RestaurantScene): ComplianceIssue[] {
         id: 'pia-distante-preparo',
         severity: 'warn',
         title: 'Pia distante da bancada de preparo',
-        detail: `A pia de higienização mais próxima do preparo está a ${nearest.toFixed(2)} m. Boas práticas (CVS 5/2013) pedem lavatório acessível junto à manipulação para evitar contaminação cruzada.`,
+        detail: `A pia de higienização mais próxima do preparo está a ${fmtM(nearest)} m. Boas práticas (CVS 5/2013) pedem lavatório acessível junto à manipulação para evitar contaminação cruzada.`,
         itemIds: pair,
       })
     }
