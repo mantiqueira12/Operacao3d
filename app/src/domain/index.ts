@@ -48,3 +48,4 @@ export { equipmentSchedule, scheduleToCSV } from './schedule'
 export type { ScheduleRow } from './schedule'
 
 export { loja206Scene } from './templates/loja206'
+export { blankScene, makeRectangularRoom } from './roomShapes'

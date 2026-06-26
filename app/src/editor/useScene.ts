@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  blankScene,
   clampToPolygon,
   collisionPairs,
   collisionSet,
@@ -10,12 +11,27 @@ import {
   stackTopBelow,
   type Item,
   type RestaurantScene,
+  type Room,
   type TitleBlock,
 } from '../domain'
-import { createStorage } from '../storage'
+import { createStorage, type ProjectMeta } from '../storage'
 import { boundsOf, clampPosition, rotated } from './geometry'
 
 const newId = () => crypto.randomUUID()
+
+/** Aplica o nome (unidade) ao carimbo da cena — o nome do projeto = `titleBlock.unit`. */
+function withUnitName(data: RestaurantScene, unit: string): RestaurantScene {
+  return {
+    ...data,
+    titleBlock: {
+      project: data.titleBlock?.project ?? '',
+      unit,
+      address: data.titleBlock?.address ?? '',
+      responsible: data.titleBlock?.responsible ?? '',
+      dateRev: data.titleBlock?.dateRev ?? '',
+    },
+  }
+}
 
 /** Estado + mutações da cena, com carga e gravação automática na persistência. */
 export function useScene() {
@@ -24,6 +40,11 @@ export function useScene() {
   const [projectId, setProjectId] = useState<string | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [projects, setProjects] = useState<ProjectMeta[]>([])
+
+  const refreshProjects = useCallback(async () => {
+    setProjects(await storage.list())
+  }, [storage])
 
   // Carga inicial: projeto salvo ou template Loja 206.
   useEffect(() => {
@@ -31,6 +52,7 @@ export function useScene() {
     void (async () => {
       const metas = await storage.list()
       if (!alive) return
+      setProjects(metas)
       if (metas.length > 0) {
         const p = await storage.get<RestaurantScene>(metas[0].id)
         if (alive && p) {
@@ -47,6 +69,7 @@ export function useScene() {
       if (alive) {
         setScene(saved.data)
         setProjectId(saved.id)
+        setProjects(await storage.list())
       }
     })()
     return () => {
@@ -199,6 +222,89 @@ export function useScene() {
     })
   }, [])
 
+  /** Redefine a casca da sala (polígono/FOH). Usado pelo painel "Sala". */
+  const patchRoom = useCallback((patch: Partial<Room>) => {
+    setScene((s) => (s ? { ...s, room: { ...s.room, ...patch } } : s))
+  }, [])
+
+  // --- Multi-projeto: abrir / criar / renomear / duplicar / excluir ---
+  const openProject = useCallback(
+    async (id: string) => {
+      const p = await storage.get<RestaurantScene>(id)
+      if (!p) return
+      setScene(p.data)
+      setProjectId(p.id)
+      setSelectedId(null)
+      // bump updatedAt: 3D e Operação carregam sempre o projeto mais recente
+      await storage.save<RestaurantScene>({ id: p.id, name: p.name, data: p.data })
+      await refreshProjects()
+    },
+    [storage, refreshProjects],
+  )
+
+  const createProject = useCallback(
+    async (template: 'blank' | 'loja206', name: string) => {
+      const unit = name.trim() || 'Novo restaurante'
+      const base = template === 'loja206' ? loja206Scene(newId) : blankScene({ unit })
+      const saved = await storage.save<RestaurantScene>({ name: unit, data: withUnitName(base, unit) })
+      setScene(saved.data)
+      setProjectId(saved.id)
+      setSelectedId(null)
+      await refreshProjects()
+    },
+    [storage, refreshProjects],
+  )
+
+  const duplicateProject = useCallback(
+    async (id: string) => {
+      const p = await storage.get<RestaurantScene>(id)
+      if (!p) return
+      const unit = `${p.name} (cópia)`
+      await storage.save<RestaurantScene>({ name: unit, data: withUnitName(p.data, unit) })
+      await refreshProjects()
+    },
+    [storage, refreshProjects],
+  )
+
+  const renameProject = useCallback(
+    async (id: string, name: string) => {
+      const unit = name.trim()
+      if (!unit) return
+      if (id === projectId) {
+        patchTitleBlock({ unit }) // a gravação com debounce persiste o novo nome
+        window.setTimeout(() => void refreshProjects(), 500)
+        return
+      }
+      const p = await storage.get<RestaurantScene>(id)
+      if (!p) return
+      await storage.save<RestaurantScene>({ id, name: unit, data: withUnitName(p.data, unit) })
+      await refreshProjects()
+    },
+    [storage, projectId, patchTitleBlock, refreshProjects],
+  )
+
+  const deleteProject = useCallback(
+    async (id: string) => {
+      await storage.remove(id)
+      if (id === projectId) {
+        const metas = await storage.list()
+        const next = metas[0] ? await storage.get<RestaurantScene>(metas[0].id) : null
+        if (next) {
+          setScene(next.data)
+          setProjectId(next.id)
+        } else {
+          const fresh = loja206Scene(newId)
+          const saved = await storage.save<RestaurantScene>({ name: fresh.titleBlock?.unit ?? 'Projeto', data: fresh })
+          setScene(saved.data)
+          setProjectId(saved.id)
+        }
+        setSelectedId(null)
+      }
+      await refreshProjects()
+    },
+    [storage, projectId, refreshProjects],
+  )
+
   const selected = scene?.items.find((i) => i.id === selectedId) ?? null
 
   return {
@@ -219,6 +325,14 @@ export function useScene() {
     conflicts,
     outOfBounds,
     patchTitleBlock,
+    patchRoom,
     replaceScene,
+    projects,
+    projectId,
+    openProject,
+    createProject,
+    renameProject,
+    duplicateProject,
+    deleteProject,
   }
 }

@@ -7,7 +7,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import { CATALOG, UTILITY_META, levelOf, stackTopBelow, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
+import { CATALOG, UTILITY_META, levelOf, makeRectangularRoom, stackTopBelow, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
 import { MIN_SIZE, clampPosition } from './geometry'
 import { SCALE, SceneLayers, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
@@ -15,6 +15,7 @@ import { useScene } from './useScene'
 import ScheduleModal from './Schedule'
 import PrintExtras from './PrintExtras'
 import PrintPlan from './PrintPlan'
+import ProjectManager from '../ProjectManager'
 import './planner.css'
 
 const CAT_ORDER: ItemCategory[] = ['atendimento', 'cozinha', 'gerais', 'estrutura']
@@ -52,6 +53,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const [layers, setLayers] = useState({ cotas: true, items: true, zones: true, fohboh: true, grid: true, utils: true })
   const [measure, setMeasure] = useState<{ a: { x: number; y: number } | null; b: { x: number; y: number } | null }>({ a: null, b: null })
   const [showSchedule, setShowSchedule] = useState(false)
+  const [showProjects, setShowProjects] = useState(false)
 
   const scene = ed.scene
 
@@ -230,6 +232,9 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         <div className="brand">All'<b>Antico</b> Panino</div>
         <div className="topdoc">{tb?.unit ?? 'Projeto'} · Estúdio de planta <span className="verbadge">v3</span></div>
         <div className="topspacer" />
+        <div className="toolgroup">
+          <button className="tbtn" onClick={() => setShowProjects(true)}>Projetos</button>
+        </div>
         <div className="toolgroup">
           <button className={`tbtn${tool === 'select' ? ' active' : ''}`} onClick={() => setTool('select')}><Icon name="select" />Selecionar</button>
           <button className={`tbtn${tool === 'measure' ? ' active' : ''}`} onClick={() => setTool('measure')}><Icon name="measure" />Medir</button>
@@ -464,6 +469,21 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         </div>
 
         <div className="sec">
+          <h3>Sala</h3>
+          {ed.bounds && (
+            <>
+              <div className="grid2">
+                <NumField label="Largura (m)" value={ed.bounds.maxX - ed.bounds.minX}
+                  onCommit={(w) => ed.bounds && ed.patchRoom(makeRectangularRoom(w, ed.bounds.maxY - ed.bounds.minY))} />
+                <NumField label="Profund. (m)" value={ed.bounds.maxY - ed.bounds.minY}
+                  onCommit={(d) => ed.bounds && ed.patchRoom(makeRectangularRoom(ed.bounds.maxX - ed.bounds.minX, d))} />
+              </div>
+              <div className="lvl-info">Editar L×P redefine a sala como retângulo.</div>
+            </>
+          )}
+        </div>
+
+        <div className="sec">
           <h3>Carimbo</h3>
           <div className="tb">
             <TBRow label="Projeto" value={tb?.project ?? ''} onCommit={(v) => ed.patchTitleBlock({ project: v })} />
@@ -475,6 +495,18 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         </div>
       </aside>
       {showSchedule && <ScheduleModal scene={scene} onClose={() => setShowSchedule(false)} />}
+      {showProjects && (
+        <ProjectManager
+          projects={ed.projects}
+          currentId={ed.projectId}
+          onOpen={(id) => { void ed.openProject(id); setShowProjects(false) }}
+          onCreate={(t, n) => { void ed.createProject(t, n); setShowProjects(false) }}
+          onRename={(id, n) => void ed.renameProject(id, n)}
+          onDelete={(id) => void ed.deleteProject(id)}
+          onDuplicate={(id) => void ed.duplicateProject(id)}
+          onClose={() => setShowProjects(false)}
+        />
+      )}
       <PrintPlan scene={scene} />
       <PrintExtras scene={scene} />
     </div>

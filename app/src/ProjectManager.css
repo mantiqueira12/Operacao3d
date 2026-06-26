@@ -1,0 +1,289 @@
+/* ProjectManager — tela de entrada full-screen. Reusa os tokens de index.css. */
+
+.pm-screen {
+  height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+  background: radial-gradient(circle at 50% -10%, #f1ece1, var(--panna));
+  color: var(--inch);
+  font-family: var(--ui);
+  display: flex;
+  justify-content: center;
+  padding: 56px 24px;
+}
+
+.pm-shell {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* header */
+.pm-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--line2);
+}
+.pm-title {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--inch);
+}
+.pm-subtitle {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+}
+.pm-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--line2);
+  color: var(--ink-soft);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 13px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pm-close span {
+  font-size: 17px;
+  line-height: 1;
+}
+.pm-close:hover {
+  background: var(--bianco);
+  color: var(--inch);
+  border-color: var(--ink-soft);
+}
+
+.pm-section-title {
+  margin: 0 0 14px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* bloco "Novo projeto" */
+.pm-create {
+  background: var(--rail);
+  border: 1px solid var(--line2);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+.pm-create-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.pm-input {
+  flex: 1 1 240px;
+  min-width: 200px;
+  font-family: var(--ui);
+  font-size: 14px;
+  color: var(--inch);
+  background: var(--bianco);
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  padding: 11px 14px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.pm-input::placeholder {
+  color: var(--muted);
+}
+.pm-input:focus {
+  border-color: var(--rosso);
+  box-shadow: 0 0 0 3px rgba(226, 0, 15, 0.12);
+}
+
+/* seletor de modelo (segmented) */
+.pm-segmented {
+  display: inline-flex;
+  background: var(--bianco);
+  border: 1px solid var(--line2);
+  border-radius: 9px;
+  padding: 3px;
+  gap: 3px;
+}
+.pm-seg {
+  background: transparent;
+  border: none;
+  color: var(--ink-soft);
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 13px;
+  border-radius: 7px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.pm-seg:hover {
+  color: var(--inch);
+}
+.pm-seg.is-active {
+  background: var(--inch);
+  color: var(--bianco);
+}
+
+/* botões */
+.pm-btn {
+  font-family: var(--ui);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--bianco);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  padding: 8px 14px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pm-btn:hover {
+  background: var(--panna);
+  color: var(--inch);
+  border-color: var(--ink-soft);
+}
+.pm-btn-primary {
+  color: var(--bianco);
+  background: var(--rosso);
+  border-color: var(--rosso);
+}
+.pm-btn-primary:hover {
+  background: var(--rosso-d);
+  border-color: var(--rosso-d);
+  color: var(--bianco);
+}
+.pm-btn-danger:hover {
+  color: var(--rosso-d);
+  border-color: var(--rosso);
+  background: rgba(226, 0, 15, 0.06);
+}
+.pm-create-btn {
+  padding: 11px 22px;
+  font-size: 13.5px;
+}
+
+/* lista de projetos */
+.pm-empty {
+  margin: 0;
+  padding: 40px 24px;
+  text-align: center;
+  font-size: 13.5px;
+  color: var(--muted);
+  background: var(--rail);
+  border: 1px dashed var(--line2);
+  border-radius: 14px;
+}
+.pm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pm-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bianco);
+  border: 1px solid var(--line2);
+  border-radius: 12px;
+  padding: 6px 16px 6px 6px;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.pm-row:hover {
+  border-color: var(--ink-soft);
+  box-shadow: 0 6px 18px rgba(26, 26, 26, 0.07);
+}
+.pm-row.is-current {
+  border-color: var(--rosso);
+  box-shadow: inset 3px 0 0 var(--rosso);
+}
+
+.pm-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 12px 10px;
+  border-radius: 8px;
+}
+.pm-row-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--inch);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pm-row-main:hover .pm-row-name {
+  color: var(--rosso);
+}
+.pm-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pm-row-date {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.pm-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--rosso);
+  background: rgba(226, 0, 15, 0.08);
+  border: 1px solid rgba(226, 0, 15, 0.22);
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+
+.pm-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .pm-screen {
+    padding: 32px 16px;
+  }
+  .pm-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 6px;
+  }
+  .pm-row-actions {
+    flex-wrap: wrap;
+    padding: 0 10px 10px;
+  }
+  .pm-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
