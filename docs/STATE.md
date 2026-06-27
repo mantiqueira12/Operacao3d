@@ -4,6 +4,10 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Editar a casca livremente** (`editor/roomEdit.ts` + ferramenta "Editar sala"): arrasta os
+  vértices do polígono da sala no canvas (pega por proximidade/alça, preview tracejado, encaixe
+  na grade + vértices/bordas, commit via `patchRoom` recomputando área). Completa o multi-projeto
+  (antes só retângulo W×P). +7 testes (142). Por agente isolado (worktree), integrado. Publicado na `main`.
 - **Multi-projeto — destravar a Loja 206.** (A) o **motor de simulação lê `scene.room.polygon`**:
   `makeGeometry(polygon)` (`sim/geometry.ts`) deriva bbox/`inShell`/`OUT` de qualquer casca,
   threaded por `nav/engine/adapter/worker` + `useSimWorker/SimPanel` — a 206 segue **byte-a-byte
@@ -188,7 +192,7 @@
    Projetos + painel Sala**, e os recursos de arquiteto (circulação/zonas/conformidade). Sem cobertura automática.
 2. **Operação a fundo** — portar a UI rica do protótipo: cardápio, padaria/P&L, KDS+alertas,
    cenários+comparação, heatmap/trilhas (maior gap funcional).
-3. **Editar a casca livremente** (vértices/parede ortogonal), além do retângulo W×P do painel Sala.
+3. ✅ ~~Editar a casca livremente~~ — FEITO (ferramenta "Editar sala", arrasta vértices).
 4. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
 5. **Bug double-count** (served × balkedPickup) — decidir e corrigir.
    (✅ "Casca por-projeto no motor" — RESOLVIDO pelo multi-projeto: o motor lê `room.polygon`.)
