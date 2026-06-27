@@ -549,6 +549,41 @@ function Guides({ guides }: { guides: AlignGuide[] }) {
   )
 }
 
+/**
+ * Edição da casca (ferramenta Editar sala): alças circulares arrastáveis em cada
+ * vértice do polígono + contorno tracejado do preview enquanto se arrasta um vértice.
+ * Posições em metros; raio da alça métrico (escala com o zoom, como as alças de peça).
+ */
+export interface RoomEditProps {
+  polygon: Array<[number, number]>
+  /** polígono em pré-visualização (durante o arraste) — null fora do arraste */
+  preview: Array<[number, number]> | null
+  onVertexDown: (e: ReactPointerEvent, idx: number) => void
+}
+
+function RoomEdit({ roomEdit, zoom }: { roomEdit: RoomEditProps; zoom: number }) {
+  const r = 6 / zoom
+  const previewPts = roomEdit.preview
+    ? roomEdit.preview.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
+    : null
+  return (
+    <g className="room-edit">
+      {previewPts && <polygon className="room-preview" points={previewPts} />}
+      {roomEdit.polygon.map((p, i) => (
+        <circle
+          key={i}
+          className="room-vertex"
+          cx={p[0] * SCALE}
+          cy={p[1] * SCALE}
+          r={r}
+          style={{ cursor: 'grab' }}
+          onPointerDown={(e) => roomEdit.onVertexDown(e, i)}
+        />
+      ))}
+    </g>
+  )
+}
+
 /** Marcadores de instalação (elétrica/hidráulica/esgoto/gás/exaustão) por peça. */
 function UtilMarks({ item }: { item: Item }) {
   const u = utilsFor(item.type)
@@ -586,6 +621,7 @@ export function SceneLayers({
   showCirculation = false,
   showWorkZones = false,
   guides,
+  roomEdit,
 }: {
   scene: RestaurantScene
   selectedId: string | null
@@ -601,6 +637,8 @@ export function SceneLayers({
   showWorkZones?: boolean
   /** linhas-guia de alinhamento durante o arraste */
   guides?: AlignGuide[]
+  /** ferramenta Editar sala: alças de vértice + preview da casca (undefined = desligada) */
+  roomEdit?: RoomEditProps
 }) {
   const poly = scene.room.polygon
   const points = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
@@ -656,6 +694,7 @@ export function SceneLayers({
       {sel && isSolid(sel) && <NeighborDims item={sel} items={scene.items} poly={poly} />}
       {sel && <Overlay item={sel} zoom={zoom} onHandleDown={onHandleDown} onRotate={onRotate} />}
       {guides && guides.length > 0 && <Guides guides={guides} />}
+      {roomEdit && <RoomEdit roomEdit={roomEdit} zoom={zoom} />}
     </>
   )
 }

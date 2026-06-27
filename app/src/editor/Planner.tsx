@@ -7,10 +7,11 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from 'react'
-import { CATALOG, UTILITY_META, isSolid, levelOf, loja206Scene, makeRectangularRoom, stackTopBelow, type CatalogEntry, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
+import { CATALOG, UTILITY_META, isSolid, levelOf, loja206Scene, makeRectangularRoom, polygonArea, stackTopBelow, type CatalogEntry, type Item, type ItemCategory, type RestaurantScene, type UtilityTag } from '../domain'
 import { registerCustomEntry, unregisterCustomEntry } from '../domain/catalog'
 import { complianceChecks, type ComplianceIssue, type ComplianceSeverity } from '../domain/spatial'
 import { MIN_SIZE, clampPosition } from './geometry'
+import { findNearestVertex, snapVertex } from './roomEdit'
 import { SCALE, SceneLayers, type AlignGuide, type Handle } from './SceneLayers'
 import { CatalogGlyph, Icon } from './icons'
 import { useScene } from './useScene'
@@ -36,16 +37,18 @@ const LEVEL_PRESETS: Array<{ label: string; z: number }> = [
 ]
 const UTIL_ORDER: UtilityTag[] = ['eletrica', 'hidraulica', 'esgoto', 'gas', 'exaustao']
 const fmt = (n: number) => n.toFixed(2).replace('.', ',')
+const round2 = (n: number) => Math.round(n * 100) / 100
 const WALL_TH = 0.12 // espessura da parede desenhada (m)
 
 type View = { zoom: number; panX: number; panY: number }
-type Tool = 'select' | 'measure' | 'wall' | 'divisor'
+type Tool = 'select' | 'measure' | 'wall' | 'divisor' | 'room'
 type Pt = { x: number; y: number }
 type Drag =
   | { kind: 'move'; id: string; off: { x: number; y: number } }
   | { kind: 'resize'; id: string; handle: Handle; item: Item }
   | { kind: 'pan'; sx: number; sy: number; px: number; py: number }
   | { kind: 'draft'; tool: 'wall' | 'divisor'; a: Pt; b: Pt }
+  | { kind: 'vertex'; idx: number }
   | null
 
 /** Retângulo ortogonal da parede/divisor desenhado de A→B (wallRect do protótipo). */
@@ -159,6 +162,8 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   const [guides, setGuides] = useState<AlignGuide[]>([])
   const [measure, setMeasure] = useState<{ a: Pt | null; b: Pt | null }>({ a: null, b: null })
   const [draft, setDraft] = useState<{ tool: 'wall' | 'divisor'; a: Pt; b: Pt } | null>(null)
+  // Preview ao vivo do polígono da sala durante o arraste de um vértice (ferramenta Editar sala).
+  const [roomDraft, setRoomDraft] = useState<Array<[number, number]> | null>(null)
   const [showSchedule, setShowSchedule] = useState(false)
   const [showProjects, setShowProjects] = useState(false)
   const [showCreate, setShowCreate] = useState(false)
@@ -343,6 +348,15 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
     ed.rotateItem(item.id)
   }
 
+  // Pega direta de um vértice da casca (alça circular) na ferramenta Editar sala.
+  function onVertexDown(e: ReactPointerEvent, idx: number) {
+    if (tool !== 'room') return
+    e.stopPropagation()
+    drag.current = { kind: 'vertex', idx }
+    setRoomDraft(scene!.room.polygon.map((p) => [p[0], p[1]]))
+    svgRef.current?.setPointerCapture(e.pointerId)
+  }
+
   function onBgDown(e: ReactPointerEvent) {
     if (tool === 'measure') {
       const m = toWorld(e.clientX, e.clientY)
@@ -354,6 +368,22 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       const a = { x: snapV(m.x), y: snapV(m.y) }
       drag.current = { kind: 'draft', tool, a, b: a }
       setDraft({ tool, a, b: a })
+      svgRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
+    if (tool === 'room') {
+      const m = toWorld(e.clientX, e.clientY)
+      // tolerância de pega ~12 px na tela, com piso de 6 cm (mais fácil em zoom alto)
+      const tol = Math.max(0.06, 12 / (SCALE * view.zoom))
+      const idx = findNearestVertex(scene!.room.polygon, m.x, m.y, tol)
+      if (idx != null) {
+        drag.current = { kind: 'vertex', idx }
+        setRoomDraft(scene!.room.polygon.map((p) => [p[0], p[1]]))
+        svgRef.current?.setPointerCapture(e.pointerId)
+        return
+      }
+      // nenhum vértice perto: pan, como na seleção
+      drag.current = { kind: 'pan', sx: e.clientX, sy: e.clientY, px: view.panX, py: view.panY }
       svgRef.current?.setPointerCapture(e.pointerId)
       return
     }
@@ -385,6 +415,25 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
       const b = { x: snapV(m.x), y: snapV(m.y) }
       d.b = b
       setDraft({ tool: d.tool, a: d.a, b })
+      return
+    }
+    if (d.kind === 'vertex') {
+      const m = toWorld(e.clientX, e.clientY)
+      const poly = scene!.room.polygon
+      // tolerância de encaixe ~6 px na tela, presa entre 2 e 8 cm
+      const snapTol = Math.min(0.08, Math.max(0.02, 6 / (SCALE * view.zoom)))
+      // candidatas de encaixe: bordas (min/max) das peças sólidas
+      const solids = scene!.items.filter(isSolid)
+      const edgesX = solids.flatMap((o) => [o.x, o.x + o.width])
+      const edgesY = solids.flatMap((o) => [o.y, o.y + o.depth])
+      // grade primeiro, depois encaixe em vértices/peças (emite guia por eixo encaixado)
+      const gx = snapV(m.x), gy = snapV(m.y)
+      const s = snapOn
+        ? snapVertex(poly, d.idx, gx, gy, edgesX, edgesY, snapTol)
+        : { x: m.x, y: m.y, guides: [] as AlignGuide[] }
+      const next = poly.map((p, i): [number, number] => (i === d.idx ? [s.x, s.y] : [p[0], p[1]]))
+      setRoomDraft(next)
+      setGuides(s.guides)
       return
     }
     const m = toWorld(e.clientX, e.clientY)
@@ -454,6 +503,11 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
         ed.addItem(d.tool === 'wall' ? 'wall' : 'painel')
       }
     }
+    if (d && d.kind === 'vertex' && roomDraft) {
+      // grava a nova casca; recomputa a área rotulada pela fórmula do cadarço
+      ed.patchRoom({ polygon: roomDraft, labeledAreaM2: round2(polygonArea(roomDraft)) })
+    }
+    setRoomDraft(null)
     drag.current = null
     setDragInfo(null)
     setGuides([])
@@ -476,6 +530,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
     setTool(t)
     setMeasure({ a: null, b: null })
     setDraft(null)
+    setRoomDraft(null)
     setGuides([])
   }, [])
 
@@ -566,7 +621,8 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
   // classe de cursor do canvas conforme ferramenta/estado
   const sceneCls =
     tool === 'measure' || tool === 'wall' || tool === 'divisor' ? 'tool-measure'
-      : drag.current?.kind === 'pan' ? 'panning' : ''
+      : tool === 'room' ? 'tool-room'
+        : drag.current?.kind === 'pan' ? 'panning' : ''
 
   // draft ao vivo da parede/divisor (rect-fantasma + cota viva)
   const draftR = draft ? draftRect(draft.a, draft.b) : null
@@ -587,6 +643,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           <button className={`tbtn${tool === 'measure' ? ' active' : ''}`} onClick={() => switchTool('measure')}><Icon name="measure" />Medir</button>
           <button className={`tbtn${tool === 'wall' ? ' active' : ''}`} onClick={() => switchTool('wall')}><Icon name="wall" />Parede</button>
           <button className={`tbtn${tool === 'divisor' ? ' active' : ''}`} onClick={() => switchTool('divisor')}><Icon name="divisor" />Divisor FOH/BOH</button>
+          <button className={`tbtn${tool === 'room' ? ' active' : ''}`} onClick={() => switchTool('room')}><Icon name="room" />Editar sala</button>
         </div>
         <div className="toolgroup">
           <button className="tbtn" onClick={undo} disabled={!canUndo} title="Desfazer (Ctrl+Z)"><Icon name="undo" />Desfazer</button>
@@ -681,6 +738,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
               onItemPointerDown={onItemDown}
               onHandleDown={onHandleDown}
               onRotate={onRotate}
+              roomEdit={tool === 'room' ? { polygon: scene.room.polygon, preview: roomDraft, onVertexDown } : undefined}
             />
             {/* draft da parede / divisor por arraste (rect-fantasma + cota viva) */}
             {draftR && draftLen > 0 && (
@@ -734,7 +792,8 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           {tool === 'measure' ? 'Clique dois pontos para medir a distância · Esc volta a selecionar'
             : tool === 'wall' ? 'Arraste para desenhar a parede · o comprimento aparece ao vivo'
               : tool === 'divisor' ? 'Arraste para desenhar o divisor FOH/BOH'
-                : 'Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan'}
+                : tool === 'room' ? 'Arraste os vértices da casca para remodelar a sala · Esc volta a selecionar'
+                  : 'Arraste para mover · alças para redimensionar · roda do mouse: zoom · arraste o vazio: pan'}
         </div>
         <div className="miniscale">
           <div className="sb"><i className="f" style={{ width: barPx }} /><i style={{ width: barPx }} /></div>
@@ -934,6 +993,7 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
                   onCommit={(d) => ed.bounds && ed.patchRoom(makeRectangularRoom(ed.bounds.maxX - ed.bounds.minX, d))} />
               </div>
               <div className="lvl-info">Editar L×P redefine a sala como retângulo.</div>
+              <div className="lvl-info">Ferramenta <b>Editar sala</b>: arraste os vértices da casca.</div>
             </>
           )}
         </div>

@@ -6,6 +6,7 @@ const PATHS: Record<string, string> = {
   measure: 'M3 17L17 3l4 4L7 21z M7 13l2 2M11 9l2 2M15 5l2 2',
   wall: 'M3 9h18M3 15h18M7 3v6M14 9v6M18 15v6M10 15v6',
   divisor: 'M3 12h18M5 6h14M5 18h14',
+  room: 'M4 4h16v16H4z M4 4l4 4M20 4l-4 4M4 20l4-4M20 20l-4-4',
   play: 'M5 3l14 9-14 9V3z',
   cube: 'M12 2l9 5v10l-9 5-9-5V7z M12 2v20M3 7l9 5 9-5',
   export: 'M12 3v12M7 10l5 5 5-5M4 21h16',
