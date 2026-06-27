@@ -20,3 +20,6 @@ venv/
 # Builds / temporários
 _extracted/
 *.zip
+
+# Worktrees transitórios de agentes (isolamento de sub-tarefas)
+.claude/worktrees/
