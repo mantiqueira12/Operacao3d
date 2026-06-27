@@ -201,8 +201,11 @@
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
   operador já pegou a tarefa, ele ainda "entrega" e conta `served++` (além de `balkedPickup++`).
   Logo served+balked pode passar de `arrived` (~69 num dia base, seed 42). É FIEL ao
-  `sim-core.js` (mesma lógica em `delivering`). Decisão pendente: manter (fidelidade) ou
-  cancelar a tarefa no abandono.
+  `sim-core.js` (mesma lógica em `delivering`). **Decisão (2026-06-27): MANTER** — é fiel ao golden
+  (sim-core.js + Python validado p/ casar). Fixar só no TS quebra a paridade: throughput de
+  sobrecarga cairia ~15→8 cli/h e o cross-check Python iria a ~83% de erro. (O fix em si é trivial —
+  flag `abandoned` na OpTask + operador descarta sem `served++`; só reabrir se corrigir os 3 motores
+  juntos: TS + Python + protótipo.)
 
 ## Nota: por que NÃO bate exatamente com o Python (resolvido — cross-check passou)
 - Motor TS = DES espacial (A*, layout, pão, 3 itens, 12h). Python = pipeline SimPy (4 itens,
