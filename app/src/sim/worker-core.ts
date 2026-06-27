@@ -6,7 +6,7 @@ import type { SceneItem, SimConfig } from './types'
 
 /* ----------------------------------------------------------- protocolo */
 export type WorkerRequest =
-  | { type: 'init'; config?: SimConfig; scene?: SceneItem[] }
+  | { type: 'init'; config?: SimConfig; scene?: SceneItem[]; polygon?: Array<[number, number]> }
   | { type: 'run'; dt?: number; until?: number; kpiEvery?: number }
   | { type: 'step'; simMin?: number; dt?: number; withKpis?: boolean }
   | { type: 'reset' }
@@ -31,7 +31,7 @@ export class SimController {
     try {
       switch (msg.type) {
         case 'init':
-          this.init(msg.config, msg.scene)
+          this.init(msg.config, msg.scene, msg.polygon)
           break
         case 'run':
           this.run(msg.dt, msg.until, msg.kpiEvery)
@@ -56,8 +56,8 @@ export class SimController {
     return this.eng
   }
 
-  private init(config?: SimConfig, scene?: SceneItem[]) {
-    this.eng = new SimEngine(config, scene)
+  private init(config?: SimConfig, scene?: SceneItem[], polygon?: Array<[number, number]>) {
+    this.eng = new SimEngine(config, scene, polygon)
     this.post({ type: 'ready', scene: this.eng.sceneSnapshot(), simTime: this.eng.simTime })
   }
 

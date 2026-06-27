@@ -1,7 +1,10 @@
 /* Malha de navegação + A* dos operadores, dentro da casca.
-   Port fiel de sim-core.js (linhas 184-378). Encapsulado em classe. */
+   Port fiel de sim-core.js (linhas 184-378). Encapsulado em classe.
 
-import { GATE, inShell, OUT, W } from './geometry'
+   A casca é injetada (`Geometry`) em `build`/`computeSlots`, não mais lida de constantes
+   globais — assim a navegação respeita o `scene.room.polygon` de qualquer projeto. */
+
+import { type Geometry, GEO_206 } from './geometry'
 import type { SceneItem, Station, Vec2 } from './types'
 
 const NAV_CELL = 0.05
@@ -67,6 +70,7 @@ class MinHeap {
 export class NavGrid {
   ngW = 0
   ngH = 0
+  private geo: Geometry = GEO_206
   private grid: Uint8Array = new Uint8Array(0)
   private reach: Uint8Array | null = null
   private pathCache = new Map<string, Vec2[]>()
@@ -99,21 +103,23 @@ export class NavGrid {
     const gy1 = Math.min(this.ngH - 1, Math.floor(y1 / NAV_CELL))
     for (let gy = gy0; gy <= gy1; gy++)
       for (let gx = gx0; gx <= gx1; gx++) {
-        if (inShell(gx * NAV_CELL, gy * NAV_CELL)) this.grid[gx + gy * this.ngW] = 0
+        if (this.geo.inShell(gx * NAV_CELL, gy * NAV_CELL)) this.grid[gx + gy * this.ngW] = 0
       }
   }
 
-  /** Constrói a malha, marca bloqueadores/mobiliário, calcula pontos de serviço e alcance. */
-  build(blockers: SceneItem[], stations: Station[]) {
-    this.ngW = Math.ceil(W / NAV_CELL) + 1
-    this.ngH = Math.ceil(GATE / NAV_CELL) + 1
+  /** Constrói a malha, marca bloqueadores/mobiliário, calcula pontos de serviço e alcance.
+      `geo` define a casca (default = Loja 206). */
+  build(blockers: SceneItem[], stations: Station[], geo: Geometry = GEO_206) {
+    this.geo = geo
+    this.ngW = Math.ceil(geo.W / NAV_CELL) + 1
+    this.ngH = Math.ceil(geo.GATE / NAV_CELL) + 1
     this.grid = new Uint8Array(this.ngW * this.ngH)
     const BODY = 0.1
     for (let gy = 0; gy < this.ngH; gy++)
       for (let gx = 0; gx < this.ngW; gx++) {
         const x = gx * NAV_CELL
         const y = gy * NAV_CELL
-        if (!inShell(x, y) || !inShell(x - BODY, y) || !inShell(x + BODY, y) || !inShell(x, y - BODY))
+        if (!geo.inShell(x, y) || !geo.inShell(x - BODY, y) || !geo.inShell(x + BODY, y) || !geo.inShell(x, y - BODY))
           this.grid[gx + gy * this.ngW] = 1
       }
     blockers.forEach((b) => this.markBlocked(b.x, b.y, b.x + b.w, b.y + b.h, 0.08))
@@ -135,41 +141,49 @@ export class NavGrid {
     this.computeReach(stations)
   }
 
+  /** Alcance = MAIOR componente conexo de células livres (robusto p/ qualquer casca).
+      Substitui os antigos seeds hardcoded da 206 por uma varredura; como o espaço livre
+      da 206 forma um único componente conexo, o resultado é idêntico ao anterior. */
   private computeReach(stations: Station[]) {
     this.reach = new Uint8Array(this.ngW * this.ngH)
-    let seed: { gx: number; gz: number } | null = null
-    const tries: Array<[number, number]> = [
-      [0.9, 1.5],
-      [1.3, 4.0],
-      [0.5, 2.5],
-      [1.3, 0.5],
+    const comp = new Int32Array(this.ngW * this.ngH).fill(-1)
+    const nb: Array<[number, number]> = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
     ]
-    for (let s = 0; s < tries.length && !seed; s++)
-      seed = this.findNearFree(this.w2gx(tries[s][0]), this.w2gy(tries[s][1]), 12)
-    if (!seed) return
-    const stack = [seed.gx + seed.gz * this.ngW]
-    this.reach[seed.gx + seed.gz * this.ngW] = 1
-    while (stack.length) {
-      const k = stack.pop() as number
-      const gx = k % this.ngW
-      const gz = (k / this.ngW) | 0
-      const nb: Array<[number, number]> = [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ]
-      for (let n = 0; n < 4; n++) {
-        const nx = gx + nb[n][0]
-        const nz = gz + nb[n][1]
-        if (!this.gFree(nx, nz)) continue
-        const nk = nx + nz * this.ngW
-        if (!this.reach[nk]) {
-          this.reach[nk] = 1
-          stack.push(nk)
+    let bestId = -1
+    let bestSize = 0
+    let cid = 0
+    for (let i = 0; i < this.grid.length; i++) {
+      if (this.grid[i] !== 0 || comp[i] !== -1) continue
+      const stack = [i]
+      comp[i] = cid
+      let size = 0
+      while (stack.length) {
+        const k = stack.pop() as number
+        size++
+        const gx = k % this.ngW
+        const gz = (k / this.ngW) | 0
+        for (let n = 0; n < 4; n++) {
+          const nx = gx + nb[n][0]
+          const nz = gz + nb[n][1]
+          if (!this.gFree(nx, nz)) continue
+          const nk = nx + nz * this.ngW
+          if (comp[nk] === -1) {
+            comp[nk] = cid
+            stack.push(nk)
+          }
         }
       }
+      if (size > bestSize) {
+        bestSize = size
+        bestId = cid
+      }
+      cid++
     }
+    if (bestId >= 0) for (let i = 0; i < comp.length; i++) if (comp[i] === bestId) this.reach[i] = 1
     stations.forEach((st) => {
       st.unreachable = !(st.sp && this.reach && this.reach[this.w2gx(st.sp.x) + this.w2gy(st.sp.y) * this.ngW])
     })
@@ -194,7 +208,7 @@ export class NavGrid {
       { x: st.x + st.w + 0.22, y: st.cy },
     ]
     for (const c of cands) {
-      if (c.y > GATE - 0.1) continue
+      if (c.y > this.geo.GATE - 0.1) continue
       const nf = this.findNearFree(this.w2gx(c.x), this.w2gy(c.y), 6)
       if (nf) {
         const px = this.g2w(nf.gx)
@@ -320,8 +334,10 @@ export class NavGrid {
   }
 }
 
-/** Slots de fila e retirada na calçada. Port de computeSlots (linhas 359-378). */
-export function computeSlots(stations: Station[]): { queueSlots: Vec2[]; pickupSlots: Vec2[] } {
+/** Slots de fila e retirada na calçada. Port de computeSlots (linhas 359-378).
+    `geo` define a casca/calçada (default = Loja 206). */
+export function computeSlots(stations: Station[], geo: Geometry = GEO_206): { queueSlots: Vec2[]; pickupSlots: Vec2[] } {
+  const { OUT, W, GATE } = geo
   const queueSlots: Vec2[] = []
   const pickupSlots: Vec2[] = []
   const cx = stations.find((s) => s.type === 'caixa')

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { loja206Scene } from '../domain'
 import { baseConfig } from './defaults'
 import { runSimulation } from './engine'
-import { itemToSimItem, sceneToSimItems } from './adapter'
+import { itemToSimItem, sceneToSim, sceneToSimItems } from './adapter'
 import type { Item } from '../domain/types'
 
 describe('adapter cena→sim', () => {
@@ -34,6 +34,14 @@ describe('adapter cena→sim', () => {
     }
   })
 
+  it('sceneToSim devolve itens + o polígono da casca', () => {
+    let seq = 0
+    const scene = loja206Scene(() => 'id' + seq++)
+    const { items, polygon } = sceneToSim(scene)
+    expect(items).toHaveLength(scene.items.length)
+    expect(polygon).toEqual(scene.room.polygon) // casca em L da 206 repassada ao motor
+  })
+
   it('a cena convertida roda no motor e produz KPIs sãos', () => {
     let seq = 0
     const scene = loja206Scene(() => 'id' + seq++)
@@ -41,5 +49,18 @@ describe('adapter cena→sim', () => {
     expect(k.served).toBeGreaterThan(20)
     expect(k.revenueNet).toBeGreaterThan(0)
     expect(k.bread.baked).toBeGreaterThan(0) // padaria do fundo funciona com a cena do editor
+  })
+
+  it('passar o polígono da casca explicitamente preserva o resultado da 206', () => {
+    let seq = 0
+    const scene = loja206Scene(() => 'id' + seq++)
+    const items = sceneToSimItems(scene)
+    const cfg = { ...baseConfig(), seed: 42 }
+    const semCasca = runSimulation(cfg, items) // casca default (206)
+    const comCasca = runSimulation(cfg, items, {}, scene.room.polygon) // casca threaded
+    expect(comCasca.served).toBe(semCasca.served)
+    expect(comCasca.revenueNet).toBe(semCasca.revenueNet)
+    expect(comCasca.walkMetersTotal).toBe(semCasca.walkMetersTotal)
+    expect(comCasca.bread.baked).toBe(semCasca.bread.baked)
   })
 })

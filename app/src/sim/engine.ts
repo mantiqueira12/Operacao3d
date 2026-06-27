@@ -12,7 +12,7 @@
    Unidades: metros · minutos simulados. Dia operacional: 10:00 → 22:00. */
 
 import { baseConfig } from './defaults'
-import { CUT_X, CUT_Y, D, DEFAULT_SCENE, deriveScene, GATE, OUT, W, zoneOf } from './geometry'
+import { CUT_X, CUT_Y, DEFAULT_SCENE, deriveScene, type Geometry, makeGeometry, ROOM, zoneOf } from './geometry'
 import { computeSlots, NavGrid } from './nav'
 import { Rng } from './rng'
 import type { MenuItem, SceneItem, SimConfig, Station, Vec2 } from './types'
@@ -334,13 +334,17 @@ export interface SceneSnapshot {
   blockers: SceneItem[]
   queueSlots: Vec2[]
   pickupSlots: Vec2[]
-  room: { W: number; D: number; gate: number; cutX: number; cutY: number; out: typeof OUT }
+  room: { W: number; D: number; gate: number; cutX: number; cutY: number; out: { x0: number; x1: number; y1: number } }
 }
 
 /* ============================================================================ */
 export class SimEngine {
   cfg: SimConfig
   sceneItems: SceneItem[]
+  /** Polígono da casca (vértices [x, y]); default = Loja 206 (`ROOM`). */
+  polygon: Array<[number, number]>
+  /** Geometria derivada do polígono (bbox, dims, `inShell`). Recalculada em `rebuild`. */
+  geo: Geometry = makeGeometry(ROOM)
   simTime = DAY_START
   customers: Customer[] = []
   operators: Operator[] = []
@@ -360,9 +364,10 @@ export class SimEngine {
   S!: Metrics
   BR!: BreadState
 
-  constructor(config?: SimConfig, scene?: SceneItem[]) {
+  constructor(config?: SimConfig, scene?: SceneItem[], polygon?: Array<[number, number]>) {
     this.cfg = config || baseConfig()
     this.sceneItems = scene && scene.length ? scene : DEFAULT_SCENE.map((o) => ({ ...o }))
+    this.polygon = polygon && polygon.length ? polygon : ROOM
     this.reset()
   }
 
@@ -384,14 +389,15 @@ export class SimEngine {
   }
 
   private rebuild() {
+    this.geo = makeGeometry(this.polygon)
     const d = deriveScene(this.sceneItems, this.cfg.capacity)
     this.stations = d.stations
     this.stById = d.stById
     this.blockers = d.blockers
     this.typesInScene = d.typesInScene
     this.nav = new NavGrid()
-    this.nav.build(this.blockers, this.stations)
-    const slots = computeSlots(this.stations)
+    this.nav.build(this.blockers, this.stations, this.geo)
+    const slots = computeSlots(this.stations, this.geo)
     this.queueSlots = slots.queueSlots
     this.pickupSlots = slots.pickupSlots
   }
@@ -537,7 +543,7 @@ export class SimEngine {
   }
 
   private setOpTarget(op: Operator, tx: number, ty: number) {
-    ty = Math.min(ty, GATE - 0.12)
+    ty = Math.min(ty, this.geo.GATE - 0.12)
     if (op.path && op.path.length && Math.abs(op.tX - tx) < 0.08 && Math.abs(op.tY - ty) < 0.08) return
     op.tX = tx
     op.tY = ty
@@ -886,8 +892,8 @@ export class SimEngine {
     const id = this.S.nextId++
     this.customers.push({
       id,
-      x: this.rng.uniform(OUT.x0 + 0.3, OUT.x1 - 0.3),
-      y: OUT.y1 - 0.15,
+      x: this.rng.uniform(this.geo.OUT.x0 + 0.3, this.geo.OUT.x1 - 0.3),
+      y: this.geo.OUT.y1 - 0.15,
       state: 'entering',
       tArr: this.simTime,
       tSS: null,
@@ -1001,14 +1007,14 @@ export class SimEngine {
     })
 
     const caixa = this.stationsOfType('caixa')[0]
-    const pdvX = caixa ? Math.max(0.25, Math.min(caixa.cx, W - 0.25)) : 0.4
-    const pdvY = GATE + 0.35
+    const pdvX = caixa ? Math.max(0.25, Math.min(caixa.cx, this.geo.W - 0.25)) : 0.4
+    const pdvY = this.geo.GATE + 0.35
 
     /* ---- clientes ---- */
     for (let i = this.customers.length - 1; i >= 0; i--) {
       const c = this.customers[i]
       if (c.state === 'entering') {
-        const slot = this.queueSlots[Math.min(this.waitQueue.length, this.queueSlots.length - 1)] || { x: pdvX, y: GATE + 0.5 }
+        const slot = this.queueSlots[Math.min(this.waitQueue.length, this.queueSlots.length - 1)] || { x: pdvX, y: this.geo.GATE + 0.5 }
         if (this.stepTo(c, slot.x, slot.y, cuSpd) || Math.hypot(c.x - slot.x, c.y - slot.y) < 0.15) {
           c.state = 'waiting'
           const order = this.generateOrder()
@@ -1118,8 +1124,8 @@ export class SimEngine {
           })
         }
       } else if (c.state === 'leaving') {
-        this.stepTo(c, c.x, OUT.y1 + 0.5, cuSpd * 1.8)
-        if (c.y > OUT.y1 + 0.3) this.customers.splice(i, 1)
+        this.stepTo(c, c.x, this.geo.OUT.y1 + 0.5, cuSpd * 1.8)
+        if (c.y > this.geo.OUT.y1 + 0.3) this.customers.splice(i, 1)
       }
     }
 
@@ -1144,8 +1150,8 @@ export class SimEngine {
           cj.y -= ny * ov * 0.5
         }
       }
-      ci.x = Math.max(OUT.x0 + 0.15, Math.min(OUT.x1 - 0.15, ci.x))
-      ci.y = Math.max(GATE + 0.2, Math.min(OUT.y1, ci.y))
+      ci.x = Math.max(this.geo.OUT.x0 + 0.15, Math.min(this.geo.OUT.x1 - 0.15, ci.x))
+      ci.y = Math.max(this.geo.GATE + 0.2, Math.min(this.geo.OUT.y1, ci.y))
     }
 
     /* ---- atribuição: volantes pegam pedidos (se há pão em estoque) ---- */
@@ -1304,8 +1310,8 @@ export class SimEngine {
           this.lockClear(oi)
           op.carrying = t && t.items && t.items[0] ? t.items[0].id : 'spaccata'
           op.state = 'to_balcao'
-          const cx2 = t && t.customer ? Math.max(0.25, Math.min(t.customer.x, W - 0.25)) : W / 2
-          this.setOpTarget(op, cx2, GATE - 0.3)
+          const cx2 = t && t.customer ? Math.max(0.25, Math.min(t.customer.x, this.geo.W - 0.25)) : this.geo.W / 2
+          this.setOpTarget(op, cx2, this.geo.GATE - 0.3)
           op.statusText = 'Levando #' + (t ? t.orderNum : '')
           op.busyState = 'busy'
           if (t) this.updateOrder(t.orderNum, 'Entregando', 'delivering', t.steps.length)
@@ -1682,7 +1688,7 @@ export class SimEngine {
       }
       if (pts.length) {
         const lp = pts[pts.length - 1]
-        const pd = this.nav.findPath(lp.x, lp.y, W / 2, GATE - 0.3)
+        const pd = this.nav.findPath(lp.x, lp.y, this.geo.W / 2, this.geo.GATE - 0.3)
         d += this.nav.pathLen(pd, lp.x, lp.y)
       }
       return { id: mi.id, name: mi.name, dist: ok ? +d.toFixed(1) : null, steps: mi.steps.length }
@@ -1731,7 +1737,7 @@ export class SimEngine {
       blockers: this.blockers.map((b) => ({ ...b })),
       queueSlots: this.queueSlots.map((s) => ({ ...s })),
       pickupSlots: this.pickupSlots.map((s) => ({ ...s })),
-      room: { W, D, gate: GATE, cutX: CUT_X, cutY: CUT_Y, out: OUT },
+      room: { W: this.geo.W, D: this.geo.D, gate: this.geo.GATE, cutX: CUT_X, cutY: CUT_Y, out: this.geo.OUT },
     }
   }
 }
@@ -1742,11 +1748,17 @@ export interface RunOptions {
   until?: number // tempo de parada em minutos (default 22:00)
 }
 
-/** Roda a simulação até o fim do dia e devolve os KPIs finais. Determinístico se `seed` fixo. */
-export function runSimulation(config?: SimConfig, scene?: SceneItem[], opts: RunOptions = {}): SimKPIs {
+/** Roda a simulação até o fim do dia e devolve os KPIs finais. Determinístico se `seed` fixo.
+    `polygon` define a casca (default = Loja 206). */
+export function runSimulation(
+  config?: SimConfig,
+  scene?: SceneItem[],
+  opts: RunOptions = {},
+  polygon?: Array<[number, number]>,
+): SimKPIs {
   const dt = opts.dt ?? 0.1
   const until = opts.until ?? DAY_END
-  const eng = new SimEngine(config, scene)
+  const eng = new SimEngine(config, scene, polygon)
   while (eng.simTime < until) {
     eng.simTime += dt
     eng.tick(dt)

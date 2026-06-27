@@ -22,7 +22,11 @@ export interface SimWorkerApi {
   runFull: () => void
 }
 
-export function useSimWorker(simItems: SceneItem[] | null, config: SimConfig): SimWorkerApi {
+export function useSimWorker(
+  simItems: SceneItem[] | null,
+  config: SimConfig,
+  polygon?: Array<[number, number]>,
+): SimWorkerApi {
   const workerRef = useRef<Worker | null>(null)
   const [scene, setScene] = useState<SceneSnapshot | null>(null)
   const [frame, setFrame] = useState<Frame | null>(null)
@@ -69,14 +73,14 @@ export function useSimWorker(simItems: SceneItem[] | null, config: SimConfig): S
 
   const post = useCallback((msg: Command) => workerRef.current?.postMessage(msg), [])
 
-  // (re)inicializa quando cena ou config mudam
+  // (re)inicializa quando cena, casca ou config mudam
   useEffect(() => {
     if (!workerRef.current || !simItems) return
     post({ type: 'pause' })
-    post({ type: 'init', config, scene: simItems })
+    post({ type: 'init', config, scene: simItems, polygon })
     setStatus('idle')
     setKpis(null)
-  }, [simItems, config, post])
+  }, [simItems, polygon, config, post])
 
   const start = useCallback(
     (speed = 120) => {

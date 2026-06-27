@@ -1,8 +1,32 @@
-/* Geometria da casca da Loja 206 e derivação de estações a partir da cena.
-   Port fiel de sim-core.js (linhas 11-37, 153-176). */
+/* Geometria da casca a partir do polígono da cena (`scene.room.polygon`), com a Loja 206
+   como geometria PADRÃO. Port fiel de sim-core.js (linhas 11-37, 153-176), agora paramétrico.
+
+   `makeGeometry(polygon)` deriva bbox, dimensões e o teste `inShell` (point-in-polygon)
+   para QUALQUER casca; o motor consome `geo.*` em vez de constantes hardcoded. Os símbolos
+   `ROOM/W/D/CUT_X/CUT_Y/GATE/OUT/inShell` permanecem exportados como o default da Loja 206
+   (derivados de `makeGeometry(ROOM)`), preservando byte-a-byte o comportamento do 206. */
 
 import type { SceneItem, Station } from './types'
 
+/** Casca derivada de um polígono: bbox, dimensões e teste de pertencimento. */
+export interface Geometry {
+  polygon: Array<[number, number]>
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+  /** largura útil (= maxX) — compatível com o antigo `W`. */
+  W: number
+  /** profundidade útil (= maxY) — compatível com o antigo `D`. */
+  D: number
+  /** linha do portão / frente (= maxY) — compatível com o antigo `GATE`. */
+  GATE: number
+  /** calçada externa dos clientes (margem ao redor da bbox). */
+  OUT: { x0: number; x1: number; y1: number }
+  inShell(x: number, y: number): boolean
+}
+
+/** Polígono da Loja 206 (recorte em L). Geometria PADRÃO/fallback do motor. */
 export const ROOM: Array<[number, number]> = [
   [0, 0],
   [2.0, 0],
@@ -11,18 +35,88 @@ export const ROOM: Array<[number, number]> = [
   [2.6, 5.15],
   [0, 5.15],
 ]
-export const W = 2.6
-export const D = 5.15
 export const CUT_X = 2.0
 export const CUT_Y = 3.0
-export const GATE = 5.15
-/** Calçada da galeria (área externa dos clientes). */
-export const OUT = { x0: -0.9, x1: 3.5, y1: 6.9 }
+
+/**
+ * Deriva a geometria da casca a partir de um polígono (vértices [x, y] em metros).
+ *
+ * - bbox: minX/maxX/minY/maxY; `W=maxX, D=maxY, GATE=maxY`.
+ * - `OUT = { x0: minX-0.9, x1: maxX+0.9, y1: maxY+1.75 }` (calçada externa).
+ *   Para o polígono da Loja 206 → `{ x0: -0.9, x1: 3.5, y1: 6.9 }` (idêntico ao antigo).
+ * - `inShell(x,y)`: ray-cast point-in-polygon + guardas de bbox (x<minX || y<minY || y>maxY).
+ *   Para o polígono da Loja 206 reproduz exatamente o antigo teste em L sobre a grade 0.05.
+ */
+export function makeGeometry(polygon: Array<[number, number]>): Geometry {
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const [x, y] of polygon) {
+    if (x < minX) minX = x
+    if (x > maxX) maxX = x
+    if (y < minY) minY = y
+    if (y > maxY) maxY = y
+  }
+  const W = maxX
+  const D = maxY
+  const GATE = maxY
+  const OUT = { x0: minX - 0.9, x1: maxX + 0.9, y1: maxY + 1.75 }
+  const inShell = (x: number, y: number): boolean => {
+    if (x < minX || y < minY || y > maxY) return false
+    if (pointInPolygon(polygon, x, y)) return true
+    // Inclusão de borda: pontos sobre uma aresta contam como dentro (semântica `<=`),
+    // garantindo paridade com a casca em L do 206 nos vértices/arestas da grade.
+    return pointOnBoundary(polygon, x, y)
+  }
+  return { polygon, minX, maxX, minY, maxY, W, D, GATE, OUT, inShell }
+}
+
+/** Ray-cast clássico: true se (x,y) está estritamente dentro do polígono. */
+function pointInPolygon(poly: Array<[number, number]>, x: number, y: number): boolean {
+  let inside = false
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0]
+    const yi = poly[i][1]
+    const xj = poly[j][0]
+    const yj = poly[j][1]
+    const intersect = yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi
+    if (intersect) inside = !inside
+  }
+  return inside
+}
+
+/** true se (x,y) cai sobre uma aresta do polígono (dentro de uma tolerância numérica). */
+function pointOnBoundary(poly: Array<[number, number]>, x: number, y: number): boolean {
+  const eps = 1e-9
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i][0]
+    const yi = poly[i][1]
+    const xj = poly[j][0]
+    const yj = poly[j][1]
+    const cross = (x - xi) * (yj - yi) - (y - yi) * (xj - xi)
+    if (Math.abs(cross) > eps) continue
+    if (
+      x >= Math.min(xi, xj) - eps &&
+      x <= Math.max(xi, xj) + eps &&
+      y >= Math.min(yi, yj) - eps &&
+      y <= Math.max(yi, yj) + eps
+    )
+      return true
+  }
+  return false
+}
+
+/** Geometria PADRÃO (Loja 206), derivada de `makeGeometry(ROOM)`. */
+export const GEO_206: Geometry = makeGeometry(ROOM)
+export const W = GEO_206.W
+export const D = GEO_206.D
+export const GATE = GEO_206.GATE
+/** Calçada da galeria (área externa dos clientes) — Loja 206. */
+export const OUT = GEO_206.OUT
 
 export function inShell(x: number, y: number): boolean {
-  if (x < 0 || y < 0 || y > GATE) return false
-  if (y < CUT_Y) return x <= CUT_X
-  return x <= W
+  return GEO_206.inShell(x, y)
 }
 
 /** Cena padrão (fallback = mesma da planta da Loja 206). */

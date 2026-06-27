@@ -37,6 +37,7 @@ export interface ReplicaOptions {
   seeds?: number[] // seeds explícitos (sobrepõe n/baseSeed)
   baseSeed?: number // 1ª seed (default 1); seeds = baseSeed..baseSeed+n-1
   scene?: SceneItem[]
+  polygon?: Array<[number, number]> // casca (default = Loja 206)
   dt?: number
   until?: number
 }
@@ -55,7 +56,7 @@ export function runReplicas(config: SimConfig, opts: ReplicaOptions = {}): Repli
   const n = opts.n ?? 12
   const baseSeed = opts.baseSeed ?? 1
   const seeds = opts.seeds ?? Array.from({ length: n }, (_, i) => baseSeed + i)
-  const raw = seeds.map((seed) => runSimulation({ ...config, seed }, opts.scene, { dt: opts.dt, until: opts.until }))
+  const raw = seeds.map((seed) => runSimulation({ ...config, seed }, opts.scene, { dt: opts.dt, until: opts.until }, opts.polygon))
   const pick = (f: (k: SimKPIs) => number) => aggregate(raw.map(f))
   return {
     n: seeds.length,

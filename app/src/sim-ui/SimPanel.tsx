@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loja206Scene, type RestaurantScene } from '../domain'
 import { baseConfig } from '../sim/defaults'
-import { sceneToSimItems } from '../sim/adapter'
+import { sceneToSim } from '../sim/adapter'
 import { createStorage } from '../storage'
 import type { SimConfig } from '../sim/types'
 import SimView from './SimView'
@@ -48,10 +48,12 @@ export default function SimPanel({ onClose }: { onClose: () => void }) {
     }
   }, [])
 
-  const simItems = useMemo(() => (scene ? sceneToSimItems(scene) : null), [scene])
+  const simInput = useMemo(() => (scene ? sceneToSim(scene) : null), [scene])
+  const simItems = simInput?.items ?? null
+  const polygon = simInput?.polygon
   const config = useMemo<SimConfig>(() => ({ ...baseConfig(), ops, rate, seed }), [ops, rate, seed])
 
-  const sim = useSimWorker(simItems, config)
+  const sim = useSimWorker(simItems, config, polygon)
   const k = sim.kpis
   const simMin = sim.frame ? sim.frame.simTime : k ? 10 * 60 + (k.elapsedHours ?? 0) * 60 : 10 * 60
   const playing = sim.status === 'playing'

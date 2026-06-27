@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { baseConfig } from './defaults'
-import { DEFAULT_SCENE, deriveScene, inShell } from './geometry'
+import { DEFAULT_SCENE, deriveScene, inShell, makeGeometry, ROOM } from './geometry'
 import { computeSlots, NavGrid } from './nav'
 import { Rng } from './rng'
 
@@ -12,12 +12,44 @@ describe('geometria da casca', () => {
     expect(inShell(-0.1, 1.0)).toBe(false)
     expect(inShell(1.0, 6.0)).toBe(false) // além do portão
   })
+
+  it('makeGeometry(ROOM) reproduz a bbox/OUT da Loja 206 (idêntico ao default)', () => {
+    const g = makeGeometry(ROOM)
+    expect([g.minX, g.minY, g.maxX, g.maxY]).toEqual([0, 0, 2.6, 5.15])
+    expect([g.W, g.D, g.GATE]).toEqual([2.6, 5.15, 5.15])
+    expect(g.OUT).toEqual({ x0: -0.9, x1: 3.5, y1: 6.9 })
+    expect(g.inShell(2.3, 1.0)).toBe(false) // recorte em L preservado
+    expect(g.inShell(2.3, 4.0)).toBe(true)
+  })
+
+  it('makeGeometry generaliza para um retângulo 4×3', () => {
+    const g = makeGeometry([
+      [0, 0],
+      [4, 0],
+      [4, 3],
+      [0, 3],
+    ])
+    expect([g.minX, g.minY, g.maxX, g.maxY]).toEqual([0, 0, 4, 3])
+    expect([g.W, g.D, g.GATE]).toEqual([4, 3, 3])
+    expect(g.OUT).toEqual({ x0: -0.9, x1: 4.9, y1: 4.75 })
+    // dentro vs fora
+    expect(g.inShell(2, 1.5)).toBe(true) // interior
+    expect(g.inShell(0, 0)).toBe(true) // canto (borda inclusiva)
+    expect(g.inShell(4, 3)).toBe(true) // canto oposto
+    expect(g.inShell(5, 1)).toBe(false) // x > maxX
+    expect(g.inShell(2, 4)).toBe(false) // y > maxY
+    // a NavGrid dimensiona a malha pela bbox do retângulo
+    const nav = new NavGrid()
+    nav.build([], [], g)
+    expect(nav.ngW).toBe(Math.ceil(4 / 0.05) + 1) // 81
+    expect(nav.ngH).toBe(Math.ceil(3 / 0.05) + 1) // 61
+  })
 })
 
 describe('navegação A*', () => {
   const { stations, blockers } = deriveScene(DEFAULT_SCENE, baseConfig().capacity)
   const nav = new NavGrid()
-  nav.build(blockers, stations)
+  nav.build(blockers, stations, makeGeometry(ROOM))
 
   it('constrói a malha com dimensões esperadas (~53×104)', () => {
     expect(nav.ngW).toBe(53)
