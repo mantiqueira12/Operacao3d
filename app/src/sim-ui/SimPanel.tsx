@@ -58,6 +58,30 @@ export default function SimPanel({ onClose }: { onClose: () => void }) {
   const simMin = sim.frame ? sim.frame.simTime : k ? 10 * 60 + (k.elapsedHours ?? 0) * 60 : 10 * 60
   const playing = sim.status === 'playing'
 
+  // Projeto sem equipamentos (ex.: recém-criado em branco) → não há estações para simular.
+  const hasStations =
+    simItems != null &&
+    simItems.some((it) => it.t !== 'wall' && it.t !== 'painel' && it.t !== 'porta' && it.t !== 'extintor')
+  if (scene && !hasStations) {
+    return (
+      <div id="simapp">
+        <header id="sim-top">
+          <button className="tbtn" onClick={onClose}>← Planta</button>
+          <div className="sim-title">Operação · <b>simulação DES</b></div>
+        </header>
+        <div style={{ display: 'grid', placeItems: 'center', minHeight: '72vh', textAlign: 'center', padding: 24, color: 'var(--ink-soft)' }}>
+          <div style={{ maxWidth: 420, display: 'grid', gap: 12 }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--inch)' }}>Nada para simular ainda</div>
+            <p style={{ margin: 0, lineHeight: 1.5 }}>
+              Esta planta não tem equipamentos. Adicione ao menos um <b>caixa (PDV)</b> e bancadas na aba Planta para rodar a operação.
+            </p>
+            <div><button className="tbtn" onClick={onClose}>← Voltar para a planta</button></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div id="simapp">
       <header id="sim-top">

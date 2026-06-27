@@ -7,6 +7,17 @@ function cfg(over: Partial<SimConfig> = {}): SimConfig {
   return { ...baseConfig(), ...over }
 }
 
+describe('motor DES — projeto em branco (multi-projeto)', () => {
+  it('cena vazia ([]) NÃO cai no DEFAULT_SCENE da 206 (sem estações-fantasma)', () => {
+    const eng = new SimEngine(cfg(), [])
+    expect(eng.sceneSnapshot().stations.length).toBe(0)
+  })
+  it('cena ausente (undefined) usa o fallback Loja 206', () => {
+    const eng = new SimEngine(cfg())
+    expect(eng.sceneSnapshot().stations.length).toBeGreaterThan(0)
+  })
+})
+
 describe('motor DES — sanidade do dia', () => {
   const k = runSimulation(cfg({ seed: 42 }))
 

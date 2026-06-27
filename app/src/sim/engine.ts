@@ -366,7 +366,9 @@ export class SimEngine {
 
   constructor(config?: SimConfig, scene?: SceneItem[], polygon?: Array<[number, number]>) {
     this.cfg = config || baseConfig()
-    this.sceneItems = scene && scene.length ? scene : DEFAULT_SCENE.map((o) => ({ ...o }))
+    // `undefined` (sem cena) → fallback Loja 206; array vazio (projeto em branco) → fica vazio,
+    // sem cair no DEFAULT_SCENE hardcoded (evita estações-fantasma da 206 numa sala em branco).
+    this.sceneItems = scene !== undefined ? scene : DEFAULT_SCENE.map((o) => ({ ...o }))
     this.polygon = polygon && polygon.length ? polygon : ROOM
     this.reset()
   }
