@@ -13,6 +13,110 @@
   (C) **Painel "Sala"** (`roomShapes.ts`) edita L×P (vira retângulo). **+8 testes (111 no total);**
   typecheck/lint/build verdes. A por agente isolado (worktree, prova de identidade da 206); B/C
   por mim + 1 agente; revisado.
+- **Planta 2D nível arquiteto + correção da "parede grossa".** Commits `5871449`, `8c9e04d`, `1ce957f`.
+  - **Bug relatado (parede grossa com objeto "por cima"):** a parede da sala era um stroke de 15px
+    non-scaling CENTRADO no contorno interno → metade entrava na sala e cobria peças encostadas. Virou
+    **poché de espessura real (0,12 m) POR FORA do polígono** (face interna = limite da sala). Também
+    corrigidas **2 sobreposições reais do template** Loja 206 (forno×estoque, montagem×painel) → cena
+    padrão valida "✓ Sem sobreposições".
+  - **5 recursos de arquiteto (via contrato de API, 3 agentes):** (1) camada de **circulação** colorida
+    por largura; (2) **zonas de trabalho/segurança** translúcidas (work 0,90 / hot do forno 0,40 / porta
+    0,60); (3) **snap inteligente + guias de alinhamento** ao mover/redimensionar; (4) **cotas peça↔vizinho/
+    parede** + **giro NBR 9050 Ø1,50 m** ao selecionar; (5) **painel de Conformidade** (CVS 5/2013 +
+    NBR 9050 + NR-13/NBR 14518) com normas citadas e itens clicáveis. + botão **"Restaurar cena padrão"**.
+  - Lógica pura e testada em `domain/spatial.ts` (corridorAnalysis, workZones, dimsToNeighbors,
+    complianceChecks; thresholds `CIRC_*`/`TURN_CIRCLE`/`CORRIDOR_FLOOR` exportados p/ calibração).
+    **125 testes** (+22), build verde, smoke de runtime OK. Achados reais p/ Loja 206: ~10 passagens
+    estreitas <0,60 m, forno sem afastamento, giro FOH Ø1,30<1,50.
+  - Calibração: vãos <0,20 m = adjacência (não viram alarme falso de corredor); textos em pt-BR (vírgula).
+- **Rodada 4 — catálogo & ferramentas + polish do pente-fino — integrada e verde** (typecheck/103
+  testes/build + smoke de runtime: planner/modal/3D montam sem erro). Commit `656cb15`.
+  - **Editor — a dimensão "Catálogo & ferramentas" (única intocada):** modal **Criar equipamento**
+    (`editor/EquipmentModal.tsx`) + **Meus modelos** (`editor/customModels.ts`, StorageAdapter em
+    namespace dedicado `operacao3d-models`); **Parede/Divisor por ARRASTE** (draft + cota viva);
+    **ferramenta Medir** completa; **undo/redo** (Ctrl+Z/Y, pilha de 80 na UI — `useScene` intocado);
+    cores de acento por peça (`catalog.ts` aditivo); cursores por ferramenta; carimbo editável; barra de
+    ocupação animada; grade pontilhada; `@media print`; confirm em ações destrutivas; modal blur/fechar-fora.
+  - **Operação 2D:** banner de alerta (pão esgotado), toast de sync da planta, métricas por limiar em
+    vermelho, transição do re-layout do KDS, switches animados.
+  - **3D:** piso em dupla camada (laje + acabamento) + calçada 3D; sombras PCFSoft afinadas; porta de
+    correr/folha; orientação dos avatares.
+  - **Identidade global:** favicon + título da aba, user-select:none (inputs livres), responsividade,
+    scrollbar custom, focus-ring vermelho, fontes confirmadas.
+- **O que REALMENTE falta agora** (não são mais "regressões visuais", são FEATURES não portadas do
+  protótipo — exigem telas novas, não só CSS/SVG): abas do painel direito (Análise/Cardápio/Vendas),
+  visualização de **fluxo de produção do cardápio**, **viabilidade da padaria** (cartões + pipeline),
+  UI de **Monte Carlo** com progresso, "seguir pedido" (clicar ticket do KDS → foca operador no 2D).
+  Polish menor restante: atalhos de teclado completos do editor (hoje só Ctrl+Z/Y/Esc); conferência 1:1
+  dos marcadores de cota da casca. **E a validação visual do dono em browser real** (`cd app && npm run dev`).
+- **Rodada 3 de paridade visual — integrada e verde** (typecheck/103 testes/build + smoke de runtime).
+  Commit `9cba058`.
+  - **OPERAÇÃO 3D COM AGENTES ANIMADOS** (une 3D + simulação DES — era o "Próximo #3"): `makePerson`
+    (boneco articulado + avental vermelho) em `props3d`; `Scene3D` ganha camada de avatares atualizada
+    por frame (operadores/clientes, food box, cor por estado), rótulos HTML (FIXO/tag/status) e trilhas;
+    `View3D` ganha modo "▸ Operação 3D" (play/pause/reset, toggles Rótulos/Trilhas) via `useSimWorker`.
+    `App.tsx` intocado. → 3d-sem-pessoas-animadas, 3d-labels-operadores, 3d-trilhas-operadores.
+  - **operação 2D**: heatmap de circulação (overlay derivado no cliente), zoom/pan + auto-fit, dock KDS
+    escuro, relógio grande mono, play com estado, velocidade segmentada, chips de cenário, toggles de
+    camada. → heatmap-circulacao, zoom-pan-autofit, monitor-kds-dock, relogio-grande-mono,
+    play-estado-pausado, controles-velocidade-botoes, chips-cenario, toggles-camadas.
+  - **planner**: readout vivo (cursor + peça) e miniescala corrigida + chrome premium. →
+    readout-cursor-vivo-e-info-peca, miniscale-barra-escala-fixa.
+  - **PENTE-FINO rodou** (não tinha rodado): +41 itens novos no backlog (micro-interações, hover/cursor,
+    ferramenta Medir, marcadores de cota, impressão, fontes, modais, interações do KDS, cardápio/padaria).
+    Ver `docs/BACKLOG-PARIDADE-VISUAL.md` › "Pente-fino — itens adicionais".
+- **PENDENTE (próxima rodada):** os 41 itens do pente-fino + a dimensão **Catálogo & ferramentas** original
+  (criar equipamento custom / Meus modelos, Parede/Divisor por arraste, acabamentos do editor 2D, undo/redo);
+  alguns itens de chrome de identidade ainda em planner/sim-panel. Falta a **conferência visual em browser
+  real** das 3 rodadas (`cd app && npm run dev`).
+- **Rodada 2 de paridade visual — 4 frentes em paralelo, integradas e verdes** (typecheck/103 testes/
+  build + smoke de runtime: 2D/3D/Operação montam sem erro). Commit `5da10a1`.
+  - **view3d** (`Scene3D`/`View3D`/`props3d`): piso texturizado (porcelanato/granilite/cimento) +
+    parede (panna/branco/oliva) com seletor; portão de enrolar 3D; wall-culling dollhouse; presets de
+    câmera (iso/topo/cliente/balcão); fog + grade como toggles. → itens 3d-piso-textura-e-acabamentos,
+    3d-portao-enrolar, 3d-wall-culling-camera, 3d-camera-presets, 3d-iluminacao-fog, 3d-grid-helper-extra.
+  - **operação** (`SimView` + ADITIVO em `sim/types.ts`/`worker-core.ts`: `tArr`,`orderNum`,`busyState`,
+    `unreachable`,`fixedEq`): casca grossa em L + portão; zonas FOH/BOH/galeria; grade 0,5 m; estações
+    como cartão c/ nome real; slots fila/retirada; ponto de serviço; cor de impaciência do cliente;
+    anel/status/tag do operador; trilhas (overlay no cliente). **Motor DES intocado.** → casca-parede-
+    grossa-l, zonas-foh-boh-rotuladas, planta-grade-05m, estacoes-rotulo-nome, estacoes-cartao-branco,
+    estacao-ponto-servico, slots-fila-pickup-marcadores, cliente-cor-por-espera, cliente-anel-stroke-
+    opacidade, operador-anel-busy-wait, operador-status-flutuante, operador-tag-rotulo, trilhas-operadores,
+    toggles-camadas, cliente-numero-pedido, operador-badge-fixo (conferir os 2 últimos no render).
+  - **editor-2d** (`SceneLayers`/`DoorSwing`/`icons`): painel divisor c/ hachura + porta de correr;
+    paredes grossas (15/miter); rótulos (portão, 01·COZINHA); setas de entrada; porta 2D c/ batente +
+    rótulo; glyphs porta/painel. → painel-divisor-hachura-e-porta-correr, paredes-grossas-espessura-e-
+    cantos, rotulo-portao-de-enrolar, setas-entrada-cliente-chevrons, numeracao-zonas-01-cozinha,
+    porta-2d-batente-e-rotulo, glyph-catalogo-porta-e-painel.
+  - **identidade** (`index.css`/`App`): fontes Bitter/Manrope/IBM Plex Mono + tokens de cor/tipo/
+    sombra/raio do protótipo como fundação (sem quebrar tokens existentes).
+- **PENDENTE (pararam no limite de sessão — próxima rodada):** heatmap-circulacao, zoom-pan-autofit,
+  monitor-kds-dock, chips-cenario; chrome do `SimPanel` (relogio-grande-mono, play-estado-pausado,
+  controles-velocidade-botoes); `Planner.tsx` (readout-cursor-vivo, miniscale); 3D com agentes animados
+  (3d-sem-pessoas-animadas, 3d-labels-operadores, 3d-trilhas-operadores — une 3D+simulação); 17 itens de
+  chrome de identidade; dimensão "Catálogo & ferramentas" inteira; e o **pente-fino de completude** (não
+  rodou). Falta também a **conferência visual em browser real** (o preview headless não pinta WebGL/SVG
+  animado contínuo) — `cd app && npm run dev`.
+- **Fábrica de props 3D — fim do "tudo um blocos".** `app/src/view3d/props3d.ts`: port dos 18 builders
+  paramétricos do protótipo (`props.js`) + texturas procedurais (aço/madeira/pedra) + biblioteca de
+  materiais + painel divisor detalhado (`buildPanel3D`: ripas, faixa rossa, logo, porta de correr).
+  `Scene3D.itemObject` agora chama `buildProp(it.type, …)` (cada peça vira modelo: geladeira 5 malhas,
+  vitrine 9, forno 13, bibite 25, painel 20…) e cai na caixa genérica só p/ tipos sem builder. Removido
+  o skip de porta/extintor no 3D; colisão vira envelope translúcido (não muta materiais em cache).
+  Itens do backlog `3d-props-builders-perdidos`, `3d-texturas-materiais-procedurais`,
+  `3d-painel-divisor-detalhado`, `3d-porta-extintor-pulados` = **[x]**. Verificado: typecheck/lint/build/
+  **103 testes** verdes; `buildProp` confirmado em runtime (contagem de malhas por tipo). Falta a
+  conferência visual do render num browser real (preview headless não pinta WebGL contínuo).
+- **Fix (Windows/macOS): colisão de casing `DoorSwing.tsx` × `doorSwing.ts`.** Renomeado o módulo de
+  geometria p/ `doorSwingGeometry.ts` (era irresolvível em FS case-insensitive — quebrava typecheck/build
+  fora do Linux). CI Linux seguia verde; dev local em Windows estava travado.
+- **Paridade visual auditada → `docs/BACKLOG-PARIDADE-VISUAL.md`.** Pente-fino do que o port React
+  deixou para trás da camada gráfica do protótipo: **91 itens** (13 de 3D + 78 de
+  2D/Operação/Identidade/Catálogo), cada um com ref `arquivo:linha`, severidade visual e esforço (P/M/G).
+  Achado-chave: o **3D virou caixas lisas** (`Scene3D.itemMesh` faz `BoxGeometry` para tudo; os 18 builders
+  de `props.js` se perderam) e a Operação perdeu **heatmap/trilhas/cores de impaciência**. Estratégia:
+  portar os visuais **POR CIMA** da arquitetura (não reverter motor DES/domínio/testes). Ver "Plano
+  sequenciado" no backlog. (Audit automático parou no limite de sessão; 3D + síntese completados à mão.)
 - **Travar no "L", swing de porta e impressão da prancha.** (A) `clampToPolygon` (`spatial.ts`) prende
   o arraste de peças sólidas ao polígono — não dá mais para soltar no recorte do "L"; porta/extintor
   seguem a bbox (encostam na parede). (B) `doorSwing.ts` + `DoorSwing.tsx` desenham o arco de abertura
@@ -77,14 +181,17 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Verificação visual** (rodar `npm run dev`): camadas/recursos novos — colisão, fora-da-casca,
-   folgas, níveis, Instalações, "Lista" (CSV), trava no "L", swing de porta, impressão, **e agora
-   o gerenciador de Projetos + painel Sala**. Único passo sem cobertura automática.
-2. **Operação a fundo** — portar a UI rica do protótipo: editor de cardápio, padaria/P&L, KDS+
-   alertas, cenários+comparação, heatmap/trilhas (maior gap funcional, ~35% portado).
+0. **PRIORIDADE — Paridade visual:** executar `docs/BACKLOG-PARIDADE-VISUAL.md` na ordem do "Plano
+   sequenciado" (começar pela **fábrica de props 3D** — maior ganho, risco isolado em `view3d/`).
+1. **Verificação visual** (`npm run dev`): camadas/recursos novos — colisão, fora-da-casca, folgas,
+   níveis, Instalações, "Lista" (CSV), trava no "L", swing de porta, impressão, **gerenciador de
+   Projetos + painel Sala**, e os recursos de arquiteto (circulação/zonas/conformidade). Sem cobertura automática.
+2. **Operação a fundo** — portar a UI rica do protótipo: cardápio, padaria/P&L, KDS+alertas,
+   cenários+comparação, heatmap/trilhas (maior gap funcional).
 3. **Editar a casca livremente** (vértices/parede ortogonal), além do retângulo W×P do painel Sala.
 4. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
 5. **Bug double-count** (served × balkedPickup) — decidir e corrigir.
+   (✅ "Casca por-projeto no motor" — RESOLVIDO pelo multi-projeto: o motor lê `room.polygon`.)
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um

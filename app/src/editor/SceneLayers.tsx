@@ -1,8 +1,25 @@
 import type { PointerEvent as ReactPointerEvent, ReactNode } from 'react'
 import { UTILITY_META, clearances, isSolid, levelOf, utilsFor, type Item, type RestaurantScene } from '../domain'
+import { TURN_CIRCLE, corridorAnalysis, dimsToNeighbors, workZones } from '../domain/spatial'
 import DoorSwing from './DoorSwing'
 
+/**
+ * Linha-guia de alinhamento (em METROS) emitida pela INTERAÇÃO durante o arraste.
+ * Contrato compartilhado: RENDER define+exporta; Planner importa daqui.
+ */
+export interface AlignGuide {
+  orient: 'v' | 'h'
+  /** posição da linha no eixo perpendicular (x para 'v', y para 'h'), em metros */
+  pos: number
+  /** extensão da linha no eixo paralelo, em metros */
+  from: number
+  to: number
+}
+
 export const SCALE = 100 // px por metro
+/** Espessura da parede em planta (m). Desenhada como POCHÉ por fora do polígono
+    (face interna = limite da sala), paridade com o 3D (WALL_T 0.12). */
+const ROOM_WALL_T = 0.12
 export type Handle = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w'
 
 const HANDLES: Array<[Handle, number, number, string]> = [
@@ -51,26 +68,55 @@ function Floor({ poly }: { poly: Array<[number, number]> }) {
   }
   const wallVerts: Array<[number, number]> = []
   for (let k = 1; k <= n; k++) wallVerts.push(poly[(frontEdge + k) % n])
-  const wallD =
-    'M' + wallVerts.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' L')
+  // Parede como POCHÉ por FORA do polígono: deslocamos o contorno (sem a frente) para
+  // fora em t/2 e traçamos com espessura t (métrica — escala com o zoom). Assim a face
+  // INTERNA da parede coincide com o limite da sala e as peças encostadas nas paredes
+  // não ficam "por baixo" do traço grosso (corrige a parede grossa sobrepondo itens).
+  const ref = { x: poly.reduce((s, p) => s + p[0], 0) / n, y: poly.reduce((s, p) => s + p[1], 0) / n }
+  const d = ROOM_WALL_T / 2
+  const edgeN = (a: [number, number], c: [number, number]): [number, number] => {
+    let nx = c[1] - a[1], ny = -(c[0] - a[0])
+    const l = Math.hypot(nx, ny) || 1
+    nx /= l; ny /= l
+    const mx = (a[0] + c[0]) / 2, my = (a[1] + c[1]) / 2
+    if (nx * (mx - ref.x) + ny * (my - ref.y) < 0) { nx = -nx; ny = -ny } // aponta p/ fora
+    return [nx, ny]
+  }
+  const m = wallVerts.length
+  const off = wallVerts.map((p, i): [number, number] => {
+    if (i === 0) { const nr = edgeN(wallVerts[0], wallVerts[1]); return [p[0] + nr[0] * d, p[1] + nr[1] * d] }
+    if (i === m - 1) { const nr = edgeN(wallVerts[m - 2], wallVerts[m - 1]); return [p[0] + nr[0] * d, p[1] + nr[1] * d] }
+    const n1 = edgeN(wallVerts[i - 1], wallVerts[i]), n2 = edgeN(wallVerts[i], wallVerts[i + 1])
+    let mx = n1[0] + n2[0], my = n1[1] + n2[1]
+    const ml = Math.hypot(mx, my) || 1
+    mx /= ml; my /= ml
+    const cos = Math.max(0.35, mx * n1[0] + my * n1[1]) // miter clampado p/ não disparar
+    const dist = d / cos
+    return [p[0] + mx * dist, p[1] + my * dist]
+  })
+  const wallD = 'M' + off.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' L')
 
   return (
     <g className="floor-layer">
       <polygon className="floor" points={points} />
-      {/* paredes grossas (aberto na frente) */}
+      {/* parede em poché: espessura real (0,12 m), POR FORA do polígono */}
       <path
+        className="wall-poche"
         d={wallD}
         fill="none"
-        stroke="#1A1A1A"
-        strokeWidth={11}
-        strokeLinejoin="round"
-        strokeLinecap="round"
-        vectorEffect="non-scaling-stroke"
+        stroke="#2b2b2b"
+        strokeWidth={ROOM_WALL_T * SCALE}
+        strokeLinejoin="miter"
+        strokeLinecap="butt"
+        strokeMiterlimit={6}
       />
       {/* portão de enrolar (frente) */}
       <line className="gate-line" x1={0} y1={b.maxY * SCALE} x2={frontW} y2={b.maxY * SCALE} />
       <rect className="gate-post" x={-4} y={b.maxY * SCALE - 4} width={8} height={8} />
       <rect className="gate-post" x={frontW - 4} y={b.maxY * SCALE - 4} width={8} height={8} />
+      <text className="gate-t" x={frontW / 2} y={b.maxY * SCALE - 8} fontSize={9.5}>
+        portão de enrolar · {fmt(frontW / SCALE)} m
+      </text>
     </g>
   )
 }
@@ -118,18 +164,20 @@ function Zones({ scene }: { scene: RestaurantScene }) {
   const fohDepth = scene.room.fohDepth ?? 2.15
   const divY = b.maxY - fohDepth
   const frontCx = (b.minX + b.maxX) / 2 * SCALE
-  const frontY = b.maxY * SCALE
-  const arrow = (dx: number) =>
-    `M${frontCx + dx},${frontY + 36} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
+  // chevrons de entrada: ancorados logo abaixo da frente (protótipo ey=px(5.35) ≈ maxY+0,20 m)
+  const ey = (b.maxY + 0.2) * SCALE
+  // glyph do protótipo (planner.js:231): 3 chevrons preenchidos com dx em metros
+  const arrow = (dxM: number) =>
+    `M${frontCx + dxM * SCALE},${ey - 2} l-6,7 l3.5,0 l0,8 l5,0 l0,-8 l3.5,0 Z`
   return (
     <g className="zone-layer">
-      <text className="zone-t" x={(b.minX + 2 / 2) * SCALE} y={(divY / 2) * SCALE} fontSize={15} transform={`rotate(-90 ${(b.minX + 1) * SCALE} ${(divY / 2) * SCALE})`}>COZINHA</text>
+      <text className="zone-t" x={(b.minX + 2 / 2) * SCALE} y={(divY / 2) * SCALE} fontSize={15} transform={`rotate(-90 ${(b.minX + 1) * SCALE} ${(divY / 2) * SCALE})`}>01 · COZINHA</text>
       <text className="zone-t" x={(b.minX + b.maxX) / 2 * SCALE} y={(divY + fohDepth / 2) * SCALE} fontSize={14}>02 · PREPARO</text>
-      {[-45, 0, 45].map((dx) => (
+      {[-0.45, 0, 0.45].map((dx) => (
         <path key={dx} className="ent-arr" d={arrow(dx)} />
       ))}
-      <text className="ent-t" x={frontCx} y={frontY + 64} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
-      <text className="ent-sub" x={frontCx} y={frontY + 80} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
+      <text className="ent-t" x={frontCx} y={ey + 34} fontSize={13}>CLIENTE · ATENDIMENTO EXTERNO</text>
+      <text className="ent-sub" x={frontCx} y={ey + 50} fontSize={10}>portão de enrolar · vão livre {fmt(b.maxX - b.minX)} m</text>
     </g>
   )
 }
@@ -166,6 +214,56 @@ function Cotas({ scene }: { scene: RestaurantScene }) {
   )
 }
 
+/**
+ * Painel divisor (porta type==='painel'): retângulo bege + hachura diagonal
+ * a cada 7 px e, quando o comprimento >= 1,10 m, a simbologia de porta de correr
+ * (vão + folha aberta + seta de deslizamento + rótulo). Espelha drawPanel do
+ * protótipo (planner.js:307-335). Coordenadas locais em px (origem no canto da peça).
+ */
+function PanelShape({ x, y, w, h, name }: { x: number; y: number; w: number; h: number; name: string }) {
+  const horiz = w >= h
+  const len = (horiz ? w : h) / SCALE // comprimento em metros
+  const hasDoor = len >= 1.1
+  const d0 = 0.1 * SCALE
+  const d1 = Math.min(0.9, len - 0.2) * SCALE
+  const dw = d1 - d0
+
+  // hachura diagonal: mesmo laço do protótipo (o de 7 em 7 px, em coords locais)
+  const hatch: ReactNode[] = []
+  const step = 7
+  const lim = w + h
+  let key = 0
+  for (let o = step; o < lim; o += step) {
+    const x1 = Math.max(0, o - h), y1 = Math.min(o, h)
+    const x2 = Math.min(o, w), y2 = Math.max(0, o - w)
+    hatch.push(<line key={key++} className="panel-hatch" x1={x + x1} y1={y + y1} x2={x + x2} y2={y + y2} />)
+  }
+
+  return (
+    <>
+      <rect className="panel-rect" x={x} y={y} width={w} height={h} />
+      {hatch}
+      {hasDoor && (horiz ? (
+        <>
+          <rect className="panel-gap" x={x + d0} y={y - 1} width={dw} height={h + 2} />
+          <rect className="panel-leaf" x={x + d1} y={y - h * 0.65 - 3} width={dw} height={h * 0.65} />
+          <line className="panel-arr" x1={x + d1 + dw - 4} y1={y - h * 0.33 - 3} x2={x + d0 + dw * 0.55} y2={y - h * 0.33 - 3} markerEnd="url(#ah)" />
+          <text className="item-dim" x={x + d0 + dw / 2} y={y + h + 11} fontSize={8}>porta de correr {fmt(dw / SCALE)}</text>
+        </>
+      ) : (
+        <>
+          <rect className="panel-gap" x={x - 1} y={y + d0} width={w + 2} height={dw} />
+          <rect className="panel-leaf" x={x - w * 0.65 - 3} y={y + d1} width={w * 0.65} height={dw} />
+          <line className="panel-arr" x1={x - w * 0.33 - 3} y1={y + d1 + dw - 4} x2={x - w * 0.33 - 3} y2={y + d0 + dw * 0.55} markerEnd="url(#ah)" />
+        </>
+      ))}
+      {horiz && (
+        <text className="item-dim" x={x + w / 2} y={y + h / 2} fontSize={8.5} dominantBaseline="middle">{name}</text>
+      )}
+    </>
+  )
+}
+
 function ItemShape({
   item,
   selected,
@@ -184,7 +282,9 @@ function ItemShape({
   const w = item.width * SCALE
   const h = item.depth * SCALE
   const cx = x + w / 2
-  const isPanel = item.type === 'painel' || item.type === 'wall'
+  const isPanel = item.type === 'painel'
+  const isWall = item.type === 'wall'
+  const isBlock = isPanel || isWall
   const lvl = levelOf(item)
   const raised = lvl > 0.001
   const lines = wrapLabel(item.name)
@@ -194,7 +294,9 @@ function ItemShape({
   return (
     <g className={cls} onPointerDown={(e) => onPointerDown(e, item)}>
       {isPanel ? (
-        <rect className="panel-rect" x={x} y={y} width={w} height={h} />
+        <PanelShape x={x} y={y} w={w} h={h} name={item.name} />
+      ) : isWall ? (
+        <rect className="wall-rect" x={x} y={y} width={w} height={h} />
       ) : (
         <>
           <rect className="item-rect" x={x} y={y} width={w} height={h} rx={3} />
@@ -202,21 +304,16 @@ function ItemShape({
         </>
       )}
       {conflict && <rect className="conflict-fill" x={x} y={y} width={w} height={h} rx={3} />}
-      {!isPanel &&
+      {!isBlock &&
         lines.map((ln, i) => (
           <text key={i} className="item-label" x={cx} y={labelY + i * 12} fontSize={Math.min(12, Math.max(9, w / 9))}>
             {ln}
           </text>
         ))}
-      {!isPanel && !small && (
+      {!isBlock && !small && (
         <text className="item-dim" x={cx} y={y + h - 6} fontSize={8.5}>
           {fmt(item.width)} × {fmt(item.depth)}
           {raised ? ` · ▲${fmt(lvl)}` : ''}
-        </text>
-      )}
-      {isPanel && (
-        <text className="item-dim" x={cx} y={y + h / 2 + 3} fontSize={8.5}>
-          {item.name}
         </text>
       )}
       {raised && (
@@ -309,6 +406,149 @@ function Clearances({ item, items, poly }: { item: Item; items: Item[]; poly: Ar
   )
 }
 
+/* ---------- camadas de análise (contrato DOMÍNIO) ---------- */
+
+/**
+ * (#1) Circulação na planta inteira: segmentos de corridorAnalysis(scene),
+ * cor por nível (ok verde / warn laranja / bad vermelho) + rótulo da largura.
+ * Camada ATRÁS das peças. Segmentos vêm em metros.
+ */
+function Circulation({ scene }: { scene: RestaurantScene }) {
+  const segs = corridorAnalysis(scene)
+  return (
+    <g className="circ-layer">
+      {segs.map((s, i) => {
+        const x1 = s.x1 * SCALE
+        const y1 = s.y1 * SCALE
+        const x2 = s.x2 * SCALE
+        const y2 = s.y2 * SCALE
+        const mx = (x1 + x2) / 2
+        const my = (y1 + y2) / 2
+        const vert = Math.abs(x2 - x1) < Math.abs(y2 - y1)
+        return (
+          <g key={i} className={`circ ${s.level}`}>
+            <line className="circ-l" x1={x1} y1={y1} x2={x2} y2={y2} />
+            <text
+              className="circ-t"
+              x={mx + (vert ? 8 : 0)}
+              y={my - (vert ? 0 : 4)}
+              fontSize={9}
+              textAnchor={vert ? 'start' : 'middle'}
+            >
+              {fmt(s.gap)}
+            </text>
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
+/**
+ * (#2) Zonas de trabalho/segurança por peça: retângulos translúcidos de
+ * workZones(item) — work (azul-esverdeado), hot (vermelho), door (azul).
+ * Clipadas ao polígono da sala (rclip).
+ */
+function WorkZones({ items }: { items: Item[] }) {
+  return (
+    <g className="wz-layer" clipPath="url(#rclip)">
+      {items.flatMap((it) =>
+        workZones(it).map((z, i) => (
+          <rect
+            key={`${it.id}-${i}`}
+            className={`wz wz-${z.kind}`}
+            x={z.x * SCALE}
+            y={z.y * SCALE}
+            width={z.w * SCALE}
+            height={z.h * SCALE}
+          />
+        )),
+      )}
+    </g>
+  )
+}
+
+/**
+ * (#4) Cotas peça↔vizinho (dimsToNeighbors) com seleção: linha + setas (marker ah)
+ * + valor; e o giro NBR 9050: círculo Ø TURN_CIRCLE tracejado se couber à frente
+ * da peça (lado +y). `front` = +y. Severidade dá a cor da cota.
+ */
+function NeighborDims({
+  item,
+  items,
+  poly,
+}: {
+  item: Item
+  items: Item[]
+  poly: Array<[number, number]>
+}) {
+  const dims = dimsToNeighbors(item, items, poly)
+  const b = bbox(poly)
+  // Giro NBR 9050: tenta à frente da peça (+y); se não couber, recua para o FOH.
+  const r = TURN_CIRCLE / 2
+  const cxTurn = item.x + item.width / 2
+  const frontY = item.y + item.depth
+  const fitsFront = frontY + TURN_CIRCLE <= b.maxY + 1e-6
+  const cyTurn = fitsFront ? frontY + r : b.maxY - r
+  const turnFits = cyTurn - r >= b.minY - 1e-6 && cyTurn + r <= b.maxY + 1e-6
+  return (
+    <g className="ndim-layer">
+      {dims.map((d, i) => {
+        const x1 = d.x1 * SCALE
+        const y1 = d.y1 * SCALE
+        const x2 = d.x2 * SCALE
+        const y2 = d.y2 * SCALE
+        const vert = Math.abs(x2 - x1) < Math.abs(y2 - y1)
+        const mx = (x1 + x2) / 2
+        const my = (y1 + y2) / 2
+        return (
+          <g key={i} className={`ndim ${d.level}`}>
+            <line className="ndim-l" x1={x1} y1={y1} x2={x2} y2={y2} markerStart="url(#ah)" markerEnd="url(#ah)" />
+            <text
+              className="ndim-t"
+              x={mx + (vert ? 8 : 0)}
+              y={my - (vert ? 0 : 5)}
+              fontSize={9.5}
+              textAnchor={vert ? 'start' : 'middle'}
+            >
+              {fmt(d.value)}
+            </text>
+          </g>
+        )
+      })}
+      {turnFits && (
+        <g className="turn-circle">
+          <circle cx={cxTurn * SCALE} cy={cyTurn * SCALE} r={r * SCALE} />
+          <text className="turn-t" x={cxTurn * SCALE} y={cyTurn * SCALE + 3} fontSize={9} textAnchor="middle">
+            giro Ø {fmt(TURN_CIRCLE)}
+          </text>
+        </g>
+      )}
+    </g>
+  )
+}
+
+/**
+ * (#3) Guias de alinhamento durante o arraste: linhas tracejadas rosso
+ * (non-scaling-stroke). Posições/extensões em metros.
+ */
+function Guides({ guides }: { guides: AlignGuide[] }) {
+  return (
+    <g className="guide-layer">
+      {guides.map((gd, i) => {
+        const p = gd.pos * SCALE
+        const a = gd.from * SCALE
+        const z = gd.to * SCALE
+        return gd.orient === 'v' ? (
+          <line key={i} className="align-guide" x1={p} y1={a} x2={p} y2={z} />
+        ) : (
+          <line key={i} className="align-guide" x1={a} y1={p} x2={z} y2={p} />
+        )
+      })}
+    </g>
+  )
+}
+
 /** Marcadores de instalação (elétrica/hidráulica/esgoto/gás/exaustão) por peça. */
 function UtilMarks({ item }: { item: Item }) {
   const u = utilsFor(item.type)
@@ -343,6 +583,9 @@ export function SceneLayers({
   onItemPointerDown,
   onHandleDown,
   onRotate,
+  showCirculation = false,
+  showWorkZones = false,
+  guides,
 }: {
   scene: RestaurantScene
   selectedId: string | null
@@ -352,6 +595,12 @@ export function SceneLayers({
   onItemPointerDown: (e: ReactPointerEvent, it: Item) => void
   onHandleDown: (e: ReactPointerEvent, it: Item, h: Handle) => void
   onRotate: (e: ReactPointerEvent, it: Item) => void
+  /** desenha corridorAnalysis(scene) atrás das peças (padrão: desligado) */
+  showCirculation?: boolean
+  /** desenha workZones de cada peça (faixas translúcidas) (padrão: desligado) */
+  showWorkZones?: boolean
+  /** linhas-guia de alinhamento durante o arraste */
+  guides?: AlignGuide[]
 }) {
   const poly = scene.room.polygon
   const points = poly.map((p) => `${p[0] * SCALE},${p[1] * SCALE}`).join(' ')
@@ -376,6 +625,8 @@ export function SceneLayers({
       <Grid poly={poly} clipId="rclip" />
       <FohBoh scene={scene} />
       <Zones scene={scene} />
+      {showCirculation && <Circulation scene={scene} />}
+      {showWorkZones && <WorkZones items={scene.items} />}
       <g className="door-layer">
         {ordered
           .filter((it) => it.type === 'porta')
@@ -402,7 +653,9 @@ export function SceneLayers({
       </g>
       <Cotas scene={scene} />
       {sel && isSolid(sel) && <Clearances item={sel} items={scene.items} poly={poly} />}
+      {sel && isSolid(sel) && <NeighborDims item={sel} items={scene.items} poly={poly} />}
       {sel && <Overlay item={sel} zoom={zoom} onHandleDown={onHandleDown} onRotate={onRotate} />}
+      {guides && guides.length > 0 && <Guides guides={guides} />}
     </>
   )
 }

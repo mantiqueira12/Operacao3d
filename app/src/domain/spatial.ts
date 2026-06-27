@@ -10,7 +10,8 @@
  * Premissa de `clearances`: a casca é retilínea/ortogonal (retângulo ou "L"),
  * como nas plantas reais do projeto. As paredes são as arestas do polígono.
  */
-import type { Item } from './types'
+import type { Item, RestaurantScene } from './types'
+import { clearanceFor } from './catalog'
 
 const EPS = 1e-3
 
@@ -372,4 +373,355 @@ export function clampToPolygon(
     cy = pick.y
   }
   return { x: cx, y: cy }
+}
+
+/* =====================================================================
+   PLANTA NÍVEL ARQUITETO — circulação, zonas de trabalho, cotas e
+   conformidade (sanitária SP + NBR 9050). Tudo puro, unidades em metros.
+   ===================================================================== */
+
+/** Severidade de circulação/cota (verde/laranja/vermelho). */
+export type Severity = 'ok' | 'warn' | 'bad'
+
+// Limiares de circulação (m) — sanitária SP / NBR 9050.
+/** Corredor confortável (ideal de projeto). */
+export const CIRC_IDEAL = 0.9
+/** Mínimo aceitável: abaixo disso é `warn`. */
+export const CIRC_MIN = 0.8
+/** Crítico: abaixo disso é `bad`. */
+export const CIRC_CRIT = 0.6
+/** Piso de corredor: abaixo disso (< 0,20 m) o vão é ADJACÊNCIA — equipamentos
+    essencialmente lado a lado —, não um corredor de circulação; fica fora da análise
+    e do checklist para não soar alarme falso com a folga incidental entre peças
+    vizinhas. De 0,20 m até CIRC_MIN é passagem estreita (sinalizada). */
+export const CORRIDOR_FLOOR = 0.2
+/** Diâmetro do giro acessível (cadeira de rodas), NBR 9050. */
+export const TURN_CIRCLE = 1.5
+
+/** Formata metros em pt-BR (vírgula decimal) para os textos do checklist. */
+const fmtM = (v: number) => v.toFixed(2).replace('.', ',')
+
+/** Classifica uma folga de circulação pelos limiares CIRC_*. */
+export function classifyCirc(gap: number): Severity {
+  if (gap < CIRC_CRIT) return 'bad'
+  if (gap < CIRC_MIN) return 'warn'
+  return 'ok'
+}
+
+/* ---------- (1) circulação na planta inteira ---------- */
+
+/** Segmento de corredor (vão livre) entre duas peças/peça-parede, em metros. */
+export interface CorridorSeg {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  /** vão livre do corredor (m) */
+  gap: number
+  level: Severity
+}
+
+/** Chave de deduplicação: arredonda para 5 cm e ordena os extremos. */
+function segKey(x1: number, y1: number, x2: number, y2: number): string {
+  const q = (v: number) => Math.round(v / 0.05) * 0.05
+  const a: [number, number] = [q(x1), q(y1)]
+  const b: [number, number] = [q(x2), q(y2)]
+  // ordena os extremos para que A→B e B→A colidam na mesma chave
+  const [p, qq] = a[0] < b[0] || (a[0] === b[0] && a[1] <= b[1]) ? [a, b] : [b, a]
+  return `${p[0].toFixed(2)},${p[1].toFixed(2)}|${qq[0].toFixed(2)},${qq[1].toFixed(2)}`
+}
+
+/**
+ * Circulação da planta inteira: junta as folgas (`clearances`) de TODAS as peças
+ * sólidas — vãos peça-vizinho e peça-parede — deduplica segmentos próximos
+ * (quantização de 5 cm + extremos ordenados) e classifica pela largura do vão.
+ * Foca os corredores de circulação: ignora vãos encostados (já filtrados por
+ * `clearances`) e o pior caso por par (mantém o menor gap quando há duplicata).
+ */
+export function corridorAnalysis(scene: RestaurantScene): CorridorSeg[] {
+  const poly = scene.room.polygon
+  const items = scene.items
+  const solids = items.filter(isSolid)
+  const best = new Map<string, CorridorSeg>()
+  for (const it of solids) {
+    for (const c of clearances(it, items, poly)) {
+      if (c.gap < CORRIDOR_FLOOR) continue // adjacência entre peças, não corredor
+      const seg: CorridorSeg = {
+        x1: c.from.x,
+        y1: c.from.y,
+        x2: c.to.x,
+        y2: c.to.y,
+        gap: c.gap,
+        level: classifyCirc(c.gap),
+      }
+      const key = segKey(seg.x1, seg.y1, seg.x2, seg.y2)
+      const prev = best.get(key)
+      // mantém o segmento de menor vão (corredor mais apertado domina)
+      if (!prev || seg.gap < prev.gap) best.set(key, seg)
+    }
+  }
+  return [...best.values()]
+}
+
+/* ---------- (2) zonas de trabalho / segurança por peça ---------- */
+
+export type WorkZoneKind = 'work' | 'hot' | 'door'
+
+/** Retângulo de zona operacional/segurança de uma peça, em metros. */
+export interface WorkZone {
+  x: number
+  y: number
+  w: number
+  h: number
+  kind: WorkZoneKind
+}
+
+/**
+ * Zonas de trabalho/segurança de uma peça (metadata por tipo vem do catálogo).
+ *  - `work` (~0,90 m) e `door` (~0,60 m): faixa à FRENTE (lado +y), largura da peça.
+ *  - `hot` (~0,40 m): moldura de afastamento em VOLTA da peça (forno/gás).
+ * Tipos sem folga mapeada não projetam zona (lista vazia).
+ */
+export function workZones(item: Item): WorkZone[] {
+  const meta = clearanceFor(item.type)
+  if (!meta) return []
+  const x = item.x
+  const y = item.y
+  const w = item.width
+  const d = item.depth
+  if (meta.kind === 'hot') {
+    // moldura em volta: bbox expandida pela profundidade da folga
+    const g = meta.depth
+    return [{ x: x - g, y: y - g, w: w + 2 * g, h: d + 2 * g, kind: 'hot' }]
+  }
+  // work / door: faixa à frente (lado +y), mesma largura da peça
+  return [{ x, y: y + d, w, h: meta.depth, kind: meta.kind }]
+}
+
+/* ---------- (4) cotas da peça aos vizinhos/paredes ---------- */
+
+/** Cota dirigida da peça ao vizinho/parede mais próximo (uma por direção). */
+export interface NeighborDim {
+  x1: number
+  y1: number
+  x2: number
+  y2: number
+  /** distância livre (m) */
+  value: number
+  level: Severity
+}
+
+/**
+ * Cotas da peça aos vizinhos/paredes nas 4 direções (cima/baixo/esq/dir): a menor
+ * folga em cada lado, com endpoints, valor (m) e severidade pelos limiares CIRC_*.
+ * Reutiliza `clearances` (mesma lógica de vão e recorte do "L"). Lados encostados
+ * (< TOUCH) são omitidos, exatamente como em `clearances`.
+ */
+export function dimsToNeighbors(
+  item: Item,
+  items: Item[],
+  poly: Array<[number, number]>,
+): NeighborDim[] {
+  return clearances(item, items, poly).map((c) => ({
+    x1: c.from.x,
+    y1: c.from.y,
+    x2: c.to.x,
+    y2: c.to.y,
+    value: c.gap,
+    level: classifyCirc(c.gap),
+  }))
+}
+
+/* ---------- (5) checklist de conformidade ---------- */
+
+export type ComplianceSeverity = 'info' | 'warn' | 'error'
+
+/** Item do checklist de conformidade (sanitária SP + NBR 9050). */
+export interface ComplianceIssue {
+  id: string
+  severity: ComplianceSeverity
+  title: string
+  detail: string
+  /** ids das peças envolvidas */
+  itemIds: string[]
+}
+
+/** Distância entre as bordas (footprints) de duas peças no plano (0 se sobrepõem). */
+function edgeDistance(a: Item, b: Item): number {
+  const dx = Math.max(a.x - (b.x + b.width), b.x - (a.x + a.width), 0)
+  const dy = Math.max(a.y - (b.y + b.depth), b.y - (a.y + a.depth), 0)
+  return Math.hypot(dx, dy)
+}
+
+/**
+ * Maior círculo livre (diâmetro, m) que cabe numa janela do FOH sem tocar peças
+ * sólidas nem sair da casca. Heurística: varre uma grade fina de centros candidatos
+ * dentro do FOH e mede a folga até a peça/borda mais próxima. Suficiente para
+ * verificar o giro Ø1,50 m da NBR 9050 (não precisa do círculo ótimo exato).
+ */
+function largestTurnCircle(scene: RestaurantScene): number {
+  const poly = scene.room.polygon
+  const ys = poly.map((p) => p[1])
+  const xs = poly.map((p) => p[0])
+  const maxY = Math.max(...ys)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const fohDepth = scene.room.fohDepth ?? 0
+  const fohTop = maxY - fohDepth // limite superior (y) do FOH
+  const solids = scene.items.filter(isSolid)
+  const step = 0.1
+  let best = 0
+  for (let cx = minX; cx <= maxX + EPS; cx += step) {
+    for (let cy = fohTop; cy <= maxY + EPS; cy += step) {
+      if (!pointInPolygon(cx, cy, poly)) continue
+      // raio até a peça sólida mais próxima (clamp do centro à bbox da peça)
+      let r = Infinity
+      for (const o of solids) {
+        const nx = Math.max(o.x, Math.min(cx, o.x + o.width))
+        const ny = Math.max(o.y, Math.min(cy, o.y + o.depth))
+        r = Math.min(r, Math.hypot(cx - nx, cy - ny))
+      }
+      // raio até as paredes ortogonais da bbox do FOH (esq/dir/frente).
+      // O lado do BOH (fohTop) não é parede: a circulação segue para a cozinha,
+      // e o painel divisor — quando presente — já entra como peça sólida acima.
+      r = Math.min(r, cx - minX, maxX - cx, maxY - cy)
+      if (r > best) best = r
+    }
+  }
+  return best * 2
+}
+
+/**
+ * Checklist de conformidade da cena (sanitária estadual SP — Portaria CVS 5/2013 —
+ * e acessibilidade NBR 9050:2020). Cada item cita a norma no `detail` e lista as
+ * peças envolvidas. Severidades: `error` (não conforme), `warn` (atenção), `info`.
+ */
+export function complianceChecks(scene: RestaurantScene): ComplianceIssue[] {
+  const out: ComplianceIssue[] = []
+  const items = scene.items
+  const solids = items.filter(isSolid)
+
+  // (a) corredores abaixo do mínimo de circulação
+  const corridors = corridorAnalysis(scene)
+  const bad = corridors.filter((c) => c.level === 'bad')
+  const warn = corridors.filter((c) => c.level === 'warn')
+  if (bad.length) {
+    out.push({
+      id: 'circ-critica',
+      severity: 'error',
+      title: 'Corredor de circulação crítico',
+      detail: `Há ${bad.length} vão(s) abaixo de ${fmtM(CIRC_CRIT)} m. A circulação interna de cozinha deve permitir passagem segura (CVS 5/2013); o mínimo de projeto adotado é ${fmtM(CIRC_MIN)} m.`,
+      itemIds: [],
+    })
+  } else if (warn.length) {
+    out.push({
+      id: 'circ-apertada',
+      severity: 'warn',
+      title: 'Corredor de circulação apertado',
+      detail: `Há ${warn.length} vão(s) entre ${fmtM(CIRC_CRIT)} e ${fmtM(CIRC_MIN)} m. Recomenda-se ${fmtM(CIRC_IDEAL)} m para circulação confortável (CVS 5/2013).`,
+      itemIds: [],
+    })
+  }
+
+  // (b) giro acessível Ø1,50 m no FOH (área do cliente) — NBR 9050
+  if ((scene.room.fohDepth ?? 0) > 0) {
+    const turn = largestTurnCircle(scene)
+    if (turn < TURN_CIRCLE - EPS) {
+      out.push({
+        id: 'giro-foh',
+        severity: 'warn',
+        title: 'Falta área de giro Ø1,50 m no atendimento',
+        detail: `O maior círculo livre no FOH é Ø${fmtM(turn)} m; a NBR 9050 exige Ø${fmtM(TURN_CIRCLE)} m para manobra de cadeira de rodas (giro de 360°).`,
+        itemIds: [],
+      })
+    }
+  }
+
+  // (c) forno a gás: afastamento (hot zone) livre de outras peças + exaustão
+  const fornos = solids.filter((it) => it.type === 'forno')
+  for (const forno of fornos) {
+    const zone = workZones(forno).find((z) => z.kind === 'hot')
+    if (zone) {
+      const intruders = solids.filter(
+        (o) =>
+          o.id !== forno.id &&
+          o.x < zone.x + zone.w - EPS &&
+          o.x + o.width > zone.x + EPS &&
+          o.y < zone.y + zone.h - EPS &&
+          o.y + o.depth > zone.y + EPS,
+      )
+      if (intruders.length) {
+        out.push({
+          id: `forno-afastamento-${forno.id}`,
+          severity: 'error',
+          title: 'Forno (gás) sem afastamento de segurança',
+          detail: `Equipamento de cocção a gás exige afastamento livre (~0,40 m) e exaustão/coifa sobre o ponto (CVS 5/2013, NR-13/NBR 14518). Há ${intruders.length} peça(s) dentro da zona de calor.`,
+          itemIds: [forno.id, ...intruders.map((o) => o.id)],
+        })
+      }
+    }
+  }
+
+  // (d) higiene: pia de lavagem distante do preparo/montagem (cruzamento de fluxo)
+  const pias = solids.filter((it) => it.type === 'pia')
+  const preps = solids.filter((it) => it.type === 'prep' || it.type === 'montagem')
+  if (pias.length && preps.length) {
+    let nearest = Infinity
+    let pair: [string, string] | null = null
+    for (const pia of pias) {
+      for (const prep of preps) {
+        const d = edgeDistance(pia, prep)
+        if (d < nearest) {
+          nearest = d
+          pair = [pia.id, prep.id]
+        }
+      }
+    }
+    if (pair && nearest > 2.0 + EPS) {
+      out.push({
+        id: 'pia-distante-preparo',
+        severity: 'warn',
+        title: 'Pia distante da bancada de preparo',
+        detail: `A pia de higienização mais próxima do preparo está a ${fmtM(nearest)} m. Boas práticas (CVS 5/2013) pedem lavatório acessível junto à manipulação para evitar contaminação cruzada.`,
+        itemIds: pair,
+      })
+    }
+  }
+
+  // (e) ausência de pia/lavatório na cozinha (BOH) — higiene obrigatória
+  if (!pias.length && (preps.length || solids.some((it) => it.type === 'forno'))) {
+    out.push({
+      id: 'sem-pia',
+      severity: 'error',
+      title: 'Cozinha sem lavatório/pia',
+      detail: 'Estabelecimento de manipulação de alimentos exige lavatório exclusivo para higienização das mãos e utensílios na área de produção (CVS 5/2013).',
+      itemIds: [],
+    })
+  }
+
+  // (f) peças fora da casca (layout inválido) — informativo de bloqueio
+  const oob = [...outOfBoundsSet(items, scene.room.polygon)]
+  if (oob.length) {
+    out.push({
+      id: 'fora-da-casca',
+      severity: 'error',
+      title: 'Peça fora dos limites da planta',
+      detail: `${oob.length} peça(s) ultrapassam o perímetro/recorte do espaço. Reposicione dentro da casca antes de prosseguir.`,
+      itemIds: oob,
+    })
+  }
+
+  // (g) colisões volumétricas remanescentes — informativo
+  const cset = [...collisionSet(items)]
+  if (cset.length) {
+    out.push({
+      id: 'colisao',
+      severity: 'warn',
+      title: 'Sobreposição de equipamentos',
+      detail: `${cset.length} peça(s) ocupam o mesmo volume. Verifique empilhamento intencional ou ajuste o layout.`,
+      itemIds: cset,
+    })
+  }
+
+  return out
 }

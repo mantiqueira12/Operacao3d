@@ -1,0 +1,41 @@
+/* =====================================================================
+   Painel de Conformidade (sanitária SP + NBR 9050) — rail direita.
+   Estilos próprios do Planner (interação); não toca planner.css.
+   Cores semânticas: error = vermelho · warn = laranja · info = neutro.
+   ===================================================================== */
+
+.conf { padding: 8px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+
+.conf-summary { display: flex; gap: 6px; flex-wrap: wrap; }
+.conf-pill {
+  font-family: var(--mono, 'IBM Plex Mono', monospace); font-size: 10px; font-weight: 700;
+  letter-spacing: 0.02em; padding: 2px 8px; border-radius: var(--r-pill, 20px);
+}
+.conf-pill.error { background: rgba(226, 0, 15, 0.10); color: var(--rosso, #e2000f); }
+.conf-pill.warn { background: rgba(201, 123, 0, 0.12); color: #c97b00; }
+
+.conf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+
+.conf-item {
+  width: 100%; display: flex; align-items: flex-start; gap: 8px; text-align: left;
+  background: #fff; border: 1px solid var(--line2, #d9d3c4); border-left-width: 3px;
+  border-radius: 7px; padding: 8px 10px; cursor: pointer; transition: 0.12s;
+}
+.conf-item:hover:not(:disabled) { box-shadow: var(--sh-card, 0 4px 12px -6px rgba(26, 26, 26, 0.35)); transform: translateY(-1px); }
+.conf-item:disabled { cursor: default; }
+.conf-item.error { border-left-color: var(--rosso, #e2000f); }
+.conf-item.warn { border-left-color: #c97b00; }
+.conf-item.info { border-left-color: var(--line2, #d9d3c4); }
+
+.conf-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; margin-top: 4px; }
+.conf-item.error .conf-dot { background: var(--rosso, #e2000f); }
+.conf-item.warn .conf-dot { background: #c97b00; }
+.conf-item.info .conf-dot { background: var(--muted, #9a9284); }
+
+.conf-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.conf-title { font-size: 11.5px; font-weight: 700; color: var(--inch, #1a1a1a); line-height: 1.25; }
+.conf-item.error .conf-title { color: var(--rosso, #e2000f); }
+.conf-detail { font-size: 10.5px; color: var(--ink-soft, #6f6857); line-height: 1.35; }
+
+.conf-restore { width: 100%; margin-top: 4px; color: var(--ink-soft, #6f6857); border-color: var(--line2, #d9d3c4); }
+.conf-restore:hover { background: var(--ink-soft, #6f6857); color: #fff; border-color: var(--ink-soft, #6f6857); }

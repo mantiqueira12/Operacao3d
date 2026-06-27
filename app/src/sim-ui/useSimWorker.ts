@@ -3,8 +3,8 @@
    start/pause/reset/runFull. O worker roda fora da thread da UI. */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DAY_END, type Frame, type SceneSnapshot, type SimKPIs } from '../sim/engine'
-import type { WorkerRequest, WorkerResponse } from '../sim/worker-core'
+import { DAY_END, type SimKPIs } from '../sim/engine'
+import type { EnrichedFrame, EnrichedScene, WorkerRequest, WorkerResponse } from '../sim/worker-core'
 import type { SceneItem, SimConfig } from '../sim/types'
 
 export type SimStatus = 'idle' | 'playing' | 'done'
@@ -12,8 +12,8 @@ export type SimStatus = 'idle' | 'playing' | 'done'
 type Command = WorkerRequest | { type: 'play'; speed?: number; fps?: number; dt?: number } | { type: 'pause' }
 
 export interface SimWorkerApi {
-  scene: SceneSnapshot | null
-  frame: Frame | null
+  scene: EnrichedScene | null
+  frame: EnrichedFrame | null
   kpis: SimKPIs | null
   status: SimStatus
   start: (speed?: number) => void
@@ -28,8 +28,8 @@ export function useSimWorker(
   polygon?: Array<[number, number]>,
 ): SimWorkerApi {
   const workerRef = useRef<Worker | null>(null)
-  const [scene, setScene] = useState<SceneSnapshot | null>(null)
-  const [frame, setFrame] = useState<Frame | null>(null)
+  const [scene, setScene] = useState<EnrichedScene | null>(null)
+  const [frame, setFrame] = useState<EnrichedFrame | null>(null)
   const [kpis, setKpis] = useState<SimKPIs | null>(null)
   const [status, setStatus] = useState<SimStatus>('idle')
   const statusRef = useRef<SimStatus>('idle')

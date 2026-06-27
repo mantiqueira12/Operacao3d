@@ -20,6 +20,19 @@ function heightFor(type: string): number {
   return HEIGHTS[type] ?? 0.9
 }
 
+/**
+ * Cor de acento por-tipo (sobrepõe a cor da categoria ao inserir do catálogo).
+ * Portado de DEFAULT_SCENE do protótipo (planner.js:86-87): batedeira e estufa têm
+ * acento marrom/laranja distinto do preto da cozinha. Mantém CATEGORY_COLORS como fallback.
+ */
+const ACCENT_COLORS: Record<string, string> = {
+  batedeira: '#8A5A2B',
+  estufa: '#B5781F',
+}
+function accentFor(type: string, category: ItemCategory): string {
+  return ACCENT_COLORS[type] ?? CATEGORY_COLORS[category]
+}
+
 /** Instalações por tipo (pontos de execução: elétrica/hidráulica/esgoto/gás/exaustão). */
 const UTILS: Record<string, UtilityTag[]> = {
   forno: ['gas', 'eletrica', 'exaustao'],
@@ -43,6 +56,56 @@ export const UTILITY_META: Record<UtilityTag, { short: string; label: string; co
   esgoto: { short: 'S', label: 'Esgoto', color: '#6B5B95' },
   gas: { short: 'G', label: 'Gás', color: '#E2000F' },
   exaustao: { short: 'X', label: 'Exaustão', color: '#7A7A7A' },
+}
+
+/* ---------- folgas operacionais (zonas de trabalho/segurança) ---------- */
+
+/**
+ * Tipo de zona de folga que uma peça projeta no piso (consumido por `workZones`
+ * em domain/spatial). Aditivo ao catálogo — não altera o modelo de `Item`.
+ *   work → faixa de operação à frente do equipamento (atendente/cozinheiro em pé).
+ *   hot  → afastamento de calor/segurança em volta (forno, gás, char-broiler).
+ *   door → vão de abertura de porta/tampa à frente (geladeira, estufa, bibite).
+ */
+export type ClearanceKind = 'work' | 'hot' | 'door'
+
+/** Metadados de folga por tipo: a natureza da zona e sua profundidade (m). */
+export interface ClearanceMeta {
+  kind: ClearanceKind
+  /** profundidade da zona, em metros */
+  depth: number
+}
+
+/** Profundidades de referência (m): sanitária SP / NBR 9050 e boas práticas de cozinha. */
+const WORK_DEPTH = 0.9 // faixa de operação confortável à frente da bancada
+const HOT_DEPTH = 0.4 // afastamento de calor/combustível em volta do forno
+const DOOR_DEPTH = 0.6 // profundidade de abertura de porta de geladeira/estufa
+
+/**
+ * Folga operacional por tipo. Quem não estiver mapeado não projeta zona
+ * (`clearanceFor` devolve `null`) — marcadores e estruturas (porta, extintor,
+ * lixeira, apoio, estoque, wall, painel) não têm faixa de trabalho dedicada.
+ */
+const CLEARANCE: Record<string, ClearanceMeta> = {
+  // calor / gás / segurança — afastamento em volta
+  forno: { kind: 'hot', depth: HOT_DEPTH },
+  // abertura de porta/tampa — vão à frente
+  geladeira: { kind: 'door', depth: DOOR_DEPTH },
+  bibite: { kind: 'door', depth: DOOR_DEPTH },
+  estufa: { kind: 'door', depth: DOOR_DEPTH },
+  vitrine: { kind: 'door', depth: DOOR_DEPTH },
+  // faixa de operação à frente — atendente / cozinheiro em pé
+  caixa: { kind: 'work', depth: WORK_DEPTH },
+  prep: { kind: 'work', depth: WORK_DEPTH },
+  montagem: { kind: 'work', depth: WORK_DEPTH },
+  pia: { kind: 'work', depth: WORK_DEPTH },
+  balcao: { kind: 'work', depth: WORK_DEPTH },
+  batedeira: { kind: 'work', depth: WORK_DEPTH },
+}
+
+/** Folga operacional de um tipo (ou `null` se o tipo não projeta zona). */
+export function clearanceFor(type: string): ClearanceMeta | null {
+  return CLEARANCE[type] ?? null
 }
 
 /** Dados crus do catálogo, por categoria (portado de CATALOG do protótipo). */
@@ -83,7 +146,7 @@ export const CATALOG: Record<ItemCategory, CatalogEntry[]> = Object.fromEntries(
       ...e,
       category: cat,
       height: heightFor(e.type),
-      color: CATEGORY_COLORS[cat],
+      color: accentFor(e.type, cat),
       utils: utilsForType(e.type),
     })),
   ]),
@@ -94,8 +157,33 @@ const INDEX: Map<string, CatalogEntry> = new Map(
   Object.values(CATALOG).flat().map((e) => [e.type, e]),
 )
 
+/**
+ * Registro de modelos personalizados ("Meus modelos"), criados pelo usuário.
+ * Aditivo e separado do CATALOG base: a UI registra/limpa os custom aqui para que
+ * `getCatalogEntry`/`createItem` resolvam o tipo custom (renderização 2D/3D cai no
+ * fallback genérico por arquétipo). A persistência fica na camada de UI (StorageAdapter),
+ * mantendo o domínio puro. Portado de regCustom/CUSTOM do protótipo (planner.js:57-69).
+ */
+const CUSTOM_INDEX: Map<string, CatalogEntry> = new Map()
+
+/** Registra (ou atualiza) um modelo custom no índice de lookup. */
+export function registerCustomEntry(entry: CatalogEntry): void {
+  CUSTOM_INDEX.set(entry.type, entry)
+}
+
+/** Remove um modelo custom do índice. */
+export function unregisterCustomEntry(type: string): void {
+  CUSTOM_INDEX.delete(type)
+}
+
+/** Substitui o conjunto inteiro de modelos custom (usado ao recarregar do storage). */
+export function setCustomEntries(entries: CatalogEntry[]): void {
+  CUSTOM_INDEX.clear()
+  for (const e of entries) CUSTOM_INDEX.set(e.type, e)
+}
+
 export function getCatalogEntry(type: string): CatalogEntry | undefined {
-  return INDEX.get(type)
+  return INDEX.get(type) ?? CUSTOM_INDEX.get(type)
 }
 
 /** Instalações demandadas por um tipo (vazio se não mapeado). */

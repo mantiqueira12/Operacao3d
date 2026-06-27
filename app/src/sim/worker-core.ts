@@ -1,8 +1,39 @@
 /* Núcleo do Web Worker da simulação — puro e testável (sem dependência de `self`).
    O shell `worker.ts` apenas conecta self.onmessage/postMessage a este controller. */
 
-import { DAY_END, type Frame, type SceneSnapshot, SimEngine, type SimKPIs } from './engine'
-import type { SceneItem, SimConfig } from './types'
+import {
+  DAY_END,
+  type Frame,
+  type FrameCustomer,
+  type FrameOperator,
+  type SceneSnapshot,
+  SimEngine,
+  type SimKPIs,
+  type StationSnapshot,
+} from './engine'
+import type {
+  FrameCustomerExtra,
+  FrameMeta,
+  FrameOperatorExtra,
+  SceneItem,
+  SimConfig,
+} from './types'
+
+/* ----------------------------------------------------------- snapshot enriquecido
+   Tipos ADITIVOS: o frame/cena ganham campos JÁ calculados pelo motor (lidos das
+   propriedades públicas do engine), sem mexer na lógica do DES. O cálculo de cor
+   por agente fica na vista. */
+export type EnrichedFrameCustomer = FrameCustomer & FrameCustomerExtra
+export type EnrichedFrameOperator = FrameOperator & FrameOperatorExtra
+export interface EnrichedFrame extends Frame {
+  customers: EnrichedFrameCustomer[]
+  operators: EnrichedFrameOperator[]
+  meta: FrameMeta
+}
+export type EnrichedStation = StationSnapshot & { unreachable?: boolean }
+export interface EnrichedScene extends SceneSnapshot {
+  stations: EnrichedStation[]
+}
 
 /* ----------------------------------------------------------- protocolo */
 export type WorkerRequest =
@@ -13,13 +44,57 @@ export type WorkerRequest =
   | { type: 'snapshot' }
 
 export type WorkerResponse =
-  | { type: 'ready'; scene: SceneSnapshot; simTime: number }
+  | { type: 'ready'; scene: EnrichedScene; simTime: number }
   | { type: 'kpis'; kpis: SimKPIs; simTime: number }
-  | { type: 'frame'; frame: Frame }
+  | { type: 'frame'; frame: EnrichedFrame }
   | { type: 'done'; kpis: SimKPIs }
   | { type: 'error'; message: string }
 
 export type PostFn = (msg: WorkerResponse) => void
+
+/* Enriquece o frame do motor com campos por-agente já calculados (impaciência,
+   estado do operador). Lê `eng.customers`/`eng.operators` (públicos) por id/idx. */
+function enrichFrame(eng: SimEngine): EnrichedFrame {
+  const base = eng.snapshot()
+  const cById = new Map(eng.customers.map((c) => [c.id, c]))
+  const oByIdx = new Map(eng.operators.map((o) => [o.idx, o]))
+  return {
+    ...base,
+    customers: base.customers.map((fc) => {
+      const c = cById.get(fc.id)
+      return {
+        ...fc,
+        tArr: c ? c.tArr : 0,
+        tSS: c ? c.tSS : null,
+        orderNum: c ? c.orderNum : null,
+        served: !!(c && c.served),
+      }
+    }),
+    operators: base.operators.map((fo) => {
+      const o = oByIdx.get(fo.idx)
+      return {
+        ...fo,
+        busyState: o ? o.busyState : undefined,
+        tag: o ? o.tag : undefined,
+        fixedEq: o ? o.fixedEq : '',
+      }
+    }),
+    meta: { tol: eng.cfg.tol, pickupTimeout: eng.cfg.pickupTimeout },
+  }
+}
+
+/* Enriquece a cena estática com `unreachable` por estação (já presente no engine). */
+function enrichScene(eng: SimEngine): EnrichedScene {
+  const base = eng.sceneSnapshot()
+  const stByIdScene = new Map(eng.stations.map((s) => [s.id, s]))
+  return {
+    ...base,
+    stations: base.stations.map((s) => ({
+      ...s,
+      unreachable: stByIdScene.get(s.id)?.unreachable,
+    })),
+  }
+}
 
 /* ----------------------------------------------------------- controller */
 export class SimController {
@@ -58,7 +133,7 @@ export class SimController {
 
   private init(config?: SimConfig, scene?: SceneItem[], polygon?: Array<[number, number]>) {
     this.eng = new SimEngine(config, scene, polygon)
-    this.post({ type: 'ready', scene: this.eng.sceneSnapshot(), simTime: this.eng.simTime })
+    this.post({ type: 'ready', scene: enrichScene(this.eng), simTime: this.eng.simTime })
   }
 
   /** Roda headless até `until`, emitindo KPIs a cada `kpiEvery` min simulados + `done` no fim. */
@@ -84,19 +159,19 @@ export class SimController {
       eng.simTime += dt
       eng.tick(dt)
     }
-    this.post({ type: 'frame', frame: eng.snapshot() })
+    this.post({ type: 'frame', frame: enrichFrame(eng) })
     if (withKpis) this.post({ type: 'kpis', kpis: eng.computeKPIs(), simTime: eng.simTime })
   }
 
   private reset() {
     const eng = this.ensure()
     eng.reset()
-    this.post({ type: 'ready', scene: eng.sceneSnapshot(), simTime: eng.simTime })
+    this.post({ type: 'ready', scene: enrichScene(eng), simTime: eng.simTime })
   }
 
   private snapshot() {
     const eng = this.ensure()
-    this.post({ type: 'frame', frame: eng.snapshot() })
+    this.post({ type: 'frame', frame: enrichFrame(eng) })
     this.post({ type: 'kpis', kpis: eng.computeKPIs(), simTime: eng.simTime })
   }
 }

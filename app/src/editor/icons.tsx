@@ -15,6 +15,8 @@ const PATHS: Record<string, string> = {
   dup: 'M9 9h11v11H9z M5 15V5a2 2 0 0 1 2-2h10',
   trash: 'M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14',
   save: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',
+  undo: 'M3 7v6h6M3 13a9 9 0 1 0 3-7.7L3 8',
+  redo: 'M21 7v6h-6M21 13a9 9 0 1 1-3-7.7L21 8',
 }
 
 export function Icon({ name }: { name: keyof typeof PATHS }) {
@@ -39,10 +41,24 @@ export function CatalogGlyph({ entry }: { entry: CatalogEntry }) {
   const x = (W - w) / 2
   const y = (H - h) / 2
 
+  if (entry.type === 'porta') {
+    // batente + folha + arco tracejado (planner.js:773)
+    return (
+      <svg width={W} height={H}>
+        <path d="M4,18 L4,6" stroke={entry.color} strokeWidth={1.4} fill="none" />
+        <path d="M4,6 A12,12 0 0 1 16,18" fill="none" stroke={entry.color} strokeWidth={1} strokeDasharray="3 2" />
+        <line x1={4} y1={18} x2={16} y2={18} stroke={entry.color} strokeWidth={1.4} />
+      </svg>
+    )
+  }
   if (entry.type === 'painel' || entry.type === 'wall') {
+    // barra bege com hachura diagonal (planner.js:772)
     return (
       <svg width={W} height={H}>
         <rect x={x} y={H / 2 - 3} width={w} height={6} fill="#EDE7D7" stroke="#1A1A1A" strokeWidth={1} />
+        <line x1={x + 3} y1={H / 2 + 3} x2={x + 9} y2={H / 2 - 3} stroke="#1A1A1A" strokeWidth={0.6} />
+        <line x1={x + 11} y1={H / 2 + 3} x2={x + 17} y2={H / 2 - 3} stroke="#1A1A1A" strokeWidth={0.6} />
+        <line x1={x + 19} y1={H / 2 + 3} x2={x + 25} y2={H / 2 - 3} stroke="#1A1A1A" strokeWidth={0.6} />
       </svg>
     )
   }
