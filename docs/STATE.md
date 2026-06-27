@@ -4,6 +4,15 @@
 > Mantenha curto. Última atualização: 2026-06-14.
 
 ## Agora
+- **Multi-projeto — destravar a Loja 206.** (A) o **motor de simulação lê `scene.room.polygon`**:
+  `makeGeometry(polygon)` (`sim/geometry.ts`) deriva bbox/`inShell`/`OUT` de qualquer casca,
+  threaded por `nav/engine/adapter/worker` + `useSimWorker/SimPanel` — a 206 segue **byte-a-byte
+  idêntica** (KPIs em 36 runs). Resolve a dívida #1 e o Próximo #2. (B) **Gerenciador de projetos**
+  (`ProjectManager.tsx` + fachada `useScene`: abrir/criar/renomear/duplicar/excluir; botão
+  "Projetos") sobre o `StorageAdapter`; abrir faz bump no `updatedAt` p/ 3D/Operação seguirem.
+  (C) **Painel "Sala"** (`roomShapes.ts`) edita L×P (vira retângulo). **+8 testes (111 no total);**
+  typecheck/lint/build verdes. A por agente isolado (worktree, prova de identidade da 206); B/C
+  por mim + 1 agente; revisado.
 - **Travar no "L", swing de porta e impressão da prancha.** (A) `clampToPolygon` (`spatial.ts`) prende
   o arraste de peças sólidas ao polígono — não dá mais para soltar no recorte do "L"; porta/extintor
   seguem a bbox (encostam na parede). (B) `doorSwing.ts` + `DoorSwing.tsx` desenham o arco de abertura
@@ -68,13 +77,14 @@
 - Antes: motor DES + cross-check + fundação espacial + editor 2D React.
 
 ## Próximo
-1. **Verificação visual** (rodar `npm run dev`): conferir as camadas/recursos novos — colisão,
-   fora-da-casca (âmbar), folgas ao selecionar, níveis/empilhamento, Instalações, modal "Lista"
-   (CSV), **arraste travando no "L"**, **swing de porta** (+ Inverter abertura) e **impressão**
-   (Ctrl+P → planta + folha de lista/legendas). Único passo sem cobertura automática.
-2. **Casca por-projeto** no motor (resolver dívida abaixo) p/ destravar plantas ≠ Loja 206; o 3D
-   já é por-projeto (lê `room.polygon`), só o motor de simulação ainda usa casca fixa.
-3. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
+1. **Verificação visual** (rodar `npm run dev`): camadas/recursos novos — colisão, fora-da-casca,
+   folgas, níveis, Instalações, "Lista" (CSV), trava no "L", swing de porta, impressão, **e agora
+   o gerenciador de Projetos + painel Sala**. Único passo sem cobertura automática.
+2. **Operação a fundo** — portar a UI rica do protótipo: editor de cardápio, padaria/P&L, KDS+
+   alertas, cenários+comparação, heatmap/trilhas (maior gap funcional, ~35% portado).
+3. **Editar a casca livremente** (vértices/parede ortogonal), além do retângulo W×P do painel Sala.
+4. **Animar agentes no 3D** (clientes/operadores dos `frame`s) — unir 3D + simulação.
+5. **Bug double-count** (served × balkedPickup) — decidir e corrigir.
 
 ## Dívida do port (validar com o dono antes de mudar)
 - **Contagem dupla served × balkedPickup:** se o cliente abandona a retirada (timeout) mas um
@@ -101,10 +111,11 @@
   como desenho por arraste (hoje inserem peça), render especial de porta/painel (hatch/folga),
   acabamentos (piso/parede), botões Operação/Ver 3D (navegação p/ módulos ainda não portados).
 - Zonas watermark ("COZINHA"/"02 · PREPARO") são aproximação; conferir textos do protótipo.
-- UI single-project; falta seletor de projetos (multi-projeto já no domínio/storage).
-- **Casca do motor ainda hardcoded** (Loja 206 em `sim/geometry.ts`): o `adapter` converte os
-  itens da cena, mas o motor ignora `room.polygon` (usa `inShell` fixo). Cenas com geometria
-  diferente da Loja 206 não navegam certo ainda — tornar a casca por-projeto é trabalho futuro.
+- Multi-projeto: gerenciador de Projetos + painel "Sala" ✅. Falta edição livre da casca
+  (vértices/parede); o painel Sala só faz retângulo W×P. Resize/duplicar ainda prendem à bbox.
+- ~~Casca do motor hardcoded~~ ✅ RESOLVIDO: o motor lê `scene.room.polygon` via `makeGeometry`
+  (`sim/geometry.ts`), threaded até `useSimWorker/SimPanel`; 206 idêntica. (Projeto em branco sem
+  equipamento → simulação roda sem estações; conferir comportamento — ver revisão.)
 
 ## Bloqueios
 - (nenhum)

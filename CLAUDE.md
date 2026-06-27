@@ -66,6 +66,6 @@ Python sim: `cd prototype/python-simulator && pip install -r requirements.txt &&
 
 ## Convenções de trabalho
 
-- Branch de desenvolvimento: `claude/upbeat-mendel-m8bom6`. Não criar PR sem pedido explícito.
+- Branch de desenvolvimento: `claude/happy-gauss-bhjjpk`. Não criar PR sem pedido explícito.
 - Commits claros e descritivos. Rodar/validar antes de afirmar que algo funciona.
 - Personas/agentes disponíveis e suas áreas: `docs/AGENTS.md`.
