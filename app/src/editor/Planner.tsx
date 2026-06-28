@@ -1019,6 +1019,8 @@ export default function Planner({ onOpenSim, onOpen3D }: { onOpenSim?: () => voi
           onRename={(id, n) => void ed.renameProject(id, n)}
           onDelete={(id) => void ed.deleteProject(id)}
           onDuplicate={(id) => void ed.duplicateProject(id)}
+          onExport={(id) => void ed.exportProject(id)}
+          onImport={(f) => { void ed.importProject(f); setShowProjects(false) }}
           onClose={() => setShowProjects(false)}
         />
       )}

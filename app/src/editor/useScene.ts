@@ -305,6 +305,55 @@ export function useScene() {
     [storage, projectId, refreshProjects],
   )
 
+  /** Baixa um projeto (qualquer um, por id) como arquivo .json — backup/compartilhar. */
+  const exportProject = useCallback(
+    async (id: string) => {
+      const p = await storage.get<RestaurantScene>(id)
+      if (!p) return
+      const payload = {
+        app: 'operacao3d',
+        version: 1,
+        kind: 'project',
+        name: p.name,
+        exportedAt: new Date().toISOString(),
+        scene: p.data,
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `${p.name || 'projeto'}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    },
+    [storage],
+  )
+
+  /** Cria um projeto novo a partir de um arquivo .json (export de projeto OU de cena) e o abre. */
+  const importProject = useCallback(
+    async (file: File) => {
+      try {
+        const text = await file.text()
+        const parsed = JSON.parse(text) as {
+          scene?: RestaurantScene
+          data?: RestaurantScene
+          name?: string
+        } & Partial<RestaurantScene>
+        const raw =
+          parsed.scene ?? parsed.data ?? (parsed.room && parsed.items ? (parsed as RestaurantScene) : null)
+        if (!raw || !raw.room || !Array.isArray(raw.items)) return
+        const unit = (parsed.name ?? raw.titleBlock?.unit ?? 'Projeto importado').toString()
+        const saved = await storage.save<RestaurantScene>({ name: unit, data: withUnitName(raw, unit) })
+        setScene(saved.data)
+        setProjectId(saved.id)
+        setSelectedId(null)
+        await refreshProjects()
+      } catch {
+        /* arquivo inválido — ignora */
+      }
+    },
+    [storage, refreshProjects],
+  )
+
   const selected = scene?.items.find((i) => i.id === selectedId) ?? null
 
   return {
@@ -334,5 +383,7 @@ export function useScene() {
     renameProject,
     duplicateProject,
     deleteProject,
+    exportProject,
+    importProject,
   }
 }

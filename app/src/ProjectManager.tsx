@@ -6,7 +6,7 @@
  * pronta e já ordenada (updatedAt desc) de fora.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ProjectMeta } from './storage/types'
 import './ProjectManager.css'
 
@@ -21,6 +21,8 @@ export interface ProjectManagerProps {
   onRename: (id: string, name: string) => void
   onDelete: (id: string) => void
   onDuplicate: (id: string) => void
+  onExport: (id: string) => void
+  onImport: (file: File) => void
   onClose: () => void
 }
 
@@ -39,10 +41,13 @@ export default function ProjectManager({
   onRename,
   onDelete,
   onDuplicate,
+  onExport,
+  onImport,
   onClose,
 }: ProjectManagerProps) {
   const [name, setName] = useState('')
   const [template, setTemplate] = useState<Template>('blank')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const handleCreate = () => {
     onCreate(template, name.trim() || 'Novo restaurante')
@@ -108,6 +113,22 @@ export default function ProjectManager({
               Criar
             </button>
           </div>
+          <div className="pm-create-aux">
+            <button type="button" className="pm-btn" onClick={() => fileRef.current?.click()}>
+              Importar projeto (.json)
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) onImport(f)
+                e.target.value = ''
+              }}
+            />
+          </div>
         </section>
 
         <section className="pm-list-wrap" aria-label="Lista de projetos">
@@ -133,6 +154,9 @@ export default function ProjectManager({
                       </button>
                       <button type="button" className="pm-btn" onClick={() => onDuplicate(p.id)}>
                         Duplicar
+                      </button>
+                      <button type="button" className="pm-btn" onClick={() => onExport(p.id)}>
+                        Exportar
                       </button>
                       <button type="button" className="pm-btn" onClick={() => handleRename(p)}>
                         Renomear
